@@ -1723,6 +1723,7 @@ void handleTouchRelease() {
 
   // mark this cell as no longer touched
   cellTouched(untouchedCell);
+  harmonyMelodyChanged();
 
   if (wasIgnored ||
       displayMode == displaySleep) {

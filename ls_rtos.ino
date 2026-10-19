@@ -146,6 +146,7 @@ inline void performContinuousTasks(unsigned long nowMicros) {
     harmonyPatternSharedTick();
   }
   harmonyPatternService(nowMicros);
+  harmonyLightsService();
 
   if (Device.serialMode) {
     if (!continuousSerialIO) {

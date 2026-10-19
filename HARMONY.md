@@ -13,7 +13,7 @@ What's in this build
 - **Held notes.** Notes you hold while changing the harmony glide to the same scale degree in the new harmony, using per-note pitch bend (Morph). The Harmony page can switch this to Hold, so held notes keep their pitch, or Retrigger, so they restart on their new notes.
 - **Memories.** Store and recall harmonies on the Memory column, and step through them with any switch assigned to PREV or NEXT.
 
-Not in this build yet: styles and templates, the color guidance and hints, layout options, and saving the harmony, memories and page settings across power cycles. The mockup marks which of its settings the firmware has.
+Not in this build yet: styles and templates (the lights and hints follow the mockup's Pop style for now), layout options, and saving the harmony, memories and page settings across power cycles. The mockup marks which of its settings the firmware has.
 
 Control buttons
 ---------------
@@ -39,10 +39,12 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 | 7 · Harmony | On, Off (stock layout) |
 | 9 · Mode | Compose, Perform |
 | 21 · Rows apart | 3rd, 4th, 5th, octave (in a 7-note scale) |
+| 15 · Lights | Guide, Chord, Degrees, Notes: how the playing surface is colored (see What the lights mean) |
+| 17 · Hints | On, Off: whether the harmony zone and chord pads color themselves by what would sound good next |
 | 23 · Held notes | Morph (glide to the new harmony), Hold (keep their pitch), Retrigger (restart on the new notes) |
 | 25 · Pattern | Sustain (green), Pulse (yellow), Strum (orange), Arpeggio (pink): how Perform-mode chords play. The bottom two pads pick the clock: Host (blue) or Internal (cyan) |
 
-The current choice is white. The dark columns in between are where the mockup's other settings (style, template, lights, hints and layout) will go.
+The current choice is white. The dark columns in between are where the mockup's other settings (style, template and layout) will go.
 
 ### LED check
 
@@ -117,20 +119,44 @@ Rows are counted from the bottom (row 1 is nearest you). Column 0 is the control
 What the lights mean
 --------------------
 
-| Color | Playing surface | Harmony zone |
-|---|---|---|
-| Cyan | root of the lit chord (the tonic unless a Chord pad is selected) | the key's root |
-| Green | other tones of the lit chord | notes in the scale (Key columns) |
-| Orange | altered notes | altered degrees |
-| White | — | the selected mode, chord or memory |
-| Blue | — | available alterations, chords and stored memories |
-| Yellow | — | action pads: fifths, REL, PAR, KEEP |
-| Lime, pink, magenta, red, yellow | — | the mode family (Mode column) |
-| Red | — | RESET when anything is altered |
+**Playing surface.** The Lights column on the Harmony page picks one of four schemes. In each, "the chord" is the lit chord: the tonic, the Chord pad you picked, or in Perform mode the chord the left hand is playing.
+
+| Lights | What you see |
+|---|---|
+| **Guide** (default) | cyan for the chord's root, green for its other tones, azure for color tones (good to hold), and dim red for a note a half step above a chord tone (tense if held, so pass through it) |
+| Chord | only the chord's tones (cyan root, green) and altered notes (orange) |
+| Degrees | one hue per scale degree: red, orange, yellow, green, teal, blue, violet for 1–7, bright for chord tones and dim for the rest |
+| Notes | one hue per note name around the circle of fifths, so a C is always red; bright for chord tones, dim for the rest |
+
+Notes that a harmony change brings in blink for about a second and a half.
+
+**Harmony zone, hints on.** Pads that change the harmony (keys, fifths, REL, PAR, modes, memories) show how many notes would change: white for none, green for one, yellow for two, orange for three or more (dim orange for four or more). The memory the next NEXT press would recall blinks in time with the tempo.
+
+Chord pads show what the chord does:
+
+| Color | Function |
+|---|---|
+| Azure | home |
+| Green | away (it holds the 4th degree) |
+| Orange | tension (it holds the leading tone; in modes without one, v and ♭VII) |
+| Red | the strongest pull home (the leading tone and the note a tritone above it, like V7) |
+
+They're bright for a natural next move from the current chord (up a 4th, down a 3rd or up a step) and dim otherwise, and the tonic blinks in time while a tension chord is playing. In Perform mode, holding melody notes recolors the chord pads: green when the chord contains them, azure when they add color, dim red when one clashes a half step above a chord tone. With V/x armed, the chord pads turn red. On the thumb strip, V/x stays bright and the other modifiers are dim. Alter pads show raised degrees magenta and lowered ones orange.
+
+**Hints off**, and anywhere hints don't apply:
+
+| Color | Harmony zone |
+|---|---|
+| Cyan | the key's root |
+| Green | notes in the scale (Key columns) |
+| Orange | altered degrees |
+| White | the selected mode, chord or memory |
+| Blue | available alterations, chords and stored memories |
+| Yellow | action pads: fifths, REL, PAR, KEEP |
+| Lime, pink, magenta, red, yellow | the mode family (Mode column) |
+| Red | RESET when anything is altered |
 
 In Perform mode, chord pads are blue, Smart pads lime, and the sounding chord white. On the thumb strip, V/x is orange, Borrow pink, sus4 and add9 yellow, Latch green while it's on, and an armed modifier white. The Split button is cyan in Compose mode, magenta in Perform mode and white while the Harmony page is open.
-
-The other scale tones are unlit on purpose: in this layout every pad is in the scale.
 
 Build
 -----

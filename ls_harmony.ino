@@ -177,6 +177,33 @@ byte harmonyPatVoiceNote[HARM_PAT_VOICES];
 byte harmonyPatVoiceVel[HARM_PAT_VOICES];
 unsigned long harmonyPatVoiceOff[HARM_PAT_VOICES];  // the tick at which the note ends
 unsigned long harmonyPatVoiceDue[HARM_PAT_VOICES];  // when a waiting note starts, in micros
+// lights and hints; the rules here are the mockup's Pop style, until styles are added
+#define HARM_LIGHTS_GUIDE   0                // chord root, chord tones, color tones, and notes to pass through
+#define HARM_LIGHTS_CHORD   1                // chord tones and altered notes only
+#define HARM_LIGHTS_DEGREES 2                // one hue per scale degree
+#define HARM_LIGHTS_NOTES   3                // one hue per note name, around the circle of fifths
+#define HARM_LIGHTS_COUNT   4
+#define HARM_PAGE_LIGHTS    15
+#define HARM_PAGE_HINTS     17
+#define HARM_CHANGED_MS     1400             // how long notes that a harmony change brings in pulse
+#define HARM_FN_HOME        0
+#define HARM_FN_AWAY        1
+#define HARM_FN_TENSION     2
+#define HARM_FN_PULL        3                // the strongest pull home
+#define HARM_LIGHT(color, disp)  ((byte)(((disp) << 4) | (color)))   // a color with a cell display, 0 meaning cellOn
+
+byte harmonyLights = HARM_LIGHTS_GUIDE;
+boolean harmonyHints = true;
+unsigned short harmonyCurSet = 0;            // pitch classes of the current scale, one bit each
+unsigned short harmonyChangedPcs = 0;        // pitch classes the last harmony change brought in
+unsigned long harmonyChangedUntil = 0;
+boolean harmonyZoneDirty = false;            // the chord pads need repainting for the held melody notes
+const byte HARM_DEG_HUES[7] = {COLOR_RED, COLOR_ORANGE, COLOR_YELLOW, COLOR_GREEN, COLOR_TEAL, COLOR_BLUE, COLOR_VIOLET};
+const byte HARM_FIFTHS_COLOR[12] = {COLOR_RED, COLOR_AZURE, COLOR_YELLOW, COLOR_VIOLET, COLOR_GREEN, COLOR_PINK,
+                                    COLOR_CYAN, COLOR_ORANGE, COLOR_BLUE, COLOR_LIME, COLOR_MAGENTA, COLOR_TEAL};
+const byte HARM_FN_COLOR[4] = {COLOR_AZURE, COLOR_GREEN, COLOR_ORANGE, COLOR_RED};
+const byte HARM_CHANGE_COLOR[4] = {COLOR_WHITE, COLOR_GREEN, COLOR_YELLOW, COLOR_ORANGE};
+
 HarmonyState harmonyCur = {2, 0, 1, {0, 0, 0, 0, 0, 0, 0}, -1, 4};
 HarmonyState harmonyMem[HARM_MEMORIES];
 boolean harmonyMemUsed[HARM_MEMORIES];
@@ -282,9 +309,16 @@ void harmonyRecompute() {
     harmonyDegreeOfPc[pc] = -1;
     harmonyLitRole[pc] = -1;
   }
+  unsigned short set = 0;
   for (byte i = 0; i < harmonyLen; ++i) {
     harmonyDegreeOfPc[(harmonyCur.root + harmonyIv[i]) % 12] = i;
+    set |= 1 << ((harmonyCur.root + harmonyIv[i]) % 12);
   }
+  if (harmonyCurSet != 0 && set != harmonyCurSet) {
+    harmonyChangedPcs = set & ~harmonyCurSet;
+    harmonyChangedUntil = millis() + HARM_CHANGED_MS;
+  }
+  harmonyCurSet = set;
 
   // the lit chord: the focused chord, or the tonic chord
   if (hepta) {
@@ -390,6 +424,14 @@ int harmonyPitchOffset(byte channel) {
 void harmonyNoteStarted(byte channel) {
   if (channel >= 1 && channel <= 16) {
     harmonyBendOffset[channel] = 0;
+  }
+  harmonyMelodyChanged();
+}
+
+// in Perform mode, the chord pads' hints follow the melody notes that are held down
+void harmonyMelodyChanged() {
+  if (harmonyActive() && harmonyPerform && harmonyHints && sensorCol >= HARM_FIRST_PLAY) {
+    harmonyZoneDirty = true;
   }
 }
 
@@ -658,6 +700,23 @@ void harmonyMemoryTouch(byte row) {
   }
 }
 
+// the stored memory the next PREV or NEXT press would recall, -1 when none is stored
+signed char harmonyMemoryStepTarget(signed char dir) {
+  signed char current = -1;
+  for (byte i = 0; i < HARM_MEMORIES; ++i) {
+    if (harmonyMemIsCurrent(i)) {
+      current = i;
+      break;
+    }
+  }
+  for (byte n = 1; n <= HARM_MEMORIES; ++n) {
+    signed char slot = (current < 0) ? (dir > 0 ? n - 1 : HARM_MEMORIES - n)
+                                     : (current + dir * n + HARM_MEMORIES * 2) % HARM_MEMORIES;
+    if (harmonyMemUsed[slot]) return slot;
+  }
+  return -1;
+}
+
 // step to the next or previous stored memory, wrapping around
 void harmonyMemoryStep(signed char dir) {
   signed char current = -1;
@@ -736,6 +795,15 @@ void paintHarmonyPage() {
     setLed(HARM_PAGE_HELD, 7 - i, harmonyRetune == i ? COLOR_WHITE : COLOR_PINK, cellOn);
   }
 
+  // lights: guide, chord tones, degrees, note names
+  for (byte i = 0; i < HARM_LIGHTS_COUNT; ++i) {
+    setLed(HARM_PAGE_LIGHTS, 7 - i, harmonyLights == i ? COLOR_WHITE : COLOR_GREEN, cellOn);
+  }
+
+  // hints: on, off
+  setLed(HARM_PAGE_HINTS, 7, harmonyHints ? COLOR_WHITE : COLOR_YELLOW, cellOn);
+  setLed(HARM_PAGE_HINTS, 6, harmonyHints ? COLOR_YELLOW : COLOR_WHITE, cellOn);
+
   // chord pattern: sustain, pulse, strum, arpeggio
   const byte patColors[HARM_PAT_COUNT] = {COLOR_GREEN, COLOR_YELLOW, COLOR_ORANGE, COLOR_PINK};
   for (byte i = 0; i < HARM_PAT_COUNT; ++i) {
@@ -763,6 +831,12 @@ void harmonyPageTouch(byte col, byte row) {
   }
   else if (col == HARM_PAGE_PATTERN && row >= 8 - HARM_PAT_COUNT) {
     harmonySetPattern(7 - row);
+  }
+  else if (col == HARM_PAGE_LIGHTS && row >= 8 - HARM_LIGHTS_COUNT) {
+    harmonyLights = 7 - row;
+  }
+  else if (col == HARM_PAGE_HINTS && (row == 7 || row == 6)) {
+    harmonyHints = (row == 7);
   }
   else if (col == HARM_PAGE_LEDTEST && row == 7) {
     setDisplayMode(displayHarmonyLedTest);
@@ -821,9 +895,109 @@ boolean harmonyIsPerform() {
 
 /******************************* lights *******************************/
 
-byte harmonyPitchClassColor(byte pc) {
+// pitch classes of a harmony, one bit each
+unsigned short harmonyScaleSet(byte root, byte family, byte mode, const signed char* alter) {
+  byte iv[12];
+  byte len = harmonyModeIntervals(family, mode, iv);
+  unsigned short set = 0;
+  for (byte i = 0; i < len; ++i) {
+    short a = (len == 7 && alter) ? alter[i] : 0;
+    set |= 1 << ((root + iv[i] + a + 24) % 12);
+  }
+  return set;
+}
+
+byte harmonyBitCount(unsigned short x) {
+  byte n = 0;
+  while (x) {
+    n += x & 1;
+    x >>= 1;
+  }
+  return n;
+}
+
+// a pad that changes the harmony shows how many notes would change: none (white), 1 (green), 2 (yellow), 3+ (orange)
+byte harmonyChangeLight(unsigned short target) {
+  byte n = harmonyBitCount(target & ~harmonyCurSet);
+  return HARM_LIGHT(HARM_CHANGE_COLOR[n > 3 ? 3 : n], n >= 4 ? cellDimHalf : 0);
+}
+
+byte harmonyRootLight(byte pc) {
+  return harmonyChangeLight(harmonyScaleSet(pc, harmonyCur.family, harmonyCur.mode, harmonyCur.alter));
+}
+
+// the scale REL and PAR would switch to, 0 when they can't
+unsigned short harmonyRelativeSet() {
+  if (harmonyCur.family == HARM_SYMMETRIC) {
+    if (harmonyCur.mode == 0) return harmonyScaleSet((harmonyCur.root + 9) % 12, HARM_SYMMETRIC, 1, 0);
+    if (harmonyCur.mode == 1) return harmonyScaleSet((harmonyCur.root + 3) % 12, HARM_SYMMETRIC, 0, 0);
+    return 0;
+  }
+  byte base[12];
+  harmonyModeIntervals(harmonyCur.family, harmonyCur.mode, base);
+  byte target = (base[2] == 4) ? 5 : 2;
+  return harmonyScaleSet((harmonyCur.root + base[target]) % 12, harmonyCur.family, (harmonyCur.mode + target) % 7, 0);
+}
+
+unsigned short harmonyParallelSet() {
+  if (harmonyCur.family == HARM_SYMMETRIC && harmonyCur.mode <= 1) {
+    return harmonyScaleSet(harmonyCur.root, HARM_SYMMETRIC, 1 - harmonyCur.mode, 0);
+  }
+  boolean major = (harmonyHasInterval(4) && !harmonyHasInterval(3)) || (harmonyLen == 7 && harmonyIv[2] == 4);
+  return harmonyScaleSet(harmonyCur.root, 0, major ? 5 : 0, 0);
+}
+
+byte harmonyActionLight(unsigned short target) {
+  if (!harmonyHints || target == 0) return COLOR_YELLOW;
+  return harmonyChangeLight(target);
+}
+
+byte harmonyKeyLight(byte pc) {
   if (pc == harmonyCur.root) return COLOR_CYAN;
+  if (harmonyHints) return harmonyRootLight(pc);
   return harmonyDegreeOfPc[pc] >= 0 ? COLOR_GREEN : COLOR_OFF;
+}
+
+// the pitch classes of the chord on a scale degree, with size notes
+unsigned short harmonyDegreePcs(byte deg, byte size) {
+  unsigned short pcs = 0;
+  for (byte j = 0; j < size; ++j) {
+    pcs |= 1 << ((harmonyCur.root + harmonyIv[(deg + 2 * j) % 7]) % 12);
+  }
+  return pcs;
+}
+
+// the job of a chord, judged by its notes: it pulls hardest home when it holds the leading tone and the note
+// a tritone above it (V7, vii), it's tension with the leading tone alone, away when it holds the 4th degree,
+// and home otherwise; modes without a leading tone treat v and bVII as their tension chords
+byte harmonyChordFunction(byte deg, unsigned short pcs) {
+  if (harmonyLen != 7 || deg == 0) return HARM_FN_HOME;
+  byte lt = (harmonyCur.root + 11) % 12;
+  byte fourth = (harmonyCur.root + harmonyIv[3]) % 12;
+  if (harmonyDegreeOfPc[lt] >= 0) {
+    byte tt = (lt + 6) % 12;
+    if ((pcs >> lt & 1) && harmonyDegreeOfPc[tt] >= 0 && (pcs >> tt & 1)) return HARM_FN_PULL;
+    if (pcs >> lt & 1) return HARM_FN_TENSION;
+  }
+  else if (deg == 4 || deg == 6) {
+    return HARM_FN_TENSION;
+  }
+  return (pcs >> fourth & 1) ? HARM_FN_AWAY : HARM_FN_HOME;
+}
+
+// natural next moves by root motion in scale steps: up a 4th, down a 3rd, up a step
+boolean harmonyNaturalMove(byte from, byte to) {
+  byte st = (to - from + 7) % 7;
+  return st == 0 || st == 3 || st == 5 || st == 1;
+}
+
+// a chord pad's hint: its function's color, dim when it's not a natural next move, pulsing when it resolves the tension
+byte harmonyChordHintLight(byte deg, unsigned short pcs, byte cur, unsigned short curPcs) {
+  byte fn = harmonyChordFunction(deg, pcs);
+  byte curFn = harmonyChordFunction(cur, curPcs);
+  boolean resolves = (deg == 0 && (curFn == HARM_FN_TENSION || curFn == HARM_FN_PULL));
+  byte disp = resolves ? cellFocusPulse : (harmonyNaturalMove(cur, deg) ? 0 : cellDimHalf);
+  return HARM_LIGHT(HARM_FN_COLOR[fn], disp);
 }
 
 byte harmonyZoneColor(byte col, byte row) {
@@ -832,16 +1006,24 @@ byte harmonyZoneColor(byte col, byte row) {
   boolean hepta = (harmonyLen == 7);
   switch (col) {
     case HARM_COL_KEYACC:
-      if (HARM_ACCIDENTAL_PC[row] < 0) return COLOR_YELLOW;
-      return harmonyPitchClassColor(HARM_ACCIDENTAL_PC[row]);
+      if (row == 2) return harmonyActionLight(harmonyRelativeSet());
+      if (row == 6) return harmonyActionLight(harmonyParallelSet());
+      if (HARM_ACCIDENTAL_PC[row] < 0) return harmonyHints ? harmonyRootLight((harmonyCur.root + 5) % 12) : COLOR_YELLOW;
+      return harmonyKeyLight(HARM_ACCIDENTAL_PC[row]);
 
     case HARM_COL_KEYNAT:
-      if (row == 7) return COLOR_YELLOW;
-      return harmonyPitchClassColor(HARM_NATURAL_PC[row]);
+      if (row == 7) return harmonyHints ? harmonyRootLight((harmonyCur.root + 7) % 12) : COLOR_YELLOW;
+      return harmonyKeyLight(HARM_NATURAL_PC[row]);
 
-    case HARM_COL_MODE:
+    case HARM_COL_MODE: {
       if (row == 7) return HARM_FAMILY_COLOR[harmonyCur.family];
-      return harmonyModeOrder[harmonyCur.family][6 - row] == harmonyCur.mode ? COLOR_WHITE : HARM_FAMILY_COLOR[harmonyCur.family];
+      byte m = harmonyModeOrder[harmonyCur.family][6 - row];
+      if (m == harmonyCur.mode) return COLOR_WHITE;
+      if (harmonyHints) {
+        return harmonyChangeLight(harmonyScaleSet(harmonyCur.root, harmonyCur.family, m, harmonyKeepAlter ? harmonyCur.alter : 0));
+      }
+      return HARM_FAMILY_COLOR[harmonyCur.family];
+    }
 
     case HARM_COL_ALTER:
       if (!hepta) return COLOR_OFF;
@@ -852,21 +1034,32 @@ byte harmonyZoneColor(byte col, byte row) {
         return COLOR_OFF;
       }
       if (row == 7) return harmonyKeepAlter ? COLOR_YELLOW : COLOR_OFF;
-      return harmonyCur.alter[row] ? COLOR_ORANGE : COLOR_BLUE;
+      if (harmonyCur.alter[row]) return (harmonyHints && harmonyCur.alter[row] > 0) ? COLOR_MAGENTA : COLOR_ORANGE;
+      return COLOR_BLUE;
 
-    case HARM_COL_CHORD:
+    case HARM_COL_CHORD: {
       if (!hepta) return COLOR_OFF;
       if (row == 7) return harmonyCur.chordSize == 3 ? COLOR_LIME : (harmonyCur.chordSize == 4 ? COLOR_YELLOW : COLOR_ORANGE);
-      return harmonyCur.chordDeg == row ? COLOR_WHITE : COLOR_BLUE;
+      byte cur = harmonyCur.chordDeg >= 0 ? harmonyCur.chordDeg : 0;
+      if (harmonyCur.chordDeg == row || (harmonyHints && row == cur)) return COLOR_WHITE;
+      if (!harmonyHints) return COLOR_BLUE;
+      return harmonyChordHintLight(row, harmonyDegreePcs(row, harmonyCur.chordSize), cur, harmonyDegreePcs(cur, harmonyCur.chordSize));
+    }
 
-    case HARM_COL_MEMORY:
+    case HARM_COL_MEMORY: {
       if (!harmonyMemUsed[row]) return COLOR_OFF;
-      return harmonyMemIsCurrent(row) ? COLOR_WHITE : COLOR_BLUE;
+      if (harmonyMemIsCurrent(row)) return COLOR_WHITE;
+      if (!harmonyHints) return COLOR_BLUE;
+      HarmonyState& m = harmonyMem[row];
+      byte light = harmonyChangeLight(harmonyScaleSet(m.root, m.family, m.mode, m.alter));
+      if (harmonyMemoryStepTarget(1) == row) light = HARM_LIGHT(light & 0x0F, cellFocusPulse);   // the next NEXT press
+      return light;
+    }
   }
   return COLOR_OFF;
 }
 
-// in the scale layout every pad is a scale tone, so only the lit chord's tones and altered notes light up
+// the playing surface, by the Lights setting
 byte harmonyPlayColor(byte col, byte row) {
   byte note = harmonyNotes[col][row];
   if (note == HARM_NOTE_NONE) return COLOR_OFF;
@@ -879,19 +1072,67 @@ byte harmonyPlayColor(byte col, byte row) {
   signed char deg = harmonyDegreeOfPc[pc];
   if (deg < 0) return COLOR_OFF;
 
-  boolean altered = (harmonyLen == 7 && harmonyCur.alter[deg] != 0);
   signed char role = harmonyLitRole[pc];
-  if (role == 0) return COLOR_CYAN;
-  if (role > 0 || altered) return altered ? COLOR_ORANGE : COLOR_GREEN;
-  return COLOR_OFF;
+  boolean inChord = (role >= 0);
+  byte light;
+  switch (harmonyLights) {
+    case HARM_LIGHTS_GUIDE: {
+      // a note a half step above a chord tone is tense when held: pass through it
+      boolean avoid = false;
+      if (!inChord) {
+        byte below = (pc + 11) % 12;
+        avoid = harmonyLitRole[below] >= 0;
+      }
+      light = role == 0 ? COLOR_CYAN : (inChord ? COLOR_GREEN : (avoid ? HARM_LIGHT(COLOR_RED, cellDimHalf) : COLOR_AZURE));
+      break;
+    }
+    case HARM_LIGHTS_DEGREES:
+      light = HARM_LIGHT(HARM_DEG_HUES[deg % 7], inChord ? 0 : cellDimHalf);
+      break;
+    case HARM_LIGHTS_NOTES:
+      light = HARM_LIGHT(HARM_FIFTHS_COLOR[pc], inChord ? 0 : cellDimHalf);
+      break;
+    default: {
+      // in the scale layout every pad is a scale tone, so only the lit chord's tones and altered notes light up
+      boolean altered = (harmonyLen == 7 && harmonyCur.alter[deg] != 0);
+      if (role == 0) light = COLOR_CYAN;
+      else if (inChord || altered) light = altered ? COLOR_ORANGE : COLOR_GREEN;
+      else light = COLOR_OFF;
+    }
+  }
+
+  // notes the last harmony change brought in pulse for a moment
+  if ((harmonyChangedPcs >> pc & 1) && (light & 0x0F) != COLOR_OFF) {
+    light = HARM_LIGHT(light & 0x0F, cellSlowPulse);
+  }
+  return light;
 }
 
 void paintHarmonyCell(byte col, byte row) {
-  byte color = harmonyIsZoneCol(col) ? harmonyZoneColor(col, row) : harmonyPlayColor(col, row);
+  byte light = harmonyIsZoneCol(col) ? harmonyZoneColor(col, row) : harmonyPlayColor(col, row);
+  byte color = light & 0x0F;
+  byte disp = light >> 4;
   if (row == 0) {
     clearLed(col, row, LED_LAYER_LOWROW);
   }
-  setLed(col, row, color, color == COLOR_OFF ? cellOff : cellOn, LED_LAYER_MAIN);
+  setLed(col, row, color, color == COLOR_OFF ? cellOff : (disp ? (CellDisplay)disp : cellOn), LED_LAYER_MAIN);
+}
+
+// called continuously: ends the pulse of newly brought-in notes, and repaints the chord pads for the melody
+void harmonyLightsService() {
+  if (!harmonyActive() || displayMode != displayNormal) return;
+  if (harmonyChangedPcs && (long)(millis() - harmonyChangedUntil) >= 0) {
+    harmonyChangedPcs = 0;
+    updateDisplay();
+  }
+  if (harmonyZoneDirty) {
+    harmonyZoneDirty = false;
+    for (byte col = 1; col < HARM_COL_MEMORY; ++col) {
+      for (byte row = 0; row < NUMROWS; ++row) {
+        paintHarmonyCell(col, row);
+      }
+    }
+  }
 }
 
 /******************************* Perform mode: left-hand chords *******************************/
@@ -1271,20 +1512,69 @@ void harmonyPerformRelease(byte col, byte row) {
   }
 }
 
+// pitch classes of the melody pads held down right now
+unsigned short harmonyHeldMelodyPcs() {
+  unsigned short held = 0;
+  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+    for (byte row = 0; row < NUMROWS; ++row) {
+      if (cell(col, row).touched == touchedCell && harmonyNotes[col][row] != HARM_NOTE_NONE) {
+        short n = harmonyNotes[col][row] + Split[getSplitOf(col)].transposePitch + 120;
+        held |= 1 << (n % 12);
+      }
+    }
+  }
+  return held;
+}
+
+unsigned short harmonyChordPcs(byte type, byte deg, byte mods) {
+  signed char rel[HARM_MAX_CHORD];
+  byte rootPc;
+  byte count = harmonyChordTones(type, deg, mods, rel, rootPc);
+  unsigned short pcs = 0;
+  for (byte i = 0; i < count; ++i) {
+    pcs |= 1 << ((rootPc + rel[i] + 120) % 12);
+  }
+  return pcs;
+}
+
 byte harmonyPerformZoneColor(byte col, byte row) {
   byte type = col - 1;
+  byte mods = harmonyModArmed | harmonyModHeld;
   if (row == 0) {
     if (type == HARM_THUMB_LATCH) return harmonyLatch ? COLOR_GREEN : COLOR_OFF;
-    if ((harmonyModArmed | harmonyModHeld) & (1 << type)) return COLOR_WHITE;
+    if (mods & (1 << type)) return COLOR_WHITE;
     if (type == 1 && harmonyLen != 7) return COLOR_OFF;
     const byte thumbColors[4] = {COLOR_ORANGE, COLOR_PINK, COLOR_YELLOW, COLOR_YELLOW};
-    return thumbColors[type];
+    // the style's favorite modifier is bright; for now that's V/x
+    return HARM_LIGHT(thumbColors[type], (harmonyHints && type != 0) ? cellDimHalf : 0);
   }
 
   byte deg = row - 1;
   if (deg >= harmonyLen) return COLOR_OFF;
   if (harmonyChordType == type && harmonyChordDeg == deg) return COLOR_WHITE;
-  return type == HARM_CHORD_SMART ? COLOR_LIME : COLOR_BLUE;
+  byte plain = type == HARM_CHORD_SMART ? COLOR_LIME : COLOR_BLUE;
+  if (!harmonyHints) return plain;
+
+  unsigned short pcs = harmonyChordPcs(type, deg, mods);
+  if (pcs == 0) return COLOR_OFF;
+
+  // while melody notes are held: the chord contains them, they add color, or one clashes
+  unsigned short held = harmonyHeldMelodyPcs();
+  if (held) {
+    if ((held & ~pcs) == 0) return COLOR_GREEN;
+    for (byte pc = 0; pc < 12; ++pc) {
+      if ((held >> pc & 1) && !(pcs >> pc & 1) && (pcs >> ((pc + 11) % 12) & 1)) return HARM_LIGHT(COLOR_RED, cellDimHalf);
+    }
+    return COLOR_AZURE;
+  }
+
+  if (harmonyLen != 7) return plain;
+  if (mods & HARM_MOD_VX) return COLOR_RED;          // a dominant that pulls into this row
+
+  byte cur = harmonyChordType >= 0 ? harmonyChordDeg : 0;
+  unsigned short curPcs = harmonyChordType >= 0 ? harmonyChordPcs(harmonyChordType, harmonyChordDeg, harmonyChordMods)
+                                                 : harmonyDegreePcs(0, 3);
+  return harmonyChordHintLight(deg, pcs, cur, curPcs);
 }
 
 /******************************* chord patterns *******************************/
