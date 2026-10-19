@@ -67,6 +67,7 @@ const int32_t PENDING_RELEASE_RATE_X = FXD_FROM_INT(5);
 boolean potentialSlideTransferCandidate(byte col) {
   if (controlModeActive) return false;
   if (col < 1) return false;
+  if (harmonyActive() && displayMode == displayNormal && (harmonyIsZoneCol(col) || harmonyIsZoneCol(sensorCol))) return false;
   if (userFirmwareActive) {
     if (!userFirmwareSlideMode[sensorRow]) return false;
   }
@@ -460,8 +461,19 @@ boolean handleNewTouch() {
       case displayNormal:                                            // it's normal performance mode
       case displayVolume:                                            // it's a volume change
 
+        // harmony zone pads go through velocity calculation so that phantom presses are filtered out
+        if (harmonyHandlesSensorCell()) {
+          if (harmonyIgnoreZoneTouch()) {
+            cellTouched(ignoredCell);
+          }
+          else {
+            initVelocity();
+            calcVelocity(sensorCell->velocityZ);
+            result = true;
+          }
+        }
         // check if the new touch could be an ongoing slide to the right
-        if (potentialSlideTransferCandidate(sensorCol-1)) {
+        else if (potentialSlideTransferCandidate(sensorCol-1)) {
           handleSlideTransferCandidate(sensorCol-1);
         }
         // check if the new touch could be an ongoing slide to the left
@@ -592,6 +604,9 @@ void handleNonPlayingTouch() {
     case displayPerSplit:
       handlePerSplitSettingNewTouch();
       break;
+    case displayHarmony:
+      harmonyPageTouch(sensorCol, sensorRow);
+      break;
     case displayPreset:
       handlePresetNewTouch();
       break;
@@ -716,6 +731,11 @@ void handleNonPlayingTouch() {
 // Called when a cell is held, in order to read X, Y or Z movements and send MIDI messages as appropriate
 // Returns a flag to indicate if the performance loop can be short-circuited
 boolean handleXYZupdate() {
+  // holding the Split (Harmony) button opens the Harmony page
+  if (sensorCol == 0 && sensorRow == SPLIT_ROW && controlButton == SPLIT_ROW) {
+    harmonySplitHoldCheck();
+  }
+
   // if the touch is in the control buttons column, ignore it
   if (sensorCol == 0 &&
      // except for user firmware mode where only the global settings button is ignored for continuous updates
@@ -781,6 +801,17 @@ boolean handleXYZupdate() {
       // velocity has been calculated, no need to short-circuit anymore and we can continue
       // with the main touch logic
       break;
+  }
+
+  // harmony zone pads act once when pressed and never play notes
+  if (harmonyHandlesSensorCell()) {
+    if (newVelocity) {
+      harmonyZoneTouch(sensorCol, sensorRow);
+    }
+    else {
+      harmonyZoneHold(sensorCol, sensorRow);
+    }
+    return false;
   }
 
   // only continue if the active display modes require finger tracking
@@ -897,6 +928,10 @@ boolean handleXYZupdate() {
     valueX = handleXExpression();
     if (valueX != INVALID_DATA && isLeftHandedSplit(sensorSplit)) {
       valueX = -1 * valueX;
+    }
+    // in harmony mode, columns are scale steps, so slides follow the notes of the row
+    if (valueX != INVALID_DATA && harmonyActive()) {
+      valueX = harmonyMapX(sensorCell->initialColumn, sensorRow, valueX);
     }
 
     performContinuousTasks();
@@ -1023,7 +1058,7 @@ boolean handleXYZupdate() {
           }
         }
 
-        preSendPitchBend(sensorSplit, pitch, sensorCell->channel);
+        preSendPitchBend(sensorSplit, pitch + harmonyPitchOffset(sensorCell->channel), sensorCell->channel);
       }
 
       // if Y-axis movements are enabled and it's a candidate for
@@ -1205,6 +1240,7 @@ void prepareNewNote(signed char notenum) {
   sensorCell->note = notenum;
   sensorCell->channel = channel;
   sensorCell->octaveOffset = Split[sensorSplit].transposeOctave;
+  harmonyNoteStarted(channel);
   
   // change the focused cell
   FocusCell& focused = focus(sensorSplit, channel);
@@ -1695,6 +1731,13 @@ void handleTouchRelease() {
   // release open strings if no touches are down anymore
   handleOpenStringsRelease();
 
+  // harmony zone pads: thumb strip modifiers and chord pads also act when they're let go
+  if (harmonyHandlesSensorCell()) {
+    harmonyZoneRelease(sensorCol, sensorRow);
+    postTouchRelease();
+    return;
+  }
+
   // if touch release is in column 0, it's a command key release so handle it
   if (sensorCol == 0 &&
       // user firmware mode only handles the global settings command button
@@ -1934,6 +1977,10 @@ inline void updateSensorCell() {
 // getNoteNumber:
 // computes MIDI note number from current row, column, row offset, octave button and transposition amount
 byte getNoteNumber(byte split, byte col, byte row) {
+  if (harmonyActive()) {
+    return harmonyNoteNumber(col, row);
+  }
+
   byte notenum = 0;
 
   // return the computed note based on the selected rowOffset

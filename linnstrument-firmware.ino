@@ -489,7 +489,8 @@ enum DisplayMode {
   displaySequencerDrum0107,
   displaySequencerDrum0814,
   displaySequencerColors,
-  displayCustomLedsEditor
+  displayCustomLedsEditor,
+  displayHarmony
 };
 DisplayMode displayMode = displayNormal;
 
@@ -1365,6 +1366,8 @@ void setup() {
     applyMidiInterval();
 
     applyMpeMode();
+
+    initializeHarmony();
 
     // update the display for the last state
     updateDisplay();

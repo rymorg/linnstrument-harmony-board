@@ -74,6 +74,8 @@ boolean isStatefulSwitchAssignment(byte assignment) {
 }
 
 void doSwitchPressed(byte whichSwitch) {
+  if (harmonyHandlesSwitch(whichSwitch, true)) return;
+
   byte assignment = Global.switchAssignment[whichSwitch];
   if (!Global.splitActive || assignment == ASSIGNED_ALTSPLIT || !Global.switchBothSplits[whichSwitch]) {
     doSwitchPressedForSplit(whichSwitch, assignment, Global.currentPerSplit);
@@ -135,6 +137,8 @@ void doSwitchTriggeredForSplit(byte whichSwitch, byte assignment, byte split) {
 }
 
 void doSwitchReleased(byte whichSwitch) {
+  if (harmonyHandlesSwitch(whichSwitch, false)) return;
+
   byte assignment = Global.switchAssignment[whichSwitch];
   if (!Global.splitActive || assignment == ASSIGNED_ALTSPLIT || !Global.switchBothSplits[whichSwitch]) {
     doSwitchReleasedForSplit(whichSwitch, assignment, Global.currentPerSplit);
