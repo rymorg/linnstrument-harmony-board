@@ -82,6 +82,7 @@ inline void performContinuousTasks(unsigned long nowMicros) {
   if (!continuousRefreshLeds && !continuousSerialIO) {
     continuousRefreshLeds = true;
     ledsRefreshed = checkRefreshLedColumn(nowMicros);
+    if (!ledsRefreshed) checkLedDimCut(nowMicros);
     continuousRefreshLeds = false;
   }
   

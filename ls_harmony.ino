@@ -150,6 +150,7 @@ byte harmonyChordLastZ = 255;
 #define HARM_PAT_ARP        3
 #define HARM_PAT_COUNT      4
 #define HARM_PAGE_PATTERN   25
+#define HARM_PAGE_LEDTEST   1                // top pad of column 1 on the Harmony page opens the LED check
 #define HARM_PAT_VOICES     16
 #define HARM_PAT_FREE       0
 #define HARM_PAT_WAITING    1                // a strum note waiting for its moment
@@ -714,6 +715,9 @@ void harmonyToggleSettingsPage() {
 void paintHarmonyPage() {
   clearDisplay();
 
+  // LED check
+  setLed(HARM_PAGE_LEDTEST, 7, COLOR_VIOLET, cellOn);
+
   // harmony on, off
   setLed(HARM_PAGE_ONOFF, 7, harmonyEnabled ? COLOR_WHITE : COLOR_CYAN, cellOn);
   setLed(HARM_PAGE_ONOFF, 6, harmonyEnabled ? COLOR_CYAN : COLOR_WHITE, cellOn);
@@ -760,6 +764,9 @@ void harmonyPageTouch(byte col, byte row) {
   else if (col == HARM_PAGE_PATTERN && row >= 8 - HARM_PAT_COUNT) {
     harmonySetPattern(7 - row);
   }
+  else if (col == HARM_PAGE_LEDTEST && row == 7) {
+    setDisplayMode(displayHarmonyLedTest);
+  }
   else if (col == HARM_PAGE_PATTERN && row <= 1) {
     harmonyPatClockSource = (row == 1) ? HARM_CLOCK_HOST : HARM_CLOCK_INTERNAL;
   }
@@ -789,7 +796,11 @@ void harmonySplitHoldCheck() {
 void harmonySplitUp() {
   if (harmonySplitHeld) return;               // the hold already opened the page
 
-  if (displayMode == displayHarmony) {
+  if (displayMode == displayHarmonyLedTest) {
+    setDisplayMode(displayHarmony);         // back to the Harmony page
+    updateDisplay();
+  }
+  else if (displayMode == displayHarmony) {
     harmonyToggleSettingsPage();
   }
   else if (displayMode == displayNormal) {
@@ -1445,5 +1456,25 @@ void harmonyPatternService(unsigned long now) {
     for (byte i = 0; i < HARM_PAT_VOICES; ++i) {
       if (harmonyPatVoiceState[i] == HARM_PAT_SOUNDING) harmonyPatVoiceEnd(i);
     }
+  }
+}
+
+/******************************* LED check *******************************/
+
+// every color, from red around the hue circle to white, one column apart;
+// rows from the top: full brightness, half, a quarter, and off
+void paintHarmonyLedTest() {
+  clearDisplay();
+  const byte colors[13] = {COLOR_RED, COLOR_ORANGE, COLOR_YELLOW, COLOR_LIME, COLOR_GREEN, COLOR_TEAL, COLOR_CYAN,
+                           COLOR_AZURE, COLOR_BLUE, COLOR_VIOLET, COLOR_MAGENTA, COLOR_PINK, COLOR_WHITE};
+  for (byte i = 0; i < 13; ++i) {
+    byte col = 1 + 2 * i;
+    if (col >= NUMCOLS) break;
+    setLed(col, 7, colors[i], cellOn);
+    setLed(col, 6, colors[i], cellOn);
+    setLed(col, 5, colors[i], cellDimHalf);
+    setLed(col, 4, colors[i], cellDimHalf);
+    setLed(col, 3, colors[i], cellDimQuarter);
+    setLed(col, 2, colors[i], cellDimQuarter);
   }
 }

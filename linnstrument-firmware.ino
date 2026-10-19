@@ -98,6 +98,9 @@ byte NUMROWS = 8;                    // number of touch sensor rows
 #define COLOR_ORANGE   9
 #define COLOR_LIME     10
 #define COLOR_PINK     11
+#define COLOR_TEAL     12                          // blends, like orange and lime: cyan and green
+#define COLOR_AZURE    13                          // cyan and blue
+#define COLOR_VIOLET   14                          // magenta and blue
 
 // Special row offset values, for legacy reasons
 #define ROWOFFSET_NOOVERLAP        0x00
@@ -440,7 +443,9 @@ enum CellDisplay {
   cellOn = 1,
   cellFastPulse = 2,
   cellSlowPulse = 3,
-  cellFocusPulse = 4
+  cellFocusPulse = 4,
+  cellDimHalf = 5,                                  // lit for the first half of each column refresh
+  cellDimQuarter = 6                                // lit for the first quarter of each column refresh
 };
 
 enum DisplayMode {
@@ -490,7 +495,8 @@ enum DisplayMode {
   displaySequencerDrum0814,
   displaySequencerColors,
   displayCustomLedsEditor,
-  displayHarmony
+  displayHarmony,
+  displayHarmonyLedTest
 };
 DisplayMode displayMode = displayNormal;
 

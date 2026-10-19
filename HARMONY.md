@@ -44,6 +44,18 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 
 The current choice is white. The dark columns in between are where the mockup's other settings (style, template, lights, hints and layout) will go.
 
+### LED check
+
+The top pad of column 1 on the Harmony page (violet) opens a test screen for the colors the lights work will use. Tap Split to go back to the Harmony page.
+
+Each color has one column, with a dark column between neighbors:
+
+| Column | 1 | 3 | 5 | 7 | 9 | 11 | 13 | 15 | 17 | 19 | 21 | 23 | 25 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Color | red | orange | yellow | lime | green | **teal** | cyan | **azure** | blue | **violet** | magenta | pink | white |
+
+From the top, rows 8 and 7 are full brightness, rows 6 and 5 half brightness, and rows 4 and 3 a quarter. Teal, azure and violet are new: like orange and lime, each alternates between two colors on every refresh (teal: cyan and green; azure: cyan and blue; violet: magenta and blue). The LEDs light one column at a time, and dim pads go dark halfway (or a quarter of the way) through their column's turn, so they refresh as fast as full-brightness pads. Things to look for: whether teal, azure and violet read as their own colors next to their neighbors, whether the dim rows look steady or flicker, and whether a dim color still looks like its full-brightness version.
+
 Perform mode
 ------------
 

@@ -110,6 +110,9 @@ void updateDisplay() {
     case displayHarmony:
       paintHarmonyPage();
       break;
+    case displayHarmonyLedTest:
+      paintHarmonyLedTest();
+      break;
     case displayPreset:
       paintPresetDisplay(Global.currentPerSplit);
       break;
@@ -342,7 +345,7 @@ void updateSwitchLeds() {
   if (Split[Global.currentPerSplit].sequencer) {
     setLed(0, SPLIT_ROW, Split[Global.currentPerSplit].colorMain, cellOn);
   }
-  else if (displayMode == displayHarmony) {
+  else if (displayMode == displayHarmony || displayMode == displayHarmonyLedTest) {
     setLed(0, SPLIT_ROW, COLOR_WHITE, cellOn);
   }
   else if (harmonyActive()) {

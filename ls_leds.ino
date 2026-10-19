@@ -268,6 +268,13 @@ void enableLedDisplay() {
 
 // refreshLedColumn:
 // Called when it's time to refresh the next column of LEDs. Internally increments the column number every time it's called.
+byte dimCutStage = 0;                                             // 1: the quarter cut is next, 2: the half cut is next
+boolean dimCutHasHalf = false;
+byte dimCutCol = 0;
+unsigned long dimCutStart = 0;
+byte dimCutHalf[3];                                               // blue, green, red after the quarter cut
+byte dimCutFull[3];                                               // blue, green, red after the half cut
+
 void refreshLedColumn(unsigned long now) {
   if (!ledDisplayEnabled) return;
 
@@ -299,6 +306,8 @@ void refreshLedColumn(unsigned long now) {
   static byte ledCol = 0;
   static byte displayInterval[MAXCOLS][MAXROWS];
 
+  byte dimHalfRed = 0, dimHalfGreen = 0, dimHalfBlue = 0;   // what stays lit after the quarter cut
+  byte dimFullRed = 0, dimFullGreen = 0, dimFullBlue = 0;   // what stays lit after the half cut
   byte red = 0;                                           // red value to be sent
   byte green = 0;                                         // green value to be sent
   byte blue = 0;                                          // blue value to be sent
@@ -316,6 +325,8 @@ void refreshLedColumn(unsigned long now) {
 
     byte color = (ledVisible(LED_LAYER_COMBINED, actualCol, rowCount) & B11111000) >> 3;    // set temp value 'color' to 4 color bits of this LED within array
     byte cellDisplay = ledVisible(LED_LAYER_COMBINED, actualCol, rowCount) & B00000111;     // get cell display value
+    byte dimLevel = 0;                                    // 0 for full brightness, 1 for half, 2 for a quarter
+    byte red0 = red, green0 = green, blue0 = blue;
 
     switch (cellDisplay) {
       case cellFastPulse:
@@ -326,6 +337,15 @@ void refreshLedColumn(unsigned long now) {
         break;
       case cellFocusPulse:
         cellDisplay = lastFocusPulseOn ? cellOn : cellOff;
+        break;
+      // dim cells light like full ones, and go dark partway through the column's refresh (see checkLedDimCut)
+      case cellDimHalf:
+        dimLevel = 1;
+        cellDisplay = cellOn;
+        break;
+      case cellDimQuarter:
+        dimLevel = 2;
+        cellDisplay = cellOn;
         break;
     }
 
@@ -354,6 +374,15 @@ void refreshLedColumn(unsigned long now) {
             break;
           case COLOR_PINK:
             color = COLOR_YELLOW;
+            break;
+          case COLOR_TEAL:
+            color = COLOR_GREEN;
+            break;
+          case COLOR_AZURE:
+            color = COLOR_BLUE;
+            break;
+          case COLOR_VIOLET:
+            color = COLOR_BLUE;
             break;
         }
       }
@@ -400,7 +429,23 @@ void refreshLedColumn(unsigned long now) {
           blue = blue | (B00000001 << rowCount);
           red = red | (B00000001 << rowCount);
           break;
+        case COLOR_TEAL:
+        case COLOR_AZURE:
+          green = green | (B00000001 << rowCount);
+          blue = blue | (B00000001 << rowCount);
+          break;
+        case COLOR_VIOLET:
+          blue = blue | (B00000001 << rowCount);
+          red = red | (B00000001 << rowCount);
+          break;
       }
+    }
+    // bits this cell added, kept by the cuts it outlasts
+    if (dimLevel < 2) {
+      dimHalfRed |= red & ~red0; dimHalfGreen |= green & ~green0; dimHalfBlue |= blue & ~blue0;
+    }
+    if (dimLevel == 0) {
+      dimFullRed |= red & ~red0; dimFullGreen |= green & ~green0; dimFullBlue |= blue & ~blue0;
     }
   }
 
@@ -414,4 +459,37 @@ void refreshLedColumn(unsigned long now) {
   SPI.transfer(SPI_LEDS, green, SPI_CONTINUE);                    // send green byte
   SPI.transfer(SPI_LEDS, red);                                    // send red byte
   digitalWrite(37, LOW);                                          // enable the outputs of the LED driver chips
+
+  // dim cells go dark partway through this column's refresh
+  dimCutCol = ledColShifted;
+  dimCutStart = now;
+  dimCutHalf[0] = dimHalfBlue; dimCutHalf[1] = dimHalfGreen; dimCutHalf[2] = dimHalfRed;
+  dimCutFull[0] = dimFullBlue; dimCutFull[1] = dimFullGreen; dimCutFull[2] = dimFullRed;
+  boolean hasQuarter = (dimHalfRed != red || dimHalfGreen != green || dimHalfBlue != blue);
+  boolean hasHalf = (dimFullRed != dimHalfRed || dimFullGreen != dimHalfGreen || dimFullBlue != dimHalfBlue);
+  dimCutStage = hasQuarter ? 1 : (hasHalf ? 2 : 0);
+  dimCutHasHalf = hasHalf;
+}
+
+void sendLedColumn(byte colShifted, byte blue, byte green, byte red) {
+  digitalWrite(37, HIGH);
+  SPI.transfer(SPI_LEDS, ~colShifted, SPI_CONTINUE);
+  SPI.transfer(SPI_LEDS, blue, SPI_CONTINUE);
+  SPI.transfer(SPI_LEDS, green, SPI_CONTINUE);
+  SPI.transfer(SPI_LEDS, red);
+  digitalWrite(37, LOW);
+}
+
+// called continuously: turns dim cells off a quarter or half of the way through their column's refresh
+void checkLedDimCut(unsigned long now) {
+  if (dimCutStage == 0 || !ledDisplayEnabled) return;
+  unsigned long elapsed = calcTimeDelta(now, dimCutStart);
+  if (dimCutStage == 1 && elapsed >= ledRefreshInterval / 4) {
+    sendLedColumn(dimCutCol, dimCutHalf[0], dimCutHalf[1], dimCutHalf[2]);
+    dimCutStage = dimCutHasHalf ? 2 : 0;
+  }
+  if (dimCutStage == 2 && elapsed >= ledRefreshInterval / 2) {
+    sendLedColumn(dimCutCol, dimCutFull[0], dimCutFull[1], dimCutFull[2]);
+    dimCutStage = 0;
+  }
 }

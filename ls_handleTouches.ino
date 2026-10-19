@@ -607,6 +607,8 @@ void handleNonPlayingTouch() {
     case displayHarmony:
       harmonyPageTouch(sensorCol, sensorRow);
       break;
+    case displayHarmonyLedTest:
+      break;
     case displayPreset:
       handlePresetNewTouch();
       break;
