@@ -4,3 +4,4 @@
 build/*
 linnstrument-firmware.sublime-*
 stino.settings
+tools/.venv/
