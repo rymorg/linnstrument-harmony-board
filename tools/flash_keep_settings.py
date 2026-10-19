@@ -37,6 +37,7 @@ import shlex
 import struct
 import subprocess
 import sys
+import termios
 import time
 import zlib
 
@@ -66,6 +67,8 @@ RESYNC = b"\xff"                     # not a command: ends a stale session and r
 DEVICE_IDLE_TIMEOUT = 2.0            # the firmware abandons a transfer after 2 s without data
 MIN_PROJECT_VERSION = 9              # serialRestoreProject() ignores projects from older settings versions
 SERIAL_BAUD = 115200
+RESTART_SETTLE = 2.0                 # opening the port restarts the LinnStrument, which sometimes drops USB for a second or two
+PORT_ERRORS = (serial.SerialException, termios.error, OSError)
 
 BACKUP_DIR = os.path.expanduser("~/linnstrument-backups")
 BACKUP_MAGIC = b"LSBACKUP"
@@ -96,12 +99,43 @@ class Connection:
 
     def __init__(self, port):
         self.port = port
-        self.ser = serial.Serial(port, SERIAL_BAUD, timeout=0.1, write_timeout=5)
+        self.ser = None
+        self.open()
+
+    def open(self, attempts=4):
+        """Open the port and wait out the restart that opening it causes.
+
+        The USB bridge restarts the LinnStrument whenever the port is opened. The firmware comes back
+        in serial mode, but sometimes the USB device drops out while it restarts, so wait, and open
+        the port again once it's back."""
+        for _ in range(attempts):
+            wait_for_port(self.port, time.monotonic() + 15)
+            try:
+                self.ser = serial.Serial(self.port, SERIAL_BAUD, timeout=0.1, write_timeout=5)
+            except serial.SerialException:
+                time.sleep(1.0)
+                continue
+            deadline = time.monotonic() + RESTART_SETTLE
+            while time.monotonic() < deadline and os.path.exists(self.port):
+                time.sleep(0.05)
+            if os.path.exists(self.port):
+                try:
+                    self.ser.reset_input_buffer()
+                    return
+                except PORT_ERRORS:
+                    pass
+            self.close()
+        raise NoAnswer("The LinnStrument's serial port on %s kept dropping out." % self.port)
+
+    def reopen(self):
+        self.close()
+        self.open()
 
     def close(self):
         try:
-            self.ser.close()
-        except (OSError, serial.SerialException):
+            if self.ser:
+                self.ser.close()
+        except PORT_ERRORS:
             pass                         # the port goes away when the firmware leaves serial mode
 
     def __enter__(self):
@@ -250,18 +284,19 @@ class Connection:
         self._expect(ACK, "confirmation", timeout=10)
 
 
-def with_retries(operation, attempts=2):
-    """Run a transfer again if it fails midway; a missing device isn't retried."""
+def with_retries(operation, conn, attempts=3):
+    """Run a transfer again, on a fresh connection, if it fails midway; a missing device isn't retried."""
     for attempt in range(attempts):
         try:
             return operation()
         except NoAnswer:
             raise
-        except (LinnStrumentError, serial.SerialException) as e:
+        except (LinnStrumentError,) + PORT_ERRORS as e:
             if attempt == attempts - 1:
                 raise
             print("    Transfer failed (%s), trying again..." % e)
             time.sleep(DEVICE_IDLE_TIMEOUT + 0.5)
+            conn.reopen()
 
 
 class Progress:
@@ -383,13 +418,13 @@ def connect_after_boot(requested, previous, timeout=60.0):
         port = previous if not requested and os.path.exists(previous) else wait_for_port(requested, deadline)
         try:
             conn = Connection(port)
-        except serial.SerialException:
+        except (NoAnswer,) + PORT_ERRORS:
             conn = None
         if conn:
             try:
                 if conn.start_session():
                     return conn
-            except serial.SerialException:
+            except PORT_ERRORS:
                 pass
             conn.close()
         if time.monotonic() > deadline:
@@ -492,13 +527,13 @@ def step(text):
 
 def backup_device(port, skip_projects):
     with Connection(port) as conn:
-        settings = with_retries(conn.read_settings)
+        settings = with_retries(conn.read_settings, conn)
         if settings[0] < 1:
             raise LinnStrumentError("the settings don't start with a format version")
         project_size, projects = 0, []
         if not skip_projects:
             try:
-                project_size, projects = with_retries(conn.read_projects)
+                project_size, projects = with_retries(conn.read_projects, conn)
             except LinnStrumentError as e:
                 print("    Warning: couldn't read the sequencer projects (%s); continuing with settings only." % e)
     return Backup(settings, project_size, projects)
@@ -513,13 +548,13 @@ def restore_device(conn, backup, skip_projects):
             progress = Progress("Restoring sequencer projects", len(backup.projects) * backup.project_size)
             try:
                 for index, project in enumerate(backup.projects):
-                    with_retries(lambda: conn.write_project(backup.version, index, project))
+                    with_retries(lambda: conn.write_project(backup.version, index, project), conn)
                     progress.update((index + 1) * backup.project_size)
                 progress.finish()
             except LinnStrumentError as e:
                 print("\n    Warning: couldn't restore the sequencer projects (%s); restoring settings anyway." % e)
     # this has to come last: once the settings are in, the firmware leaves serial mode
-    with_retries(lambda: conn.write_settings(backup.settings))
+    with_retries(lambda: conn.write_settings(backup.settings), conn)
 
 
 def check_settings_size(backup, bin_path, force):
@@ -622,6 +657,8 @@ def main():
                 "The settings come back from %s afterwards." % (os.path.basename(bin_path), backup_path), args.yes)
         stage = "flash"
         print("    Resetting into the bootloader (1200-baud touch on %s)..." % port)
+        time.sleep(RESTART_SETTLE)
+        port = wait_for_port(args.port, time.monotonic() + 15)
         touch_1200(port)
         info = wait_for_bootloader(bossac, port)
         device = [line for line in info.splitlines() if line.lower().startswith("device")]
@@ -642,7 +679,7 @@ def main():
               "settings; the backup is still in %s." % backup_path)
         return 0
 
-    except (LinnStrumentError, serial.SerialException, OSError, KeyboardInterrupt) as e:
+    except (LinnStrumentError, serial.SerialException, termios.error, OSError, KeyboardInterrupt) as e:
         message = "Interrupted." if isinstance(e, KeyboardInterrupt) else str(e)
         print("\nError: " + message, file=sys.stderr)
         script = "tools/flash_keep_settings.py"
