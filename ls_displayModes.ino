@@ -107,6 +107,9 @@ void updateDisplay() {
     case displayPerSplit:
       paintPerSplitDisplay(Global.currentPerSplit);
       break;
+    case displayHarmony:
+      paintHarmonyPage();
+      break;
     case displayPreset:
       paintPresetDisplay(Global.currentPerSplit);
       break;
@@ -339,6 +342,12 @@ void updateSwitchLeds() {
   if (Split[Global.currentPerSplit].sequencer) {
     setLed(0, SPLIT_ROW, Split[Global.currentPerSplit].colorMain, cellOn);
   }
+  else if (displayMode == displayHarmony) {
+    setLed(0, SPLIT_ROW, COLOR_WHITE, cellOn);
+  }
+  else if (harmonyActive()) {
+    setLed(0, SPLIT_ROW, harmonyIsPerform() ? COLOR_MAGENTA : COLOR_CYAN, cellOn);
+  }
   else if (Global.splitActive) {
     setLed(0, SPLIT_ROW, Split[Global.currentPerSplit].colorMain, cellOn);
   }
@@ -443,7 +452,7 @@ void paintNormalDisplaySplit(byte split, byte leftEdge, byte rightEdge) {
         paintNormalDisplayCell(split, col, row);
       }
 
-      if (!userFirmwareActive && row == 0 && Split[split].lowRowMode != lowRowNormal) {
+      if (!userFirmwareActive && !harmonyActive() && row == 0 && Split[split].lowRowMode != lowRowNormal) {
         if (Split[split].lowRowMode == lowRowBend && Split[split].lowRowBendBehavior == lowRowBendTranspose) {
           paintLowRowTranspose(split);
         }
@@ -561,6 +570,11 @@ void paintStrumDisplayCell(byte split, byte col, byte row) {
 
 void paintNormalDisplayCell(byte split, byte col, byte row) {
   if (userFirmwareActive) return;
+
+  if (harmonyActive()) {
+    paintHarmonyCell(col, row);
+    return;
+  }
 
   // by default clear the cell color
   byte colour = COLOR_OFF;

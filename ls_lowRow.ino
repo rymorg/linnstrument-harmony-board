@@ -37,6 +37,7 @@ short lastRestrikeColumn[NUMSPLITS];
 
 inline boolean isLowRow() {
   if (sensorRow != 0) return false;
+  if (harmonyActive()) return false;
   if (Split[sensorSplit].lowRowMode == lowRowNormal) return false;
   if (Split[sensorSplit].ccFaders) return false;
   if (Split[sensorSplit].sequencer) return false;

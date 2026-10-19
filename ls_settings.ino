@@ -858,17 +858,9 @@ void handleControlButtonNewTouch() {
       break;
 
     case SPLIT_ROW:                                    // SPLIT button pressed
-      resetAllTouches();
-      splitButtonDown = true;
-      changedSplitPoint = false;
-      setDisplayMode(displaySplitPoint);
-
-      // handle double-tap
-      if (doubleTap) {
-        Global.currentPerSplit = otherSplit(Global.currentPerSplit);
-      }
-
-      updateDisplay();
+      // in this firmware the split button is the Harmony button: a tap switches Compose and Perform,
+      // a hold opens the Harmony page (splits stay off while harmony mode is active)
+      harmonySplitDown();
       break;
 
     case SWITCH_2_ROW:                                 // SWITCH 2 pressed
@@ -981,24 +973,8 @@ void handleControlButtonRelease() {
       updateDisplay();
       break;
 
-    case SPLIT_ROW:                                          // SPLIT button released
-      if (Split[otherSplit(Global.currentPerSplit)].sequencer) {
-        Global.currentPerSplit = otherSplit(Global.currentPerSplit);
-        setLed(0, SPLIT_ROW, globalColor, Global.splitActive ? cellOn : cellOff);
-        updateDisplay();
-      }
-      else if (splitButtonDown) {
-        splitButtonDown = false;
-        if (changedSplitPoint) {
-          storeSettings();
-        }
-        else {
-          Global.splitActive = !Global.splitActive;
-        }
-        setLed(0, SPLIT_ROW, globalColor, Global.splitActive ? cellOn : cellOff);
-        setDisplayMode(displayNormal);
-        updateDisplay();
-      }
+    case SPLIT_ROW:                                          // SPLIT (Harmony) button released
+      harmonySplitUp();
       break;
 
     case SWITCH_2_ROW:                                       // SWITCH 2 released
