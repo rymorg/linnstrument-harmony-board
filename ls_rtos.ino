@@ -142,7 +142,9 @@ inline void performContinuousTasks(unsigned long nowMicros) {
   if (clockUpdated) {
     performCheckAdvanceArpeggiator();
     performCheckAdvanceSequencer();
+    harmonyPatternSharedTick();
   }
+  harmonyPatternService(nowMicros);
 
   if (Device.serialMode) {
     if (!continuousSerialIO) {

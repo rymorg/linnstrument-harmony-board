@@ -13,7 +13,7 @@ What's in this build
 - **Held notes.** Notes you hold while changing the harmony glide to the same scale degree in the new harmony, using per-note pitch bend (Morph). The Harmony page can switch this to Hold, so held notes keep their pitch, or Retrigger, so they restart on their new notes.
 - **Memories.** Store and recall harmonies on the Memory column, and step through them with any switch assigned to PREV or NEXT.
 
-Not in this build yet: chord patterns (pulse, strum, arpeggio), styles and templates, the color guidance and hints, layout options, and saving the harmony, memories and page settings across power cycles. The mockup marks which of its settings the firmware has.
+Not in this build yet: styles and templates, the color guidance and hints, layout options, and saving the harmony, memories and page settings across power cycles. The mockup marks which of its settings the firmware has.
 
 Control buttons
 ---------------
@@ -40,8 +40,9 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 | 9 · Mode | Compose, Perform |
 | 21 · Rows apart | 3rd, 4th, 5th, octave (in a 7-note scale) |
 | 23 · Held notes | Morph (glide to the new harmony), Hold (keep their pitch), Retrigger (restart on the new notes) |
+| 25 · Pattern | Sustain (green), Pulse (yellow), Strum (orange), Arpeggio (pink): how Perform-mode chords play. The bottom two pads pick the clock: Host (blue) or Internal (cyan) |
 
-The current choice is white. The dark columns in between are where the mockup's other settings (style, template, lights, hints, layout and pattern) will go.
+The current choice is white. The dark columns in between are where the mockup's other settings (style, template, lights, hints and layout) will go.
 
 Perform mode
 ------------
@@ -60,6 +61,12 @@ Tap **Split** so it turns magenta. Columns 1–5 become a chord split for the le
 - **Expression.** While you hold a chord pad, its Y sends CC74 and its pressure sends channel pressure, both on channel 16.
 - **Thumb strip.** Tap V/x, Borrow, sus4 or add9 to arm it for the next chord (it lights white), or hold it while you press chord pads. Tap an armed one again to disarm it.
 - **Harmony changes.** Memories and footswitches still change the harmony in Perform mode. A sounding chord follows to the same degree in the new harmony, and re-strikes if its notes changed. With Held notes on Hold, it keeps ringing until the next chord.
+- **Patterns.** The Pattern column on the Harmony page picks how a chord plays. Sustain holds it. The others play it on a 16th-note grid, starting with a hit as you press the pad:
+  - **Pulse:** the chord on every 8th note, accented on the beat, with the bass on each beat.
+  - **Strum:** a down-strum on each beat and quick up-strums on the "and" of beats 2 and 4, with the bass on beats 1 and 3.
+  - **Arpeggio:** the chord tones and the octave one at a time on 8th notes, over a long bass note.
+
+  Hits follow the pad's velocity. The bar starts on the beat you press the pad. A harmony change goes into the next hit, without re-striking. The clock pads at the bottom of the Pattern column pick what patterns follow. **Host**, the default, follows the DAW's MIDI clock while the DAW plays and sends clock to the LinnStrument, and the Global Settings tempo otherwise. **Internal** always uses the Global Settings tempo and ignores incoming clock.
 - **Melody lights** follow the chord the left hand is playing.
 
 In pentatonic and symmetric scales, rows above the scale's length are dark, and Borrow is off.
@@ -197,14 +204,15 @@ For Perform mode, add a second instrument track for the chords, a pad or piano s
 13. **Thumb strip:** tap V/x, then IV in the 7th-chord column (column 4). You get the dominant of IV: D7 in D Dorian. Hold sus4 while tapping chords and they come out suspended.
 14. **Expression:** hold a chord pad and rock your finger up and down, then press harder. The chord track gets CC74 and channel pressure on channel 16.
 15. **Harmony changes:** latch a chord, then tap Memory 2 or 3. The chord re-strikes as the same degree in the new harmony. Set Held notes to Hold and it rings on instead.
-16. **Channels:** the melody track shouldn't sound the chords. If it does, it's listening on all 16 channels; let me know your DAW and setup.
+16. **Patterns:** hold Split, pick Pulse in column 25, and tap Split to close the page. Latch a chord: it pulses in time. Try Strum and Arpeggio, then turn on MIDI clock output to the LinnStrument in your DAW (in Ableton: Settings, Link/Tempo/MIDI, Sync on for the LinnStrument output) and press Play; the pattern follows the DAW's tempo. Pick Internal (bottom pad of column 25) and it goes back to the LinnStrument's own tempo while the DAW keeps playing.
+17. **Channels:** the melody track shouldn't sound the chords. If it does, it's listening on all 16 channels; let me know your DAW and setup.
 
 Known limits
 ------------
 
 - Morph only works in channel-per-note (MPE) mode with pitch X enabled. In one-channel mode, held notes keep their pitch.
-- Chords share channel 16, so they re-strike on a harmony change instead of gliding.
-- No chord patterns yet: chords sustain until you change or stop them.
+- Chords share channel 16, so a sustained chord re-strikes on a harmony change instead of gliding.
+- On the Host clock, if the DAW stops sending clock without a Stop message, patterns stop too, and their notes end after half a second. Memories don't store the pattern yet.
 - Low-row functions are off in Harmony mode, and splits are unavailable.
 - Harmony, the Harmony page settings, Compose or Perform, Latch and memories reset at power-off.
-- Compose mode has been tested on hardware. Perform mode, Split tap and hold, and Retrigger have been compiled and their chord voicings checked on a computer, but not yet tested on the LinnStrument.
+- Compose mode has been tested on hardware. Perform mode, Split tap and hold, Retrigger and chord patterns have been compiled, and their chord voicings and pattern timing checked on a computer, but not yet tested on the LinnStrument.

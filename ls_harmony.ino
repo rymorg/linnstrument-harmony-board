@@ -141,6 +141,41 @@ byte harmonyChordPrev[HARM_MAX_CHORD];       // the last voicing, for Smart's vo
 byte harmonyChordPrevCount = 0;
 byte harmonyChordLastY = 255;
 byte harmonyChordLastZ = 255;
+
+// chord patterns: Sustain holds the chord; Pulse, Strum and Arp play it on a 16th-note grid
+// from the shared 24PPQ clock (Global Settings tempo, or incoming MIDI clock)
+#define HARM_PAT_SUSTAIN    0
+#define HARM_PAT_PULSE      1
+#define HARM_PAT_STRUM      2
+#define HARM_PAT_ARP        3
+#define HARM_PAT_COUNT      4
+#define HARM_PAGE_PATTERN   25
+#define HARM_PAT_VOICES     16
+#define HARM_PAT_FREE       0
+#define HARM_PAT_WAITING    1                // a strum note waiting for its moment
+#define HARM_PAT_SOUNDING   2
+#define HARM_STRUM_GAP_US   24000            // time between the notes of a strum
+#define HARM_PAT_STALL_US   500000           // end sounding notes when the clock stops for this long
+#define HARM_CLOCK_HOST     0                // follow the DAW's MIDI clock while it plays, the tempo setting otherwise
+#define HARM_CLOCK_INTERNAL 1                // always the tempo setting, ignoring incoming MIDI clock
+
+byte harmonyPattern = HARM_PAT_SUSTAIN;
+boolean harmonyPatActive = false;            // the sounding chord is playing a pattern
+unsigned long harmonyPatTicks = 0;           // 24PPQ ticks counted since power-up
+unsigned long harmonyPatStartTick = 0;
+unsigned long harmonyPatLastTickUs = 0;
+byte harmonyPatClockSource = HARM_CLOCK_HOST;
+byte harmonyPatClock = 0;                    // the 24PPQ position the patterns follow, from 0 to 23
+int32_t harmonyPatOwnTempo = FXD4_FROM_INT(120);  // the tempo setting, kept while MIDI clock overrides it
+unsigned long harmonyPatOwnNextUs = 0;       // the next tick of the patterns' own clock
+unsigned short harmonyPatBeat = 0;           // beats since the pattern started
+byte harmonyPatArpIdx = 0;
+byte harmonyPatWaiting = 0;                  // how many strum notes are waiting
+byte harmonyPatVoiceState[HARM_PAT_VOICES];
+byte harmonyPatVoiceNote[HARM_PAT_VOICES];
+byte harmonyPatVoiceVel[HARM_PAT_VOICES];
+unsigned long harmonyPatVoiceOff[HARM_PAT_VOICES];  // the tick at which the note ends
+unsigned long harmonyPatVoiceDue[HARM_PAT_VOICES];  // when a waiting note starts, in micros
 HarmonyState harmonyCur = {2, 0, 1, {0, 0, 0, 0, 0, 0, 0}, -1, 4};
 HarmonyState harmonyMem[HARM_MEMORIES];
 boolean harmonyMemUsed[HARM_MEMORIES];
@@ -696,6 +731,16 @@ void paintHarmonyPage() {
   for (byte i = 0; i < 3; ++i) {
     setLed(HARM_PAGE_HELD, 7 - i, harmonyRetune == i ? COLOR_WHITE : COLOR_PINK, cellOn);
   }
+
+  // chord pattern: sustain, pulse, strum, arpeggio
+  const byte patColors[HARM_PAT_COUNT] = {COLOR_GREEN, COLOR_YELLOW, COLOR_ORANGE, COLOR_PINK};
+  for (byte i = 0; i < HARM_PAT_COUNT; ++i) {
+    setLed(HARM_PAGE_PATTERN, 7 - i, harmonyPattern == i ? COLOR_WHITE : patColors[i], cellOn);
+  }
+
+  // pattern clock: host (DAW's MIDI clock while it plays) or internal
+  setLed(HARM_PAGE_PATTERN, 1, harmonyPatClockSource == HARM_CLOCK_HOST ? COLOR_WHITE : COLOR_BLUE, cellOn);
+  setLed(HARM_PAGE_PATTERN, 0, harmonyPatClockSource == HARM_CLOCK_INTERNAL ? COLOR_WHITE : COLOR_CYAN, cellOn);
 }
 
 void harmonyPageTouch(byte col, byte row) {
@@ -711,6 +756,12 @@ void harmonyPageTouch(byte col, byte row) {
   }
   else if (col == HARM_PAGE_HELD && row >= 5) {
     harmonyRetune = 7 - row;
+  }
+  else if (col == HARM_PAGE_PATTERN && row >= 8 - HARM_PAT_COUNT) {
+    harmonySetPattern(7 - row);
+  }
+  else if (col == HARM_PAGE_PATTERN && row <= 1) {
+    harmonyPatClockSource = (row == 1) ? HARM_CLOCK_HOST : HARM_CLOCK_INTERNAL;
   }
   else {
     return;
@@ -998,6 +1049,11 @@ boolean harmonyBuildChord(byte type, byte deg, byte mods, byte* notes, byte& cou
 }
 
 void harmonyChordSendOn() {
+  if (harmonyPattern != HARM_PAT_SUSTAIN) {
+    harmonyPatternStart();
+    return;
+  }
+
   harmonyChordSentCount = 0;
   harmonyChordSent[harmonyChordSentCount++] = harmonyChordBass;
   for (byte i = 0; i < harmonyChordCount; ++i) {
@@ -1013,6 +1069,7 @@ void harmonyChordSendOn() {
 }
 
 void harmonyChordSendOff() {
+  harmonyPatternStop();
   for (byte i = 0; i < harmonyChordSentCount; ++i) {
     midiSendNoteOff(HARM_CHORD_SPLIT, harmonyChordSent[i], HARM_CHORD_CHANNEL);
   }
@@ -1115,6 +1172,7 @@ void harmonyChordRetune() {
   }
   harmonyLightChord();
   if (harmonyRetune == HARM_RETUNE_HOLD) return;
+  if (harmonyPattern != HARM_PAT_SUSTAIN) return;   // a pattern plays the new notes on its next hit
 
   // only re-strike when the notes actually changed
   boolean same = (oldCount == harmonyChordCount + 1);
@@ -1216,4 +1274,176 @@ byte harmonyPerformZoneColor(byte col, byte row) {
   if (deg >= harmonyLen) return COLOR_OFF;
   if (harmonyChordType == type && harmonyChordDeg == deg) return COLOR_WHITE;
   return type == HARM_CHORD_SMART ? COLOR_LIME : COLOR_BLUE;
+}
+
+/******************************* chord patterns *******************************/
+
+void harmonySetPattern(byte pattern) {
+  if (pattern == harmonyPattern) return;
+  boolean sounding = harmonyPerform && harmonyChordType >= 0;
+  if (sounding) harmonyChordSendOff();
+  harmonyPattern = pattern;
+  if (sounding) harmonyChordSendOn();
+}
+
+// pattern hits follow the pad's velocity
+byte harmonyPatVelocity(short base) {
+  short v = base * harmonyChordVelocity / 96;
+  return constrain(v, 1, 127);
+}
+
+void harmonyPatVoiceEnd(byte i) {
+  if (harmonyPatVoiceState[i] == HARM_PAT_SOUNDING) {
+    midiSendNoteOff(HARM_CHORD_SPLIT, harmonyPatVoiceNote[i], HARM_CHORD_CHANNEL);
+  }
+  else if (harmonyPatVoiceState[i] == HARM_PAT_WAITING) {
+    harmonyPatWaiting--;
+  }
+  harmonyPatVoiceState[i] = HARM_PAT_FREE;
+}
+
+// play a note for gate ticks of the 24PPQ clock, delayUs after now
+void harmonyPatNote(byte note, short base, byte gate, unsigned long delayUs) {
+  // a note that's still sounding ends before it starts again
+  for (byte i = 0; i < HARM_PAT_VOICES; ++i) {
+    if (harmonyPatVoiceState[i] != HARM_PAT_FREE && harmonyPatVoiceNote[i] == note) harmonyPatVoiceEnd(i);
+  }
+
+  // take a free voice, or the one that would end first
+  byte v = 0;
+  for (byte i = 0; i < HARM_PAT_VOICES; ++i) {
+    if (harmonyPatVoiceState[i] == HARM_PAT_FREE) { v = i; break; }
+    if ((long)(harmonyPatVoiceOff[i] - harmonyPatVoiceOff[v]) < 0) v = i;
+  }
+  harmonyPatVoiceEnd(v);
+
+  harmonyPatVoiceNote[v] = note;
+  harmonyPatVoiceVel[v] = harmonyPatVelocity(base);
+  harmonyPatVoiceOff[v] = harmonyPatTicks + gate;
+  if (delayUs == 0) {
+    midiSendNoteOn(HARM_CHORD_SPLIT, note, harmonyPatVoiceVel[v], HARM_CHORD_CHANNEL);
+    harmonyPatVoiceState[v] = HARM_PAT_SOUNDING;
+  }
+  else {
+    harmonyPatVoiceDue[v] = micros() + delayUs;
+    harmonyPatVoiceState[v] = HARM_PAT_WAITING;
+    harmonyPatWaiting++;
+  }
+}
+
+void harmonyPatHitChord(short base, byte gate) {
+  for (byte i = 0; i < harmonyChordCount; ++i) {
+    harmonyPatNote(harmonyChordNotes[i], base, gate, 0);
+  }
+}
+
+void harmonyPatHitBass(short base, byte gate) {
+  harmonyPatNote(harmonyChordBass, base, gate, 0);
+}
+
+void harmonyPatStrum(boolean up, short base, byte gate) {
+  for (byte i = 0; i < harmonyChordCount; ++i) {
+    byte n = up ? harmonyChordNotes[harmonyChordCount - 1 - i] : harmonyChordNotes[i];
+    harmonyPatNote(n, base - 3 * i, gate, i * HARM_STRUM_GAP_US);
+  }
+}
+
+// up through the chord and on to the octave above its lowest note
+void harmonyPatArpNote(short base, byte gate) {
+  if (harmonyChordCount == 0) return;
+  byte k = harmonyPatArpIdx++ % (harmonyChordCount + 1);
+  byte n = k < harmonyChordCount ? harmonyChordNotes[k] : harmonyChordNotes[0] + 12;
+  harmonyPatNote(n, base + 10, gate, 0);
+}
+
+// one 16th-note step of the bar, p from 0 to 15; first is the hit that starts the chord
+void harmonyPatHit(byte p, boolean first) {
+  boolean quarter = (p % 4 == 0);
+  boolean eighth = (p % 2 == 0);
+  switch (harmonyPattern) {
+    case HARM_PAT_PULSE:
+      if (eighth || first) harmonyPatHitChord(p == 0 ? 92 : (quarter ? 78 : 64), 7);
+      if (quarter || first) harmonyPatHitBass(90, 22);
+      break;
+    case HARM_PAT_STRUM:
+      if (quarter || first) harmonyPatStrum(false, p == 0 ? 96 : 84, 23);
+      else if (p == 6 || p == 14) harmonyPatStrum(true, 64, 12);
+      if (p == 0 || p == 8 || first) harmonyPatHitBass(92, 46);
+      break;
+    case HARM_PAT_ARP:
+      if (eighth || first) harmonyPatArpNote(p == 0 ? 90 : 76, 11);
+      if (p == 0 || first) harmonyPatHitBass(86, 91);
+      break;
+  }
+}
+
+void harmonyPatternStart() {
+  harmonyPatActive = true;
+  harmonyPatBeat = 0;
+  harmonyPatArpIdx = 0;
+  harmonyPatStartTick = harmonyPatTicks;
+  harmonyPatHit(harmonyPatClock / 6, true);
+}
+
+void harmonyPatternStop() {
+  harmonyPatActive = false;
+  for (byte i = 0; i < HARM_PAT_VOICES; ++i) {
+    harmonyPatVoiceEnd(i);
+  }
+}
+
+// called on every step of the shared 24PPQ clock
+void harmonyPatternSharedTick() {
+  if (harmonyPatClockSource == HARM_CLOCK_INTERNAL && isSyncedToMidiClock()) return;
+  harmonyPatternTick(clock24PPQ);
+}
+
+// one step of the clock the patterns follow; pos runs from 0 to 23 within each beat
+void harmonyPatternTick(byte pos) {
+  harmonyPatClock = pos;
+  harmonyPatTicks++;
+  harmonyPatLastTickUs = micros();
+  if (pos == 0) harmonyPatBeat++;
+
+  for (byte i = 0; i < HARM_PAT_VOICES; ++i) {
+    if (harmonyPatVoiceState[i] != HARM_PAT_FREE && (long)(harmonyPatTicks - harmonyPatVoiceOff[i]) >= 0) {
+      harmonyPatVoiceEnd(i);
+    }
+  }
+
+  if (!harmonyPatActive || pos % 6 != 0) return;
+  if (harmonyPatTicks - harmonyPatStartTick < 4) return;   // too close after the hit the press played
+  harmonyPatHit((harmonyPatBeat % 4) * 4 + pos / 6, false);
+}
+
+// called continuously: runs the patterns' own clock when they ignore MIDI clock,
+// starts strum notes on time, and ends notes if the clock stops
+void harmonyPatternService(unsigned long now) {
+  if (harmonyPatClockSource == HARM_CLOCK_INTERNAL && isSyncedToMidiClock()) {
+    unsigned long unit = INTERNAL_CLOCK_UNIT_BASE / FXD4_TO_INT(harmonyPatOwnTempo);
+    if ((long)(now - harmonyPatOwnNextUs) >= 0) {
+      harmonyPatOwnNextUs += unit;
+      if ((long)(now - harmonyPatOwnNextUs) >= 0) harmonyPatOwnNextUs = now + unit;   // fell behind
+      harmonyPatternTick((harmonyPatClock + 1) % 24);
+    }
+  }
+  else {
+    harmonyPatOwnTempo = fxd4CurrentTempo;   // without MIDI clock, this is the tempo setting
+    harmonyPatOwnNextUs = now;
+  }
+
+  if (harmonyPatWaiting) {
+    for (byte i = 0; i < HARM_PAT_VOICES; ++i) {
+      if (harmonyPatVoiceState[i] == HARM_PAT_WAITING && (long)(now - harmonyPatVoiceDue[i]) >= 0) {
+        midiSendNoteOn(HARM_CHORD_SPLIT, harmonyPatVoiceNote[i], harmonyPatVoiceVel[i], HARM_CHORD_CHANNEL);
+        harmonyPatVoiceState[i] = HARM_PAT_SOUNDING;
+        harmonyPatWaiting--;
+      }
+    }
+  }
+  else if (harmonyPatActive && (long)(now - harmonyPatLastTickUs) > (long)HARM_PAT_STALL_US) {
+    for (byte i = 0; i < HARM_PAT_VOICES; ++i) {
+      if (harmonyPatVoiceState[i] == HARM_PAT_SOUNDING) harmonyPatVoiceEnd(i);
+    }
+  }
 }

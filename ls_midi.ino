@@ -188,6 +188,7 @@ void handleMidiInput(unsigned long nowMicros) {
             if (clockUpdated) {
               performCheckAdvanceArpeggiator();
               performCheckAdvanceSequencer();
+              harmonyPatternSharedTick();
             }
           }
           else {
@@ -209,6 +210,7 @@ void handleMidiInput(unsigned long nowMicros) {
           if (checkUpdateClock(nowMicros)) {
             performCheckAdvanceArpeggiator();
             performCheckAdvanceSequencer();
+            harmonyPatternSharedTick();
           }
 
           // flash the tempo led in the global display when it is on
