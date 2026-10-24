@@ -2002,13 +2002,16 @@ void harmonyApplyTemplate(byte t) {
 #define HARM_SX_VERSION     1
 #define HARM_SX_STATE       0x01
 #define HARM_SX_MEMORIES    0x02
+#define HARM_SX_FRAME       0x03
 #define HARM_SX_REQUEST     0x10
 #define HARM_SX_HEADER      5
-#define HARM_SX_STATE_LEN   33
+#define HARM_SX_STATE_LEN   34
 #define HARM_SX_MEM_SLOT    13
 #define HARM_SX_MEM_LEN     (HARM_MEMORIES * HARM_SX_MEM_SLOT)
 #define HARM_SX_STATE_MS    20               // how often to look for state changes
 #define HARM_SX_MEM_MS      100
+#define HARM_SX_FRAME_LEN   (2 + MAXCOLS * MAXROWS)
+#define HARM_SX_FRAME_MS    50
 
 byte harmonySxState[HARM_SX_STATE_LEN];      // what was sent last
 byte harmonySxMem[HARM_SX_MEM_LEN];
@@ -2016,6 +2019,9 @@ boolean harmonySxForceState = true;
 boolean harmonySxForceMem = true;
 unsigned long harmonySxStateAt = 0;
 unsigned long harmonySxMemAt = 0;
+byte harmonySxFrame[HARM_SX_FRAME_LEN];      // the last LED frame sent
+boolean harmonySxForceFrame = true;
+unsigned long harmonySxFrameAt = 0;
 
 void harmonySxBuildState(byte* d) {
   byte i = 0;
@@ -2052,6 +2058,24 @@ void harmonySxBuildState(byte* d) {
   }
   d[i++] = used & 0x7F;
   d[i++] = used >> 7;
+  d[i++] = displayMode;
+}
+
+// settings screens go out as the LEDs themselves, so the app shows exactly what the LinnStrument shows;
+// not in normal play (the state covers that, without traffic while you play) or during sleep and animations
+boolean harmonySxSendsFrames() {
+  return displayMode != displayNormal && displayMode != displaySleep && displayMode != displayAnimation;
+}
+
+void harmonySxBuildFrame(byte* d) {
+  byte i = 0;
+  d[i++] = NUMCOLS;
+  d[i++] = NUMROWS;
+  for (byte row = 0; row < NUMROWS; ++row) {
+    for (byte col = 0; col < NUMCOLS; ++col) {
+      d[i++] = getLedForMirror(col, row);
+    }
+  }
 }
 
 void harmonySxBuildMemories(byte* d) {
@@ -2071,7 +2095,7 @@ void harmonySxBuildMemories(byte* d) {
 }
 
 void harmonySxSend(byte command, const byte* data, byte len) {
-  byte msg[HARM_SX_HEADER + HARM_SX_MEM_LEN];
+  byte msg[HARM_SX_HEADER + HARM_SX_FRAME_LEN];
   msg[0] = HARM_SX_ID;
   msg[1] = HARM_SX_H;
   msg[2] = HARM_SX_B;
@@ -2091,6 +2115,7 @@ void harmonyCompanionService() {
     byte d[HARM_SX_STATE_LEN];
     harmonySxBuildState(d);
     if (harmonySxForceState || memcmp(d, harmonySxState, HARM_SX_STATE_LEN) != 0) {
+      if (d[HARM_SX_STATE_LEN - 1] != harmonySxState[HARM_SX_STATE_LEN - 1]) harmonySxForceFrame = true;   // a new screen
       memcpy(harmonySxState, d, HARM_SX_STATE_LEN);
       harmonySxForceState = false;
       harmonySxSend(HARM_SX_STATE, d, HARM_SX_STATE_LEN);
@@ -2105,6 +2130,18 @@ void harmonyCompanionService() {
       memcpy(harmonySxMem, d, HARM_SX_MEM_LEN);
       harmonySxForceMem = false;
       harmonySxSend(HARM_SX_MEMORIES, d, HARM_SX_MEM_LEN);
+      return;
+    }
+  }
+  if (harmonySxSendsFrames() && (harmonySxForceFrame || calcTimeDelta(now, harmonySxFrameAt) >= HARM_SX_FRAME_MS)) {
+    harmonySxFrameAt = now;
+    byte d[HARM_SX_FRAME_LEN];
+    harmonySxBuildFrame(d);
+    byte len = 2 + NUMCOLS * NUMROWS;
+    if (harmonySxForceFrame || memcmp(d, harmonySxFrame, len) != 0) {
+      memcpy(harmonySxFrame, d, len);
+      harmonySxForceFrame = false;
+      harmonySxSend(HARM_SX_FRAME, d, len);
     }
   }
 }
@@ -2115,6 +2152,7 @@ void harmonyHandleSysEx(const byte* d, short len) {
   if (d[4] == HARM_SX_REQUEST) {
     harmonySxForceState = true;
     harmonySxForceMem = true;
+    harmonySxForceFrame = true;
   }
 }
 

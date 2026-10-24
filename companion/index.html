@@ -91,6 +91,7 @@ h1{font:700 clamp(36px,5.4vw,58px)/.92 var(--f-display);letter-spacing:.005em;te
 .pad::before{content:"";position:absolute;left:50%;top:50%;width:20%;height:20%;transform:translate(-50%,-50%);border-radius:50%;background:#5b6064;box-shadow:inset 0 1px 1px rgba(0,0,0,.45);transition:width .07s,height .07s,border-radius .07s}
 .pad.lit::before{width:88%;height:88%;border-radius:3px;background:radial-gradient(circle,var(--led) 0 36%,color-mix(in srgb,var(--led) 60%,#8a8f93) 80%);box-shadow:0 0 11px 1px color-mix(in srgb,var(--led) 62%,transparent)}
 .pad.dead{cursor:default;opacity:.55}
+.pad.has-lbl:not(.lit)::before{display:none}   /* the unlit LED dot would sit behind the label */
 .pad.notfw{opacity:.5}
 .pad.notfw::after{content:"";position:absolute;inset:3px;border:1px dashed rgba(255,255,255,.4);border-radius:4px;pointer-events:none}
 .fw{display:inline-block;margin-left:5px;padding:2px 4px 1px;border-radius:3px;font:700 9px/1 var(--f-display);letter-spacing:.06em;color:#0e1a12;background:var(--led-green);vertical-align:1px;text-transform:uppercase}
@@ -726,7 +727,7 @@ const MODS = ['keyAcc','keyNat','mode','alter','chord','memory'];
 const MOD_LABEL = { keyAcc:'Key ♯♭', keyNat:'Key', mode:'Mode', alter:'Alter', chord:'Chord', memory:'Memory', chRoot:'Root', chInv1:'1st', chInv2:'2nd', ch7:'7th', chSmart:'Smart' };
 let colKind = [], P = 0;
 // mirror mode: the LinnStrument's state arrives over USB MIDI and the board follows it (see the end of this script)
-const MIRROR = { on: false, input: null, output: null, notes: new Map(), last: 0 };
+const MIRROR = { on: false, input: null, output: null, notes: new Map(), last: 0, display: 0, frame: null };
 function layoutCols() {
   colKind = new Array(NUMCOLS);
   colKind[0] = { kind:'hw' };
@@ -1743,6 +1744,7 @@ function paintPad(c, r, def) {
   if (s.textContent !== text) s.textContent = text;
   const len = [...text].length;
   s.className = 'lbl' + (len >= 6 ? ' xs' : len >= 4 ? ' sm' : '');
+  el.classList.toggle('has-lbl', len > 0);
   el.classList.toggle('dim', !!def.dim);
   el.classList.toggle('dead', !!def.dead);
   el.classList.toggle('notfw', !!def.notfw);
@@ -1752,6 +1754,10 @@ function paintPad(c, r, def) {
   if (def.pressed !== undefined) el.setAttribute('aria-pressed', def.pressed ? 'true' : 'false'); else el.removeAttribute('aria-pressed');
 }
 function renderPads() {
+  if (MIRROR.on && MIRROR.frame) {
+    for (let r = 0; r < NUMROWS; r++) for (let c = 0; c < NUMCOLS; c++) paintPad(c, r, frameCell(c, r));
+    return;
+  }
   const touched = MIRROR.on ? mirrorTouched() : new Set(voices.map(v => Math.round(clamp(v.pos, 0, P - 1)) + ',' + v.r));
   for (let r = 0; r < NUMROWS; r++) {
     for (let c = 0; c < NUMCOLS; c++) {
@@ -1766,6 +1772,11 @@ function renderPads() {
   }
 }
 function renderSilk() {
+  if (MIRROR.on && MIRROR.frame) {
+    silkTop.innerHTML = `<span></span><span class="span" style="grid-column:3 / span ${NUMCOLS - 1}">${screenName(MIRROR.display)}</span>`;
+    silkBottom.innerHTML = `<span></span><span class="span" style="grid-column:3 / span ${NUMCOLS - 1}">The LinnStrument’s own lights, as it shows them</span>`;
+    return;
+  }
   const zoneCols = [];
   for (let c = 1; c < NUMCOLS; c++) if (colKind[c].kind === 'zone') zoneCols.push(c);
   const firstPlay = colKind.findIndex(ck => ck && ck.kind === 'play' && ck.k === 0);
@@ -2380,6 +2391,8 @@ function applyFwState(d) {
   S.lights = FW_LIGHTS[d[21]] || 'guide'; S.hints = !!d[22]; S.pat = PATS[d[23]] || 'sustain';
   S.clock = d[24] ? 'int' : 'host'; S.chLatch = !!d[25];
   S.octave = d[30] - 5;
+  MIRROR.display = d.length > 33 ? d[33] : (S.page ? 46 : 0);
+  if (MIRROR.display === 0) MIRROR.frame = null;
   S.layout = 'scale'; S.side = 'left'; S.width = 6;
   const armed = d[29];
   CH.mods = { vx: armed & 1 ? 'fw' : null, brw: armed & 2 ? 'fw' : null, sus: armed & 4 ? 'fw' : null, add9: armed & 8 ? 'fw' : null };
@@ -2399,6 +2412,127 @@ function applyFwState(d) {
   }
   if (H.title !== prevTitle) log(null, `LinnStrument → ${H.title}`, 'h');
   render();
+}
+// settings screens arrive as the LinnStrument's LED frame: color in bits 0-3, cell display in bits 4-6
+const FW_COLORS = [null, 'RED', 'YELLOW', 'GREEN', 'CYAN', 'BLUE', 'MAGENTA', null, 'WHITE', 'ORANGE', 'LIME', 'PINK', 'TEAL', 'AZURE', 'VIOLET'];
+const FW_SCREENS = ['Playing', 'Per-Split Settings', 'Preset', 'Volume', 'Octave/Transpose', 'Split Point', 'Global Settings', 'Global Settings',
+  'OS Version', 'OS Version', 'Calibration', 'Reset', 'Bend Range', 'Y Limits', 'Y CC', 'Initial Relative Y', 'Z Limits', 'Z CC',
+  'Note Lights', 'Fader CC', 'Low Row Bend', 'Low Row CC X', 'Low Row CC XYZ', 'Switch CC65', 'Switch Sustain CC', 'Custom Switch Assignment',
+  'Velocity Limits', 'Fixed Velocity', 'Minimum USB MIDI Interval', 'Sensor Sensitivity Z', 'Sensor Low Z', 'Sensor Feather Z', 'Sensor Range Z',
+  'Animation', 'Audience Message', 'Sleep', 'Sleep Settings', 'Split Handedness', 'Row Offset', 'Guitar Tuning', 'MIDI Through',
+  'Sequencer Projects', 'Sequencer Drums 1–7', 'Sequencer Drums 8–14', 'Sequencer Colors', 'Custom LEDs Editor', 'Harmony Page', 'LED Check'];
+const screenName = i => FW_SCREENS[i] || `Screen ${i}`;
+function frameCell(c, r) {
+  const f = MIRROR.frame, v = c < f.cols && r < f.rows ? f.cells[r * f.cols + c] : 0;
+  const color = FW_COLORS[v & 15] || null, disp = v >> 4;
+  const info = c === 0 ? { tip: HW[r].name + (HW[r].was === 'factory' ? '' : ` (was ${HW[r].was})`) } : settingsInfo(MIRROR.display, c, r);
+  const where = `${screenName(MIRROR.display)} · column ${c}, row ${r + 1}`;
+  return { color: disp ? color : null, low: disp === 5 || disp === 6, pulse: disp >= 2 && disp <= 4, label: info ? info.label || '' : '',
+           title: info ? `${info.tip} (${where})` : where };
+}
+
+/* what each pad does on the settings screens, from the firmware's settings handlers (ls_settings.ino);
+   rows count from the bottom (row 0 is nearest you), as in the firmware */
+const NOTE_NAMES = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const L = (label, tip) => ({ label, tip });
+function splitPick(c, r) {
+  if (r === 7 && c === 15) return L('LEFT', 'Edit the left split');
+  if (r === 7 && c === 16) return L('RIGHT', 'Edit the right split');
+  return null;
+}
+function perSplitInfo(c, r) {
+  const t = {
+    1: { 7: L('1CH', 'MIDI mode: one channel'), 6: L('MPE', 'MIDI mode: channel per note. Hold to set up MPE (members 2–8, bend ±48)'), 5: L('ROW', 'MIDI mode: channel per row') },
+    2: { 7: L('MAIN', 'Show and pick the main channel in columns 3–6'), 6: L('NOTE', 'Show and pick the per-note channels in columns 3–6'), 5: L('ROW', 'Show and pick the per-row channel in columns 3–6') },
+    7: { 7: L('±2', 'Pitch bend range ±2 semitones'), 6: L('±3', 'Pitch bend range ±3 semitones'), 5: L('±12', 'Pitch bend range ±12 semitones'), 4: L('±24', 'Pitch bend range ±24 semitones. Hold to set a custom range, like ±48 for MPE') },
+    8: { 7: L('X', 'Pitch (X): send sideways movement as pitch bend'), 6: L('QNT', 'Pitch quantize: notes settle on the pad center'), 5: L('SLOW', 'Pitch quantize hold: slow or medium (tap to switch)'), 4: L('FAST', 'Pitch quantize hold: fast'), 3: L('RST', 'Pitch resets when you let go') },
+    9: { 7: L('Y', 'Timbre (Y): on or off. Hold to set its limits'), 6: L('CC1', 'Y sends CC1'), 5: L('CC74', 'Y sends CC74. Hold for another CC or pressure'), 4: L('REL', 'Relative Y: measured from where the finger lands. Hold to set the starting value') },
+    10: { 7: L('Z', 'Loudness (Z): on or off. Hold to set its limits'), 6: L('POLY', 'Z sends polyphonic pressure'), 5: L('CHAN', 'Z sends channel pressure'), 4: L('CC11', 'Z sends CC11. Hold for another CC') },
+    11: { 7: L('MAIN', 'Main note color: tap to cycle'), 6: L('ACC', 'Accent note color: tap to cycle'), 5: L('PLAY', 'Played note color. Hold for the Note Lights options (Same, Cell, animations)'), 4: L('LOW', 'Low-row color: tap to cycle') },
+    12: { 7: L('NORM', 'Low row: normal notes'), 6: L('RSTK', 'Low row: restrike'), 5: L('STRM', 'Low row: strum'), 4: L('ARP', 'Low row: arpeggiator') },
+    13: { 7: L('SUS', 'Low row: sustain'), 6: L('BEND', 'Low row: pitch bend. Hold to configure'), 5: L('CC X', 'Low row: CC from sideways movement. Hold to configure'), 4: L('XYZ', 'Low row: CCs from X, Y and Z. Hold to configure') },
+    14: { 7: L('ARP', 'Arpeggiator for this split'), 6: L('FADR', 'CC faders for this split. Hold to set the fader CCs'), 5: L('STRM', 'Strum split: this split strums the other one'), 4: L('SEQ', 'Step sequencer for this split') },
+  };
+  if (c >= 3 && c <= 6 && r >= 4) { const ch = (7 - r) * 4 + c - 2; return L(String(ch), `MIDI channel ${ch} for the mode picked in column 2`); }
+  return (t[c] && t[c][r]) || splitPick(c, r);
+}
+function globalInfo(c, r) {
+  if (c >= 2 && c <= 4 && r <= 3) {
+    const i = (c - 2) + r * 3;
+    return L(NOTE_NAMES[i], `Note lights: with Main or Accent picked in column 1, turns ${NOTE_NAMES[i]} on or off; with Active picked, chooses note-light pattern ${i + 1}`);
+  }
+  const t = {
+    1: { 0: L('MAIN', 'Note lights: edit which notes get the main color (columns 2–4)'), 1: L('ACC', 'Note lights: edit which notes get the accent color (columns 2–4)'), 2: L('ACT', 'Note lights: pick one of the 12 saved patterns (columns 2–4)'), 3: L('HAND', 'Split handedness: swap the left and right splits') },
+    5: { 0: L('+3', 'Row offset +3 semitones (tap again for none)'), 1: L('+5', 'Row offset +5, a 4th (tap again for none)'), 2: L('+7', 'Row offset +7, a 5th (tap again for none)'), 3: L('NO OV', 'Row offset with no overlap between rows') },
+    6: { 0: L('+4', 'Row offset +4 semitones'), 1: L('+6', 'Row offset +6 semitones'), 2: L('OCT', 'Row offset of an octave. Hold to set a custom offset'), 3: L('GTR', 'Guitar tuning. Hold to set the tuning of each row') },
+    7: { 0: L('L FT', 'Assign the left footswitch (columns 8–9)'), 1: L('R FT', 'Assign the right footswitch (columns 8–9)'), 2: L('SW 2', 'Assign the Switch 2 button (columns 8–9)'), 3: L('SW 1', 'Assign the Switch 1 button (columns 8–9)') },
+    8: { 0: L('ARP', 'Selected switch: arpeggiator'), 1: L('SUS', 'Selected switch: sustain'), 2: L('OCT−', 'Selected switch: octave down (with OCT+ held: auto octave)'), 3: L('BOTH', 'Selected switch works on both splits') },
+    9: { 0: L('ALT', 'Selected switch: alternate split'), 1: L('CC65', 'Selected switch: CC65 (portamento)'), 2: L('OCT+', 'Selected switch: octave up (with OCT− held: auto octave)'), 3: L('CUST', 'Selected switch: custom assignment. Hold to pick one, such as PREV or NEXT for Harmony memories') },
+    10: { 0: L('LOW', 'Velocity sensitivity: low'), 1: L('MED', 'Velocity sensitivity: medium'), 2: L('HIGH', 'Velocity sensitivity: high'), 3: L('FIX', 'Fixed velocity. Hold to set the value') },
+    11: { 0: L('LOW', 'Pressure sensitivity: low'), 1: L('MED', 'Pressure sensitivity: medium'), 2: L('HIGH', 'Pressure sensitivity: high'), 3: L('AT', 'Pressure behaves like traditional aftertouch') },
+    12: { 0: L('DOWN', 'Arpeggiator: down (tap again for up and down)'), 1: L('UP', 'Arpeggiator: up (tap again for up and down)'), 2: L('RAND', 'Arpeggiator: random'), 3: L('RPLY', 'Arpeggiator: replay all notes') },
+    13: { 0: L('8TH', 'Arpeggiator speed: 8th notes (tap again for 16th swing)'), 1: L('16TH', 'Arpeggiator speed: 16th notes'), 2: L('32ND', 'Arpeggiator speed: 32nd notes'), 3: L('TRIP', 'Arpeggiator: triplets on or off') },
+    14: { 0: L('+1', 'Arpeggiator range: one extra octave'), 1: L('+2', 'Arpeggiator range: two extra octaves') },
+    15: { 0: L('USB', 'MIDI over USB'), 1: L('DIN', 'MIDI over the 5-pin DIN jacks'), 2: L('SLP', 'Sleep after a while without playing'), 3: L('LOW', 'Low power mode, for weak USB ports') },
+    16: { 0: L('RST', 'Press together with OS Update to reset all settings (calibration is kept)'), 1: L('VER', 'Show the firmware version'), 2: L('UPDT', 'OS Update: switches USB from MIDI to serial for flashing. Brief press only'), 3: L('CAL', 'Calibration. Hold with rows above it for sensor settings') },
+  };
+  return (t[c] && t[c][r]) || null;
+}
+function presetInfo(c, r) {
+  if (c === 1 && r === 7) return L('PRG+', 'Next MIDI program number');
+  if (c === 1 && r === 6) return L('PRG−', 'Previous MIDI program number');
+  if (c === NUMCOLS - 2 && r <= 5) { const p = r >= 2 ? r - 2 : r + 4; return L('P' + (p + 1), `Preset ${p + 1}: tap to load, hold to save the current settings`); }
+  if (c > 1 && c < NUMCOLS - 2) return { label: '', tip: 'The MIDI program number for this split' };
+  return splitPick(c, r);
+}
+function octaveInfo(c, r) {
+  if (r === 4 && c >= 3 && c <= 13) { const o = c - 8; return L((o > 0 ? '+' : o < 0 ? '−' : '') + Math.abs(o), `Octave ${o > 0 ? '+' + o : o}`); }
+  if (r === 3 && c > 0) { const t = c - 8; return L((t > 0 ? '+' : t < 0 ? '−' : '') + Math.abs(t), `Transpose pitch ${t > 0 ? '+' + t : t} semitones`); }
+  if (r === 2 && c > 0) { const t = c - 8; return L((t > 0 ? '+' : t < 0 ? '−' : '') + Math.abs(t), `Transpose the note lights ${t > 0 ? '+' + t : t} semitones`); }
+  return splitPick(c, r);
+}
+function harmonyPageInfo(c, r) {
+  const top = 7 - r;
+  if (c === 1 && r === 7) return L('LED', 'LED check');
+  if (c === 7 && top < 2) return L(['ON', 'OFF'][top], top ? 'Harmony mode off: the stock layout' : 'Harmony mode on');
+  if (c === 9 && top < 2) return L(['COMP', 'PERF'][top], top ? 'Perform mode: left-hand chords' : 'Compose mode: harmony controls');
+  if (c === 11) { const k = FW_STYLES[top]; return L(STYLES[k].name.slice(0, 4).toUpperCase(), `Style: ${STYLES[k].name}`); }
+  if (c === 13) {
+    if (top === 0) return L('OFF', 'Template off');
+    const t = STYLES[S.style].templates[top - 1];
+    return t ? L('T' + top, `Template: ${t.name}`) : null;
+  }
+  if (c === 15 && top < 4) return L(['GUIDE', 'CHORD', 'DEG', 'NOTES'][top], ['Lights: Guide', 'Lights: chord tones only', 'Lights: one hue per scale degree', 'Lights: one hue per note name'][top]);
+  if (c === 17 && top < 2) return L(['ON', 'OFF'][top], `Hints ${top ? 'off' : 'on'}`);
+  if (c === 21 && top < 4) return L(['3RD', '4TH', '5TH', '8VA'][top], `Rows a ${['3rd', '4th', '5th', 'octave'][top]} apart`);
+  if (c === 23 && top < 3) return L(['MRPH', 'HOLD', 'RTRG'][top], ['Held notes glide to the new harmony', 'Held notes keep their pitch', 'Held notes restart on their new notes'][top]);
+  if (c === 25 && top < 4) return L(PAT_SHORT[PATS[top]], `Chord pattern: ${PAT_NAME[PATS[top]]}`);
+  if (c === 25 && r <= 1) return L(r ? 'HOST' : 'INT', r ? 'Pattern clock: the DAW’s MIDI clock while it plays' : 'Pattern clock: the LinnStrument’s own tempo');
+  return null;
+}
+const LED_CHECK = ['red', 'orange', 'yellow', 'lime', 'green', 'teal', 'cyan', 'azure', 'blue', 'violet', 'magenta', 'pink', 'white'];
+function settingsInfo(display, c, r) {
+  switch (display) {
+    case 1: return perSplitInfo(c, r);
+    case 2: return presetInfo(c, r);
+    case 3: return r === 5 && c >= 1 && c <= NUMCOLS - 2 ? { label: '', tip: 'Volume: tap or slide along this row' } : splitPick(c, r);
+    case 4: return octaveInfo(c, r);
+    case 6: case 7: return globalInfo(c, r);
+    case 46: return harmonyPageInfo(c, r);
+    case 47: {
+      if ((c - 1) % 2 || r < 2) return null;
+      const name = LED_CHECK[(c - 1) / 2], level = r >= 6 ? 'full' : r >= 4 ? 'half' : 'quarter';
+      return { label: '', tip: `${name}, ${level} brightness` };
+    }
+  }
+  return null;
+}
+function applyFwFrame(d) {
+  if (d.length < 2) return;
+  const cols = d[0], rows = d[1];
+  if (d.length < 2 + cols * rows) return;
+  MIRROR.frame = { cols, rows, cells: d.slice(2, 2 + cols * rows) };
+  if (MIRROR.display !== 0) render();
 }
 function applyFwMemories(d) {
   for (let i = 0; i < 8; i++) {
@@ -2420,6 +2554,7 @@ function mirrorMidi(bytes) {
     const data = body.slice(5);
     if (body[4] === SX_STATE) applyFwState(data);
     else if (body[4] === SX_MEMORIES) applyFwMemories(data);
+    else if (body[4] === 0x03) applyFwFrame(data);
     return;
   }
   const type = st & 0xF0, ch = (st & 0x0F) + 1;
@@ -2441,7 +2576,7 @@ function startMirroring() {
   connState.textContent = 'Mirroring the LinnStrument. The board shows what the instrument shows; change things on the instrument.';
 }
 function stopMirroring(why) {
-  MIRROR.on = false; MIRROR.notes.clear();
+  MIRROR.on = false; MIRROR.notes.clear(); MIRROR.frame = null; MIRROR.display = 0;
   document.body.classList.remove('mirroring');
   connEl.classList.remove('on');
   connState.textContent = why;

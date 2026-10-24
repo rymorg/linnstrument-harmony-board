@@ -166,6 +166,14 @@ inline byte getCombinedLedData(byte col, byte row) {
   return data;
 }
 
+// what a cell shows right now, for the companion app: the color in bits 0-3 and the cell display in bits 4-6
+byte getLedForMirror(byte col, byte row) {
+  byte data = ledVisible(LED_LAYER_COMBINED, col, row);
+  byte disp = data & B00000111;
+  if (disp == cellOff) return 0;
+  return (disp << 4) | ((data >> 3) & B00001111);
+}
+
 void setLed(byte col, byte row, byte color, CellDisplay disp) {
   setLed(col, row, color, disp, LED_LAYER_MAIN);
 }

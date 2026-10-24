@@ -1,7 +1,7 @@
 Harmony Board companion
 =======================
 
-`companion/index.html` is the Harmony Board mockup turned into a companion app. On its own it's the playable mockup. Connected to a LinnStrument running the Harmony Board firmware, it mirrors the instrument: the board shows the same key, mode, chord, lights and hints, the guides and readouts follow along, and the pads you play light up.
+`companion/index.html` is the Harmony Board mockup turned into a companion app. On its own it's the playable mockup. Connected to a LinnStrument running the Harmony Board firmware, it mirrors the instrument: the board shows the same key, mode, chord, lights and hints, the guides and readouts follow along, and the pads you play light up. Settings screens (Global Settings, Per-Split Settings, Preset, Volume, Octave/Transpose, the Harmony page and the rest) show the LinnStrument's own lights, exactly as the hardware does, with the screen's name above the board. On Global Settings, Per-Split Settings, Preset, Volume, Octave/Transpose, the Harmony page and the LED check, the pads also carry short labels, and hovering over one shows what it does; the descriptions come from the firmware's settings code.
 
 This is phase 1: the app only watches. Changing the harmony from the app, pushing memory banks and saving song setups come next (see [HARMONY-STATUS.md](HARMONY-STATUS.md)).
 
@@ -36,8 +36,9 @@ F0 7D 48 42 <version> <command> <data...> F7
 
 | Command | Direction | When | Data |
 |---|---|---|---|
-| `01` State | LinnStrument → app | when the harmony or a setting changes (checked every 20 ms), and on request | 33 bytes, below |
+| `01` State | LinnStrument → app | when the harmony, a setting or the screen changes (checked every 20 ms), and on request | 34 bytes, below |
 | `02` Memories | LinnStrument → app | when a memory changes (checked every 100 ms), and on request | 8 × 13 bytes, below |
+| `03` Frame | LinnStrument → app | while a settings screen is open, when its lights change (checked every 50 ms), and on request | columns, rows, then one byte per light, below |
 | `10` Request | app → LinnStrument | when the app connects | none |
 
 The LinnStrument only sends these over USB, not DIN, and not in OS Update mode.
@@ -70,6 +71,9 @@ The LinnStrument only sends these over USB, not DIN, and not in OS Update mode.
 | 29 | modifiers armed or held right now, same bits |
 | 30 | octave transpose in octaves, plus 5 |
 | 31, 32 | which memories are stored: bits 0–6, then bit 7 |
+| 33 | the screen showing: 0 is normal play, otherwise the firmware's `DisplayMode` (1 Per-Split Settings, 2 Preset, 3 Volume, 4 Octave/Transpose, 6 and 7 Global Settings, 46 Harmony page, 47 LED check; the full list is the `DisplayMode` enum in `linnstrument-firmware.ino`) |
+
+**Frame**: the number of columns (26 on a LinnStrument 200, column 0 being the control buttons) and rows (8), then one byte per light, row by row from the bottom row, each row from column 0. Each byte holds the color in bits 0–3 (0 off, 1 red, 2 yellow, 3 green, 4 cyan, 5 blue, 6 magenta, 8 white, 9 orange, 10 lime, 11 pink, 12 teal, 13 azure, 14 violet) and how it's lit in bits 4–6 (0 off, 1 on, 2 fast blink, 3 slow blink, 4 blink with the tempo, 5 half brightness, 6 quarter brightness). Frames aren't sent in normal play, so nothing extra goes out while you play, nor during sleep and animations.
 
 **Memories**: 8 slots of 13 bytes each: stored (1 or 0), key, family, mode, the 7 alterations plus 2, chord focus degree plus 1, and chord size.
 
