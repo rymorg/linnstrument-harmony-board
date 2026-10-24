@@ -31,7 +31,7 @@ if (mode === "--none") {
   console.log("no release");
 } else if (mode === "--local") {
   const [bin, outDir] = rest;
-  publish(bin, bin.replace(/\.bin$/, ".elf"), outDir, { tag: "local build", prerelease: true, url: "#", published: new Date().toISOString() });
+  publish(bin, bin.replace(/\.bin$/, ".elf"), outDir, { tag: "local build", local: true, prerelease: true, url: "#", published: new Date().toISOString() });
 } else {
   const [releaseJson, assetsDir, outDir] = [mode, ...rest];
   const release = JSON.parse(readFileSync(releaseJson, "utf8"));

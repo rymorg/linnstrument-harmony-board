@@ -71,7 +71,7 @@ Most people should use the ready-made releases (see [INSTALL.md](INSTALL.md)). T
    tools/.venv/bin/python tools/flash_keep_settings.py build/linnstrument-firmware.ino.bin
    ```
 
-   With no file, the helper downloads and flashes the latest release instead. The [browser flasher](https://rymorg.github.io/linnstrument-harmony-board/flash/) can flash your own build too: choose **Use a file from this computer** and pick the `.bin` together with its `.elf`.
+   With no file, the helper downloads and flashes the latest release instead. The [browser flasher](https://rymorg.github.io/linnstrument-harmony-board/flash/) can flash your own build too: choose **Use a different file instead** and pick the `.bin` together with its `.elf`.
 
 3. **Turn on MPE** in Per-Split Settings (hold Channel Per Note), and use an MPE instrument with a pitch bend range of 48 semitones. In Perform mode, add a second instrument on channel 16 for the chords.
 

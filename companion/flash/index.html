@@ -191,8 +191,8 @@ code{font:500 13px/1 var(--f-mono);background:var(--chip);padding:2px 5px;border
     <h2><span class="n" data-n="install:3 recover:2 nobackup:1">3</span>Firmware</h2>
     <p class="state" id="fwState" aria-live="polite">Looking up the latest release…</p>
     <div class="row">
-      <label class="btn">Use a file from this computer<input type="file" id="fwFile" accept=".bin,.elf" multiple></label>
-      <span class="muted small">A <code>.bin</code>, optionally with its <code>.elf</code> to check the settings layout.</span>
+      <label class="btn">Use a different file instead<input type="file" id="fwFile" accept=".bin,.elf" multiple></label>
+      <span class="muted small">Only for your own builds: a <code>.bin</code>, optionally with its <code>.elf</code> to check the settings layout.</span>
     </div>
     <div class="box warn" id="sizeWarn" hidden>
       <p id="sizeWarnText"></p>
@@ -592,9 +592,11 @@ async function loadLatest() {
     }
     state.release = release;
     useImage(image, `${release.tag}${release.prerelease ? " (pre-release)" : ""}`, release.settingsSize || null);
-    $("fwState").innerHTML = `Harmony Board <b>${escape(release.tag)}</b>${release.prerelease ? " (pre-release)" : ""}, the latest release` +
-      `${release.published ? `, from ${escape(new Date(release.published).toLocaleDateString())}` : ""}. ` +
-      `<a href="${escape(release.url)}" target="_blank" rel="noopener">Release notes</a>.`;
+    $("fwState").innerHTML = release.local
+      ? `<b>Ready:</b> your local build (${escape(release.file)}, ${release.size} bytes), downloaded with this page. You don't need to choose a file.`
+      : `<b>Ready:</b> Harmony Board <b>${escape(release.tag)}</b>${release.prerelease ? " (pre-release)" : ""}, the latest release` +
+        `${release.published ? `, from ${escape(new Date(release.published).toLocaleDateString())}` : ""}, downloaded with this page. ` +
+        `You don't need to choose a file. <a href="${escape(release.url)}" target="_blank" rel="noopener">Release notes</a>.`;
     $("fwState").className = "state ok";
   } catch (e) {
     log(`No release firmware (${e.message}).`);
