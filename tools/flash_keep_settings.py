@@ -16,6 +16,7 @@ transfer protocol (ls_serial.ino):
      its first boot after a flash.
 
 Usage:
+  flash_keep_settings.py                      (download the latest Harmony Board release and flash it)
   flash_keep_settings.py build/linnstrument-firmware.ino.bin
   flash_keep_settings.py --backup-only [-o FILE]
   flash_keep_settings.py --restore FILE
@@ -37,9 +38,20 @@ import shlex
 import struct
 import subprocess
 import sys
-import termios
+import tarfile
+import tempfile
 import time
+import hashlib
+import json
+import platform
+import urllib.request
 import zlib
+
+try:
+    import termios                       # not on Windows
+    TERMIOS_ERRORS = (termios.error,)
+except ImportError:
+    TERMIOS_ERRORS = ()
 
 try:
     import serial
@@ -70,7 +82,8 @@ DEVICE_IDLE_TIMEOUT = 2.0            # the firmware abandons a transfer after 2 
 MIN_PROJECT_VERSION = 9              # serialRestoreProject() ignores projects from older settings versions
 SERIAL_BAUD = 115200
 RESTART_SETTLE = 2.0                 # opening the port restarts the LinnStrument, which sometimes drops USB for a second or two
-PORT_ERRORS = (serial.SerialException, termios.error, OSError)
+PORT_ERRORS = (serial.SerialException, OSError) + TERMIOS_ERRORS
+LINNSTRUMENT_USB_VID = 0xF055           # the LinnStrument's USB vendor ID, in both MIDI and serial mode
 
 BACKUP_DIR = os.path.expanduser("~/linnstrument-backups")
 BACKUP_MAGIC = b"LSBACKUP"
@@ -80,7 +93,21 @@ BACKUP_HEADER_1 = struct.Struct("<8sHBBIII")
 # format 2 adds the size of the Harmony Board block, stored after the projects
 BACKUP_HEADER = struct.Struct("<8sHBBIIII")
 
-BOSSAC_GLOB = "~/Library/Arduino15/packages/arduino/tools/bossac/*/bossac"
+# bossac, the tool that writes the firmware: the Arduino IDE's copy if there is one, otherwise Arduino's own
+# download of the same version, checked against the checksum in Arduino's package index
+BOSSAC_DIRS = ["~/Library/Arduino15", "~/.arduino15", os.path.join(os.environ.get("LOCALAPPDATA", "~"), "Arduino15")]
+BOSSAC_DOWNLOADS = {
+    "darwin": ("https://downloads.arduino.cc/bossac-1.6.1-arduino-i386-apple-darwin14.5.0.tar.gz",
+               "2f80ef569a3fb19da60ab3489e49d8fe7d4699876acf30ff4938c632230a09aa"),
+    "linux-x86_64": ("https://downloads.arduino.cc/bossac-1.6.1-arduino-x86_64-linux-gnu.tar.gz",
+                     "b78afc66c00ccfdd69a08bd3959c260a0c64ccce78a71d5a1135ae4437ff40db"),
+    "linux-armv7l": ("https://downloads.arduino.cc/bossac-1.6.1-arduino-arm-linux-gnueabihf.tar.bz2",
+                     "8c4e63db982178919c824e7a35580dffc95c3426afa7285de3eb583982d4d391"),
+    "windows": ("https://downloads.arduino.cc/bossac-1.6.1-arduino-mingw32.tar.gz",
+                "d59f43e2e83a337d04c4ae88b195a4ee175b8d87fff4c43144d23412a4a9513b"),
+}
+CACHE_DIR = os.path.expanduser("~/.linnstrument-harmony")
+RELEASES_API = "https://api.github.com/repos/rymorg/linnstrument-harmony-board/releases"
 
 OS_UPDATE_HINT = ("Turn on OS Update: press Global Settings, then briefly press OS Update "
                   "(column 16, third pad from the bottom) so its light turns on.")
@@ -124,9 +151,9 @@ class Connection:
                 time.sleep(1.0)
                 continue
             deadline = time.monotonic() + RESTART_SETTLE
-            while time.monotonic() < deadline and os.path.exists(self.port):
+            while time.monotonic() < deadline and port_present(self.port):
                 time.sleep(0.05)
-            if os.path.exists(self.port):
+            if port_present(self.port):
                 try:
                     self.ser.reset_input_buffer()
                     return
@@ -422,18 +449,26 @@ def default_backup_path():
 # Ports, bootloader and bossac
 # ------------------------------------------------------------------------------------------------
 
+def port_present(port):
+    if os.name == "nt":                  # COM ports aren't files
+        return any(p.device.upper() == port.upper() for p in list_ports.comports())
+    return os.path.exists(port)
+
+
 def candidate_ports():
     ports = list(list_ports.comports())
-    named = [p for p in ports
-             if "linnstrument" in " ".join(filter(None, (p.description, p.product, p.manufacturer))).lower()]
+    named = [p for p in ports if p.vid == LINNSTRUMENT_USB_VID or
+             "linnstrument" in " ".join(filter(None, (p.description, p.product, p.manufacturer))).lower()]
     if named:
         return named
-    return [p for p in ports if os.path.basename(p.device).startswith("cu.usbmodem")]
+    return [p for p in ports if os.path.basename(p.device).startswith(("cu.usbmodem", "ttyACM"))]
 
 
 def find_port(requested):
     if requested:
-        return requested if requested.startswith("/") else "/dev/" + requested
+        if os.name == "nt" or requested.startswith("/"):
+            return requested
+        return "/dev/" + requested
     found = candidate_ports()
     if len(found) == 1:
         return found[0].device
@@ -447,7 +482,7 @@ def wait_for_port(requested, deadline):
     while True:
         try:
             port = find_port(requested)
-            if os.path.exists(port):
+            if port_present(port):
                 return port
         except NoAnswer:
             pass
@@ -460,7 +495,7 @@ def connect_after_boot(requested, previous, timeout=60.0):
     """Wait for the freshly flashed firmware, which starts in serial mode, to answer the countdown."""
     deadline = time.monotonic() + timeout
     while True:
-        port = previous if not requested and os.path.exists(previous) else wait_for_port(requested, deadline)
+        port = previous if not requested and port_present(previous) else wait_for_port(requested, deadline)
         try:
             conn = Connection(port)
         except (NoAnswer,) + PORT_ERRORS:
@@ -490,16 +525,106 @@ def touch_1200(port):
     time.sleep(0.5)
 
 
+def download(url, what):
+    req = urllib.request.Request(url, headers={"User-Agent": "linnstrument-harmony-flash"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return r.read()
+    except OSError as e:
+        raise LinnStrumentError("couldn't download %s (%s)" % (what, e))
+
+
+def bossac_platform():
+    if sys.platform == "darwin":
+        return "darwin"
+    if os.name == "nt":
+        return "windows"
+    return "linux-" + platform.machine()
+
+
+def fetch_bossac():
+    """Download Arduino's bossac 1.6.1 into the cache, checking its checksum."""
+    key = bossac_platform()
+    if key not in BOSSAC_DOWNLOADS:
+        raise LinnStrumentError("there's no bossac download for %s; install the Arduino Due core "
+                                "(arduino:sam 1.6.12) and pass --bossac" % key)
+    url, sha256 = BOSSAC_DOWNLOADS[key]
+    name = "bossac.exe" if os.name == "nt" else "bossac"
+    target = os.path.join(CACHE_DIR, "bossac-1.6.1-arduino", name)
+    if os.path.isfile(target):
+        return target
+    print("    Downloading bossac from Arduino...")
+    data = download(url, "bossac")
+    if hashlib.sha256(data).hexdigest() != sha256:
+        raise LinnStrumentError("the bossac download didn't match Arduino's checksum; not using it")
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = os.path.join(tmp, os.path.basename(url))
+        with open(archive, "wb") as f:
+            f.write(data)
+        with tarfile.open(archive) as tar:
+            member = next((m for m in tar.getmembers() if m.isfile() and os.path.basename(m.name) == name), None)
+            if member is None:
+                raise LinnStrumentError("the bossac download has no %s in it" % name)
+            source = tar.extractfile(member).read()
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    with open(target, "wb") as f:
+        f.write(source)
+    os.chmod(target, 0o755)
+    return target
+
+
+def check_bossac_runs(bossac):
+    """Run bossac once before anything is erased, so a missing Rosetta or a blocked download shows up first."""
+    try:
+        subprocess.run([bossac, "--help"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
+    except OSError as e:
+        hint = ""
+        if sys.platform == "darwin" and platform.machine() == "arm64":
+            hint = (" bossac is an Intel program; on Apple Silicon it needs Rosetta. Install it with "
+                    "`softwareupdate --install-rosetta --agree-to-license` and run this again.")
+        raise LinnStrumentError("bossac can't run (%s).%s Nothing was erased." % (e, hint))
+    except subprocess.TimeoutExpired:
+        pass
+
+
 def find_bossac(requested):
     if requested:
         if not os.access(requested, os.X_OK):
             raise LinnStrumentError("bossac not found at %s" % requested)
         return requested
-    matches = sorted(glob.glob(os.path.expanduser(BOSSAC_GLOB)))
-    if not matches:
-        raise LinnStrumentError("bossac not found. Install the Arduino Due core with "
-                                "`arduino-cli core install arduino:sam@1.6.12`, or pass --bossac.")
-    return matches[-1]
+    name = "bossac.exe" if os.name == "nt" else "bossac"
+    matches = []
+    for base in BOSSAC_DIRS:
+        matches += glob.glob(os.path.join(os.path.expanduser(base), "packages", "arduino", "tools", "bossac", "*", name))
+    if matches:
+        return sorted(matches)[-1]
+    return fetch_bossac()
+
+
+def fetch_latest_firmware():
+    """The newest Harmony Board release's firmware (and its .elf, for the settings check), into the cache."""
+    print("Looking up the latest Harmony Board release...")
+    releases = json.loads(download(RELEASES_API, "the release list").decode("utf-8"))
+    for rel in releases:
+        if rel.get("draft"):
+            continue
+        assets = {a["name"]: a["browser_download_url"] for a in rel.get("assets", [])}
+        bins = [n for n in assets if n.endswith(".bin")]
+        if not bins:
+            continue
+        tag = rel.get("tag_name", "latest")
+        folder = os.path.join(CACHE_DIR, "firmware", tag)
+        os.makedirs(folder, exist_ok=True)
+        bin_path = os.path.join(folder, "linnstrument-firmware.ino.bin")
+        with open(bin_path, "wb") as f:
+            f.write(download(assets[bins[0]], "the firmware"))
+        elfs = [n for n in assets if n.endswith(".elf")]
+        if elfs:
+            with open(os.path.join(folder, "linnstrument-firmware.ino.elf"), "wb") as f:
+                f.write(download(assets[elfs[0]], "the firmware's .elf"))
+        print("    %s%s (%s)" % (tag, " (pre-release)" if rel.get("prerelease") else "", rel.get("html_url", "")))
+        return bin_path
+    raise LinnStrumentError("no Harmony Board release with a firmware file was found")
 
 
 def bossac_port(port):
@@ -659,7 +784,9 @@ def main():
                         help="send FILE to the LinnStrument instead of backing it up first; "
                              "with a .bin, flash it and then restore FILE")
     parser.add_argument("--skip-projects", action="store_true", help="leave the sequencer projects out")
-    parser.add_argument("--bossac", help="path to bossac (default: the Arduino IDE's, %s)" % BOSSAC_GLOB)
+    parser.add_argument("--latest", action="store_true",
+                        help="download the latest Harmony Board release and flash it (the default with no arguments)")
+    parser.add_argument("--bossac", help="path to bossac (default: the Arduino IDE's, or Arduino's download)")
     parser.add_argument("--yes", action="store_true", help="flash without asking for confirmation")
     parser.add_argument("--force", action="store_true",
                         help="flash even if the backup's settings size doesn't match the new firmware's")
@@ -667,8 +794,10 @@ def main():
 
     if args.backup_only and (args.bin or args.restore):
         parser.error("--backup-only can't be combined with a .bin or --restore")
+    if args.latest and (args.bin or args.backup_only):
+        parser.error("--latest can't be combined with a .bin or --backup-only")
     if not args.bin and not args.backup_only and not args.restore:
-        parser.error("give a .bin to flash, --backup-only or --restore FILE")
+        args.latest = True
     if args.output and args.restore:
         parser.error("--output names a new backup; --restore uses an existing one")
 
@@ -679,6 +808,9 @@ def main():
         if args.restore:
             backup = Backup.load(args.restore)
             print("Loaded %s: %s." % (args.restore, backup.describe()))
+
+        if args.latest:
+            args.bin = fetch_latest_firmware()
 
         # restore only: the LinnStrument is waiting in serial mode, after a flash or with OS Update on
         if not args.bin and args.restore:
@@ -694,6 +826,7 @@ def main():
             if not os.path.isfile(bin_path):
                 raise LinnStrumentError("%s not found" % args.bin)
             bossac = find_bossac(args.bossac)
+            check_bossac_runs(bossac)
 
         port = find_port(args.port)
         total = 1 if args.backup_only else (2 if args.restore else 3)
@@ -741,10 +874,10 @@ def main():
               "settings; the backup is still in %s." % backup_path)
         return 0
 
-    except (LinnStrumentError, serial.SerialException, termios.error, OSError, KeyboardInterrupt) as e:
+    except (LinnStrumentError, KeyboardInterrupt) + PORT_ERRORS as e:
         message = "Interrupted." if isinstance(e, KeyboardInterrupt) else str(e)
         print("\nError: " + message, file=sys.stderr)
-        script = "tools/flash_keep_settings.py"
+        script = os.path.basename(sys.argv[0]) or "flash_keep_settings.py"
         if stage == "flash":
             print("\nThe LinnStrument may now be erased and waiting in its bootloader (all lights off). "
                   "Your settings are safe in %s. To flash and restore them, run:\n  %s --restore %s %s"
@@ -757,5 +890,16 @@ def main():
         return 1
 
 
+def run():
+    code = main()
+    # the packaged app runs in its own window: keep it open so the result can be read
+    if getattr(sys, "frozen", False) and sys.stdin and sys.stdin.isatty():
+        try:
+            input("\nPress Enter to close.")
+        except EOFError:
+            pass
+    return code
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run())

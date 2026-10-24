@@ -301,6 +301,7 @@ case " $* " in
     if [ "$n" -lt %(failures)d ]; then echo "No device found on $1"; exit 1; fi
     echo "Device       : ATSAMX8E"; exit 0 ;;
   *" -e "*) touch '%(marker)s'; echo "Verify successful"; exit 0 ;;
+  *" --help "*) echo "Usage: bossac"; exit 0 ;;
 esac
 exit 2
 """ % {"log": log, "count": count, "failures": info_failures, "marker": self.marker})
@@ -369,6 +370,8 @@ exit 2
         name = os.path.basename(self.device.port)
         with open(log) as f:
             calls = f.read().splitlines()
+        self.assertEqual(calls[0], "--help")                 # bossac has to run before anything is erased
+        calls = calls[1:]
         self.assertEqual(calls[:3], ["--port=%s -U true -i" % name] * 3)
         self.assertEqual(calls[3], "--port=%s -U true -e -w -v -b %s -R" % (name, bin_path))
         self.assertIn("flashed", self.device.events)
@@ -394,7 +397,8 @@ exit 2
                                     "-o", os.path.join(self.tmp, "b.lsbackup"))
         self.assertEqual(code, 1)
         self.assertIn("--force", out)
-        self.assertFalse(os.path.exists(log))
+        calls = open(log).read().splitlines() if os.path.exists(log) else []
+        self.assertEqual([c for c in calls if c != "--help"], [])   # nothing but the pre-check ran
         self.assertTrue(self.device.serial_mode)
 
     def use_harmony_device(self, harmony):
@@ -429,6 +433,37 @@ exit 2
         b = fks.Backup.load(path)
         self.assertEqual(b.settings, settings)
         self.assertEqual(b.harmony, b"")
+
+    def test_bossac_that_cannot_run_stops_before_erasing(self):
+        broken = os.path.join(self.tmp, "bossac")
+        with open(broken, "wb") as f:
+            f.write(b"\xca\xfe\xba\xbe not a program")   # like an Intel bossac without Rosetta
+        os.chmod(broken, 0o755)
+        code, out = self.run_script(self.fake_bin(), "--port", self.device.port, "--bossac", broken, "--yes",
+                                    "--skip-projects", "-o", os.path.join(self.tmp, "b.lsbackup"))
+        self.assertEqual(code, 1)
+        self.assertIn("Nothing was erased", out)
+        self.assertNotIn("flashed", self.device.events)
+
+    def test_restore_with_latest_flashes_then_restores(self):
+        bossac, log = self.fake_bossac()
+        latest = self.fake_bin()
+        path = os.path.join(self.tmp, "saved.lsbackup")
+        fks.Backup(self.user_settings).save(path)
+        original = fks.fetch_latest_firmware
+        fks.fetch_latest_firmware = lambda: latest
+        try:
+            code, out = self.run_script("--restore", path, "--latest", "--port", self.device.port,
+                                        "--bossac", bossac, "--yes")
+        finally:
+            fks.fetch_latest_firmware = original
+        self.assertEqual(code, 0, out)
+        self.assertIn("flashed", self.device.events)
+        self.assertEqual(bytes(self.device.settings), self.user_settings)
+
+    def test_port_lookup(self):
+        self.assertTrue(fks.port_present(self.device.port))
+        self.assertFalse(fks.port_present(self.device.port + "-gone"))
 
     def test_elf_symbol_size(self):
         path = os.path.join(self.tmp, "x.elf")
