@@ -20,6 +20,6 @@ The first public pre-release.
 - A reset pad on the Harmony page (column 1, bottom: tap twice).
 - The Harmony Board version on the OS Version screen (`H0.1`) and in the companion app.
 - Companion app: mirrors the LinnStrument over USB MIDI, settings screens included, at https://rymorg.github.io/linnstrument-harmony-board/.
-- Flasher: backs up settings, calibration, sequencer projects and Harmony Board data, flashes, and restores them; with no arguments it downloads the latest release. Standalone apps for macOS (Apple Silicon), Windows and Linux.
+- Flasher: backs up settings, calibration, sequencer projects and Harmony Board data, flashes, and restores them; with no arguments it downloads the latest release, and `--no-backup` recovers a LinnStrument that can't answer (for example in FWUP mode). Standalone apps for macOS (Apple Silicon), Windows and Linux.
 
 [0.1.0]: https://github.com/rymorg/linnstrument-harmony-board/releases/tag/v0.1.0

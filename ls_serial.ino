@@ -38,7 +38,8 @@ enum linnCommands {
   RestoreSettings = 'r',
   SendSettings = 's',
   SendHarmony = 'x',                    // the Harmony Board's saved block, for the flash helper
-  RestoreHarmony = 'y'
+  RestoreHarmony = 'y',
+  PrepareUpdate = 'u'                   // the flash helper is about to erase: show WAIT until the lights go out
 };
 
 byte codePos = 0;
@@ -126,6 +127,13 @@ void handleSerialIO() {
       case RestoreHarmony:
       {
         serialRestoreHarmony();
+        break;
+      }
+
+      case PrepareUpdate:
+      {
+        Serial.write(ackCode);
+        harmonyShowUpdateStarting();
         break;
       }
 
@@ -327,6 +335,7 @@ void serialRestoreSettings() {
     clearLed(0, GLOBAL_SETTINGS_ROW);
 
     storeSettings();
+    harmonyShowUpdateDone();
   }
   // turn on calibration instead if no new settings were applied and default settings are used
   else {

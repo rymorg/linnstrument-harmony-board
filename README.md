@@ -1,7 +1,8 @@
 LinnStrument Harmony Board
 ==========================
 
-> **Work in progress.** This is an experimental firmware that I'm actively building and testing on my own LinnStrument 200. Expect significant changes as I try things out: pad layouts, colors, settings, the saved-data format and the companion app's protocol can all change between commits, without warning or migration. Use it at your own risk, and keep the official LinnStrument Updater handy to go back to the stock firmware.
+> [!WARNING]
+> **Work in progress, use at your own risk.** This is unofficial, experimental firmware that I'm actively building and testing on my own LinnStrument 200, provided as is, without warranty of any kind. Expect significant changes as I try things out: pad layouts, colors, settings, the saved-data format and the companion app's protocol can all change between commits, without warning or migration. Flashing replaces your LinnStrument's firmware, and an interrupted flash leaves it unusable until it's flashed again; read [Risks and recovery](INSTALL.md#risks-and-recovery) before installing. Keep the official LinnStrument Updater handy to go back to the stock firmware.
 
 The Harmony Board is a modified firmware for the [LinnStrument](https://www.rogerlinndesign.com/linnstrument) 200 that turns the left side of the board into a **harmony zone** for picking the key, mode, alterations and chords in real time, while the rest of the board plays **in the current scale with full MPE**. It's built for writing and performing songs: the lights show which notes fit, which chords lead where, and how far each change moves you.
 

@@ -72,6 +72,7 @@ RESTORE_SETTINGS = b"r"
 SEND_PROJECTS = b"p"
 RESTORE_PROJECT = b"q"
 SEND_HARMONY = b"x"                  # Harmony Board firmware only: its saved harmony block
+PREPARE_UPDATE = b"u"                # Harmony Board firmware only: show WAIT just before the erase
 RESTORE_HARMONY = b"y"
 CRC_CHECK = b"c"                     # asks for the CRC of the batch just sent
 CRC_WRONG = b"w"                     # the batch gets sent again
@@ -108,6 +109,12 @@ BOSSAC_DOWNLOADS = {
 }
 CACHE_DIR = os.path.expanduser("~/.linnstrument-harmony")
 RELEASES_API = "https://api.github.com/repos/rymorg/linnstrument-harmony-board/releases"
+
+FLASH_WARNING = """
+    Use at your own risk: this is unofficial, experimental firmware.
+    While it flashes, the LinnStrument's lights go dark for a minute or two. That's expected.
+    Don't unplug it, don't let the computer sleep, and don't close this window until it says Done.
+    Plug it straight into the computer (not a hub), with a laptop on its charger."""
 
 OS_UPDATE_HINT = ("Turn on OS Update: press Global Settings, then briefly press OS Update "
                   "(column 16, third pad from the bottom) so its light turns on.")
@@ -321,6 +328,27 @@ class Connection:
         data = self._receive(size) if size else b""
         self._expect(ACK, "end of harmony")
         return data
+
+    def prepare_update(self):
+        """Ask Harmony Board firmware to show WAIT on its pads; False if it doesn't answer (stock firmware,
+        or a LinnStrument in FWUP mode). One quick try, since this is only a courtesy."""
+        try:
+            if not self.start_session():
+                return False
+            self._write(PREPARE_UPDATE)
+            self._expect(ACK, "acknowledgement", timeout=1.0)
+            return True
+        except (LinnStrumentError,) + PORT_ERRORS:
+            return False
+
+    def touch_1200_here(self):
+        """The 1200-baud touch on this open connection: opening the port again would restart the LinnStrument
+        and clear what it shows."""
+        try:
+            self.ser.baudrate = 1200
+            self.ser.dtr = False
+        finally:
+            self.close()
 
     def write_harmony(self, data):
         self.handshake()
@@ -587,6 +615,24 @@ def check_bossac_runs(bossac):
         pass
 
 
+def reset_into_bootloader(port):
+    """Show WAIT on Harmony Board firmware, then reset into the bootloader on the same connection;
+    on other firmware, or if that fails, the usual 1200-baud touch."""
+    conn = None
+    try:
+        conn = Connection(port)
+        if conn.prepare_update():
+            print("    The LinnStrument shows WAIT.")
+            time.sleep(2.0)                      # long enough to read before the lights go out
+            conn.touch_1200_here()
+            return
+        conn.close()
+    except (LinnStrumentError,) + PORT_ERRORS:
+        if conn:
+            conn.close()
+    touch_1200(wait_for_port(port, time.monotonic() + 15))
+
+
 def find_bossac(requested):
     if requested:
         if not os.access(requested, os.X_OK):
@@ -784,6 +830,9 @@ def main():
                         help="send FILE to the LinnStrument instead of backing it up first; "
                              "with a .bin, flash it and then restore FILE")
     parser.add_argument("--skip-projects", action="store_true", help="leave the sequencer projects out")
+    parser.add_argument("--no-backup", action="store_true",
+                        help="flash without reading a backup first, to recover a LinnStrument that can't answer "
+                             "(for example in FWUP mode); its settings and calibration are lost")
     parser.add_argument("--latest", action="store_true",
                         help="download the latest Harmony Board release and flash it (the default with no arguments)")
     parser.add_argument("--bossac", help="path to bossac (default: the Arduino IDE's, or Arduino's download)")
@@ -798,6 +847,8 @@ def main():
         parser.error("--latest can't be combined with a .bin or --backup-only")
     if not args.bin and not args.backup_only and not args.restore:
         args.latest = True
+    if args.no_backup and (args.backup_only or args.restore):
+        parser.error("--no-backup can't be combined with --backup-only or --restore")
     if args.output and args.restore:
         parser.error("--output names a new backup; --restore uses an existing one")
 
@@ -829,10 +880,13 @@ def main():
             check_bossac_runs(bossac)
 
         port = find_port(args.port)
-        total = 1 if args.backup_only else (2 if args.restore else 3)
+        total = 1 if args.backup_only else (2 if args.restore else (1 if args.no_backup else 3))
         number = 0
 
-        if not backup:
+        if args.no_backup:
+            print("No backup: the LinnStrument's settings, calibration and Harmony Board data will be lost, and "
+                  "you'll calibrate it afterwards.")
+        elif not backup:
             number += 1
             step("Step %d/%d: backing up settings from %s" % (number, total, port))
             stage = "backup"
@@ -847,19 +901,40 @@ def main():
         number += 1
         shown = os.path.relpath(bin_path)
         step("Step %d/%d: flashing %s" % (number, total, bin_path if shown.startswith("..") else shown))
-        check_settings_size(backup, bin_path, args.force)
-        confirm("Erase the LinnStrument (firmware, settings and calibration) and flash %s? "
-                "The settings come back from %s afterwards." % (os.path.basename(bin_path), backup_path), args.yes)
+        if backup:
+            check_settings_size(backup, bin_path, args.force)
+        print(FLASH_WARNING)
+        if backup:
+            question = ("Erase the LinnStrument (firmware, settings and calibration) and flash %s? "
+                        "The settings come back from %s afterwards." % (os.path.basename(bin_path), backup_path))
+        else:
+            question = ("Erase the LinnStrument (firmware, settings and calibration) and flash %s, "
+                        "without a backup?" % os.path.basename(bin_path))
+        confirm(question, args.yes)
         stage = "flash"
-        print("    Resetting into the bootloader (1200-baud touch on %s)..." % port)
         time.sleep(RESTART_SETTLE)
         port = wait_for_port(args.port, time.monotonic() + 15)
-        touch_1200(port)
-        info = wait_for_bootloader(bossac, port)
+        reset_into_bootloader(port)
+        print("    Resetting into the bootloader. The LinnStrument's lights go dark now; that's normal.")
+        try:
+            info = wait_for_bootloader(bossac, port, timeout=8)
+        except LinnStrumentError:
+            touch_1200(port)                     # the usual way, if the in-session touch didn't take
+            info = wait_for_bootloader(bossac, port)
         device = [line for line in info.splitlines() if line.lower().startswith("device")]
         print("    Bootloader answered%s." % (": " + device[0].split(":", 1)[-1].strip() if device else ""))
+        print("    Erasing and writing the new firmware, then checking it: about a minute and a half.")
+        print("    The lights stay off the whole time. Don't unplug the LinnStrument.")
+        started = time.monotonic()
         run_bossac(bossac, port, bin_path)
+        print("    Firmware written and checked in %d seconds." % (time.monotonic() - started))
         stage = "restore"
+
+        if not backup:
+            print("\nDone. The LinnStrument is running the new firmware. It starts in OS Update mode with the "
+                  "calibration screen: slide a finger along each lit row, then each lit column, until it shows OK. "
+                  "Then press Global Settings and briefly press OS Update to turn it off, and set up MPE again.")
+            return 0
 
         number += 1
         step("Step %d/%d: restoring settings" % (number, total))
@@ -869,19 +944,23 @@ def main():
             restore_device(conn, backup, args.skip_projects)
         finally:
             conn.close()
-        print("\nDone. The LinnStrument is running the new firmware in MIDI mode, with its settings and "
-              "calibration. If it shows the calibration screen instead, the firmware couldn't use the saved "
-              "settings; the backup is still in %s." % backup_path)
+        print("\nDone. The LinnStrument shows a green OK and is running the new firmware in MIDI mode, with its "
+              "settings and calibration. If it shows the calibration screen instead, the firmware couldn't use "
+              "the saved settings; the backup is still in %s." % backup_path)
         return 0
 
     except (LinnStrumentError, KeyboardInterrupt) + PORT_ERRORS as e:
         message = "Interrupted." if isinstance(e, KeyboardInterrupt) else str(e)
         print("\nError: " + message, file=sys.stderr)
         script = os.path.basename(sys.argv[0]) or "flash_keep_settings.py"
-        if stage == "flash":
+        if stage == "flash" and backup_path:
             print("\nThe LinnStrument may now be erased and waiting in its bootloader (all lights off). "
-                  "Your settings are safe in %s. To flash and restore them, run:\n  %s --restore %s %s"
+                  "That's recoverable, so leave it plugged in. Your settings are safe in %s. To flash and "
+                  "restore them, run:\n  %s --restore %s %s"
                   % (backup_path, script, shlex.quote(backup_path), shlex.quote(args.bin)), file=sys.stderr)
+        elif stage == "flash":
+            print("\nThe LinnStrument may now be erased and waiting in its bootloader (all lights off). "
+                  "That's recoverable, so leave it plugged in and run the same command again.", file=sys.stderr)
         elif stage == "restore":
             print("\nThe new firmware is installed but the settings weren't restored. Your settings are safe "
                   "in %s. Restore them before calibrating (calibrating on first boot leaves serial mode; "

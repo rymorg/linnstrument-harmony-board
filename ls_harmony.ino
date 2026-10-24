@@ -2590,3 +2590,21 @@ void harmonyResetAll() {
   Global.splitActive = false;
   harmonyLayoutChanged();
 }
+
+/******************************* update feedback *******************************/
+
+// The LEDs go dark while the LinnStrument is erased and rewritten: nothing but the processor's built-in
+// bootloader runs then, and it can't drive them. So the flash helper asks for a red WAIT just before it
+// erases, and a successful restore ends with a green OK.
+void harmonyShowUpdateStarting() {
+  clearFullDisplay();
+  smallfont_draw_string(3, 0, "WAIT", COLOR_RED, false);
+}
+
+void harmonyShowUpdateDone() {
+  clearFullDisplay();
+  bigfont_draw_string((NUMCOLS - 11) / 2 - 1, 0, "OK", COLOR_GREEN, false);
+  delayUsec(1000000);
+  clearDisplay();
+}
+

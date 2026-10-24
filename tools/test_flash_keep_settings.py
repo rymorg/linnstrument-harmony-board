@@ -128,7 +128,8 @@ class FakeLinnStrument(threading.Thread):
             command = {ord("s"): self.send_settings, ord("r"): self.restore_settings,
                        ord("p"): self.send_projects, ord("q"): self.restore_project}.get(d)
             if self.harmony is not None:
-                command = command or {ord("x"): self.send_harmony, ord("y"): self.restore_harmony}.get(d)
+                command = command or {ord("x"): self.send_harmony, ord("y"): self.restore_harmony,
+                                      ord("u"): self.prepare_update}.get(d)
             if command:
                 command()
             else:
@@ -216,6 +217,10 @@ class FakeLinnStrument(threading.Thread):
         self.write(b"ACK\n")
         self.serial_mode = False                 # switchSerialMode(false)
         self.waiting_for_commands = False
+
+    def prepare_update(self):
+        self.write(b"ACK\n")
+        self.events.append("showed wait")
 
     def send_harmony(self):
         self.write(b"ACK\n")
@@ -414,6 +419,8 @@ exit 2
         code, out = self.run_script(self.fake_bin(), "--port", self.device.port, "--bossac", bossac,
                                     "--yes", "--skip-projects", "-o", backup)
         self.assertEqual(code, 0, out)
+        self.assertIn("showed wait", self.device.events)
+        self.assertIn("The LinnStrument shows WAIT", out)
         self.assertIn("restored harmony", self.device.events)
         self.assertEqual(self.device.harmony, harmony)
         self.assertEqual(fks.Backup.load(backup).harmony, harmony)
@@ -460,6 +467,19 @@ exit 2
         self.assertEqual(code, 0, out)
         self.assertIn("flashed", self.device.events)
         self.assertEqual(bytes(self.device.settings), self.user_settings)
+
+    def test_no_backup_flashes_without_reading(self):
+        bossac, log = self.fake_bossac()
+        code, out = self.run_script(self.fake_bin(), "--no-backup", "--port", self.device.port,
+                                    "--bossac", bossac, "--yes")
+        self.assertEqual(code, 0, out)
+        deadline = time.monotonic() + 2                     # the fake notices the flash on its own thread
+        while "flashed" not in self.device.events and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertIn("flashed", self.device.events)
+        self.assertNotIn("sent settings", self.device.events)
+        self.assertIn("calibration screen", out)
+        self.assertIn("lights go dark", out)
 
     def test_port_lookup(self):
         self.assertTrue(fks.port_present(self.device.port))

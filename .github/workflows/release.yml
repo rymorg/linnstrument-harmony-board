@@ -87,7 +87,7 @@ jobs:
             found { print }
           ' CHANGELOG.md > notes.md
           if [ ! -s notes.md ]; then echo "See CHANGELOG.md." > notes.md; fi
-          printf '\n---\nNew to this? Start with [INSTALL.md](https://github.com/%s/blob/%s/INSTALL.md).\n' "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" >> notes.md
+          printf '\n---\n**Use at your own risk.** This is unofficial, experimental firmware, provided as is. While it flashes, the LinnStrument'"'"'s lights go dark for a minute or two; that'"'"'s expected, so don'"'"'t unplug it. Read [Risks and recovery](https://github.com/%s/blob/%s/INSTALL.md#risks-and-recovery) first.\n\nNew to this? Start with [INSTALL.md](https://github.com/%s/blob/%s/INSTALL.md).\n' "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" >> notes.md
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
