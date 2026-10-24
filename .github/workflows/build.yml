@@ -1,0 +1,37 @@
+name: Build
+
+# Compile the firmware and run the flash helper's tests on every push and pull request.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install the Arduino Due core
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:sam@1.6.12
+      - name: Compile
+        run: arduino-cli compile --fqbn arduino:sam:arduino_due_x --libraries libraries --output-dir build .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            build/linnstrument-firmware.ino.bin
+            build/linnstrument-firmware.ino.elf
+
+  flash-helper-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tools/requirements.txt
+      - name: Test the flash helper against a simulated LinnStrument
+        run: python tools/test_flash_keep_settings.py

@@ -1,0 +1,48 @@
+name: Bug report
+description: Something on the Harmony Board, the flasher or the companion app doesn't work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! The Harmony Board is an unofficial, experimental project; please don't contact Roger Linn Design about it.
+  - type: input
+    id: version
+    attributes:
+      label: Harmony Board version
+      description: Global Settings → VER (column 16, second pad from the bottom), then tap the screen once. It shows something like H0.1. The companion app shows it too.
+      placeholder: H0.1
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where is the problem?
+      options:
+        - Playing or the lights
+        - Harmony zone or Perform mode
+        - Harmony page settings
+        - Saving or memories
+        - Flasher (installing or updating)
+        - Companion app
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Photos or videos of the LinnStrument help a lot.
+    validations:
+      required: true
+  - type: input
+    id: computer
+    attributes:
+      label: Computer and DAW
+      placeholder: macOS 15 on an M2, Ableton Live 12
+  - type: textarea
+    id: output
+    attributes:
+      label: Flasher output
+      description: If the flasher was involved, paste everything it printed.
+      render: text

@@ -1,0 +1,91 @@
+name: Release
+
+# Push a tag like v0.1.0 to publish a release: the firmware, standalone flashers for macOS (Apple
+# Silicon), Windows and Linux, and that version's section of CHANGELOG.md as the release notes.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches the firmware's version
+        run: |
+          version=$(sed -n 's/^const char\* HarmonyVersion = "\(.*\)";.*/\1/p' linnstrument-firmware.ino)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "The tag is $GITHUB_REF_NAME but HarmonyVersion in linnstrument-firmware.ino is $version"
+            exit 1
+          fi
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install the Arduino Due core
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:sam@1.6.12
+      - name: Compile
+        run: arduino-cli compile --fqbn arduino:sam:arduino_due_x --libraries libraries --output-dir build .
+      - name: Name the files after the version
+        run: |
+          mkdir dist
+          cp build/linnstrument-firmware.ino.bin "dist/harmony-board-$GITHUB_REF_NAME.bin"
+          cp build/linnstrument-firmware.ino.elf "dist/harmony-board-$GITHUB_REF_NAME.elf"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: dist/
+
+  flasher:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            name: macos-apple-silicon
+          - os: windows-latest
+            name: windows
+          - os: ubuntu-latest
+            name: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tools/requirements.txt pyinstaller
+      - name: Build a standalone flasher
+        shell: bash
+        run: |
+          pyinstaller --onefile --name "harmony-board-flasher-${{ matrix.name }}" tools/flash_keep_settings.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flasher-${{ matrix.name }}
+          path: dist/
+
+  release:
+    needs: [firmware, flasher]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            /^## / { if (found) exit; if (index($0, "[" v "]") || index($0, " " v)) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then echo "See CHANGELOG.md." > notes.md; fi
+          printf '\n---\nNew to this? Start with [INSTALL.md](https://github.com/%s/blob/%s/INSTALL.md).\n' "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" >> notes.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in v0.*|*-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" assets/* --title "Harmony Board $GITHUB_REF_NAME" --notes-file notes.md $prerelease

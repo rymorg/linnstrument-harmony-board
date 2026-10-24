@@ -15,6 +15,13 @@ It's an unofficial fork of [Roger Linn Design's LinnStrument firmware](https://g
 
 *Perform mode. Columns 1–5 become left-hand chord pads (rows I–VII; root position, inversions, 7th and Smart voicing) with a thumb strip for V/x, Borrow, sus4, add9 and Latch. A latched IV7 is playing, and the melody pads light its tones.*
 
+Try it
+------
+
+- **No LinnStrument handy?** The [companion app](https://rymorg.github.io/linnstrument-harmony-board/) runs in your browser: a playable version of the board with demo songs and a guide to the lights.
+- **Install it:** follow [INSTALL.md](INSTALL.md). Download the flasher for your computer from the [Releases page](https://github.com/rymorg/linnstrument-harmony-board/releases), put the LinnStrument in OS Update mode, and run it. It backs up your settings and calibration, installs the latest release and restores them; no programming or command line needed.
+- **Learn the pads:** the [cheat sheet](docs/cheatsheet.md) fits everything on one page.
+
 What it does
 ------------
 
@@ -32,14 +39,17 @@ Documentation
 
 | File | What's in it |
 |---|---|
+| [INSTALL.md](INSTALL.md) | Installing, updating and going back to the stock firmware, step by step, with troubleshooting |
+| [docs/cheatsheet.md](docs/cheatsheet.md) | Every pad and setting on one page |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each version, including changes that affect saved data |
 | [HARMONY.md](HARMONY.md) | The user guide: the layout, every pad, the Harmony page, the lights, building, flashing, MPE setup and a test checklist |
 | [COMPANION.md](COMPANION.md) | Running the companion app, and the SysEx protocol it uses |
 | [HARMONY-STATUS.md](HARMONY-STATUS.md) | What's done, what was tested on hardware, lessons learned, and what's next |
 
-Getting started
----------------
+Building from source
+--------------------
 
-You'll need a LinnStrument 200, a Mac (the tools have only been tried on macOS), [arduino-cli](https://arduino.github.io/arduino-cli/) with the Arduino Due core 1.6.12, and Python 3. HARMONY.md has the details; in short:
+Most people should use the ready-made releases (see [INSTALL.md](INSTALL.md)). To build it yourself you'll need [arduino-cli](https://arduino.github.io/arduino-cli/) with the Arduino Due core 1.6.12 and Python 3; on Apple Silicon the Arduino toolchain needs Rosetta. HARMONY.md has the details; in short:
 
 1. **Build:**
 
@@ -53,9 +63,11 @@ You'll need a LinnStrument 200, a Mac (the tools have only been tried on macOS),
    tools/.venv/bin/python tools/flash_keep_settings.py build/linnstrument-firmware.ino.bin
    ```
 
+   With no file, the helper downloads and flashes the latest release instead.
+
 3. **Turn on MPE** in Per-Split Settings (hold Channel Per Note), and use an MPE instrument with a pitch bend range of 48 semitones. In Perform mode, add a second instrument on channel 16 for the chords.
 
-4. **Optional companion app:**
+4. **Companion app:** use the [hosted copy](https://rymorg.github.io/linnstrument-harmony-board/), or serve your own changes locally:
 
    ```bash
    python3 -m http.server 8766 --bind 127.0.0.1 --directory companion
@@ -63,12 +75,14 @@ You'll need a LinnStrument 200, a Mac (the tools have only been tried on macOS),
 
    Open http://localhost:8766 in Chrome or Edge and click Connect LinnStrument.
 
+Releases are built by GitHub Actions: pushing a tag like `v0.2.0` that matches `HarmonyVersion` in `linnstrument-firmware.ino` publishes the firmware, the flashers and that version's CHANGELOG section.
+
 To go back to the stock firmware at any time, use the LinnStrument Updater from [rogerlinndesign.com](https://www.rogerlinndesign.com).
 
 Status
 ------
 
-This is a personal project in active development. Everything listed above runs on my LinnStrument 200 and has been tested there, but only by me, only on macOS with Ableton Live, and not yet on a LinnStrument 128. Ideas still being explored include controlling the harmony from the companion app, song files with memory banks, and memories that also store the pattern and style. See [HARMONY-STATUS.md](HARMONY-STATUS.md) for the current list.
+This is a personal project in active development. Everything listed above runs on my LinnStrument 200 and has been tested there, but only by me, only on macOS with Ableton Live, and not yet on a LinnStrument 128. The Windows and Linux flashers are built automatically but haven't been tried on real hardware yet; please [report how they go](https://github.com/rymorg/linnstrument-harmony-board/issues/new/choose). Ideas still being explored include controlling the harmony from the companion app, song files with memory banks, and memories that also store the pattern and style. See [HARMONY-STATUS.md](HARMONY-STATUS.md) for the current list.
 
 Because things are still moving, don't rely on saved harmonies, backups or the companion protocol staying compatible from one commit to the next.
 

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Installing or troubleshooting
+    url: https://github.com/rymorg/linnstrument-harmony-board/blob/main/INSTALL.md#troubleshooting
+    about: Common problems and fixes, before opening an issue

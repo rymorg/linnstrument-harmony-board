@@ -40,6 +40,7 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 | 9 · Mode | Compose, Perform |
 | 19 · Layout | Scale steps, Chromatic, Chromatic with snap (see Layouts) |
 | 21 · Rows apart | 3rd, 4th, 5th, octave (in a 7-note scale) |
+| 1 · LED check and reset | Top: the LED check. Bottom: reset the harmony, memories and every Harmony page setting to defaults: tap it (it blinks red), then tap again within 3 seconds |
 | 3 · Zone side | Left, Right: which edge the harmony zone sits on. On the right it's mirrored, Key ♯♭ outermost, and the 5th pads point outward |
 | 5 · Zone width | 6, 5, 4 columns: 5 drops the Memory column (PREV and NEXT still step memories), 4 drops Chord too. Perform mode always uses all 6 |
 | 11 · Style | Pop (cyan), Rock (red), Blues (blue), Jazz (magenta), Soul (orange), Cinematic (green), Flamenco (pink), Free (yellow): the rules behind the lights and hints (see Styles and templates) |
@@ -236,6 +237,8 @@ The firmware image is `build/linnstrument-firmware.ino.bin`.
 Flash
 -----
 
+To install a ready-made release without building anything, follow [INSTALL.md](INSTALL.md). This section is for flashing your own build.
+
 Resetting the LinnStrument into its bootloader erases its whole flash, settings and calibration included, so a plain upload always starts from factory defaults. `tools/flash_keep_settings.py` works like the official Updater: it saves the settings and sequencer projects over serial, flashes, and sends them back to the new firmware.
 
 1. Set up the helper once:
@@ -256,7 +259,7 @@ Resetting the LinnStrument into its bootloader erases its whole flash, settings 
    tools/.venv/bin/python tools/flash_keep_settings.py build/linnstrument-firmware.ino.bin
    ```
 
-   It saves a backup in `~/linnstrument-backups/` (settings, calibration, sequencer projects, and the Harmony Board's saved harmony and memories), asks before erasing, flashes and verifies, then restores the backup. Leave the LinnStrument alone until it says Done.
+   With no file, it downloads and flashes the latest release instead. It saves a backup in `~/linnstrument-backups/` (settings, calibration, sequencer projects, and the Harmony Board's saved harmony and memories), asks before erasing, flashes and verifies, then restores the backup. Leave the LinnStrument alone until it says Done.
 5. The LinnStrument comes back in MIDI mode with its settings. If the backup had no calibration in it, it opens the calibration screen instead: follow the lights, sliding a finger along each lit row, then along each lit column. Finishing calibration also saves the restored settings.
 
 If a run stops partway, the backup is still on disk; `--restore FILE` sends it back, with or without a `.bin` to flash first. Opening the serial port restarts the LinnStrument, and its USB sometimes drops out for a second or two while it does; the helper waits that out.
