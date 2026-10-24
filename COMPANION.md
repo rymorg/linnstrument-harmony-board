@@ -67,7 +67,7 @@ The LinnStrument only sends these over USB, not DIN, and not in OS Update mode.
 | 23 | pattern: 0 Sustain, 1 Pulse, 2 Strum, 3 Arpeggio |
 | 24 | pattern clock: 0 Host, 1 Internal |
 | 25 | Latch on |
-| 26 | sounding left-hand chord's column plus 1 (0 is none; columns: Root, 1st, 2nd, 7th, Smart) |
+| 26 | sounding left-hand chord's column plus 1 (0 is none; columns: Root, 1st, 2nd, Color, Smart) |
 | 27 | sounding chord's degree (0–6) |
 | 28 | sounding chord's modifiers: bit 0 V/x, 1 Borrow, 2 sus4, 3 add9 |
 | 29 | modifiers armed or held right now, same bits |

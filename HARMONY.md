@@ -84,10 +84,12 @@ Tap **Split** so it turns magenta. Columns 1–5 become a chord split for the le
 | 1 | root position | **V/x**: the next chord becomes the dominant of that degree (V/ii, V/IV…) |
 | 2 | 1st inversion (3rd in the bass) | **Borrow**: the next chord comes from the parallel major or minor |
 | 3 | 2nd inversion (5th in the bass) | **sus4** |
-| 4 | 7th chord | **add9** |
-| 5 | Smart: the voicing nearest the last chord | **Latch**, on by default |
+| 4 | Color: the style's signature chord (see below) | **add9** |
+| 5 | Smart: the voicing nearest the last chord, with a walking bass | **Latch**, on by default |
 
 - **Chords.** A chord pad plays the chord and a bass note an octave or two below, with the pad's velocity. With Latch on, the chord keeps sounding after you let go; tap the same pad to stop it, or another pad to change it. With Latch off, it stops when you let go.
+- **Color (column 4).** Each style plays the chord it's known for, built from the current scale: Pop add9, Rock power chords (root, 5th, octave), Blues 9ths (dominant 9ths on I, IV and V), Jazz 9ths with the 13th on dominant chords, Soul minor 11ths and otherwise 9ths, Cinematic an open 5th and 9th (neither major nor minor), Flamenco a 7th with 7♭9 on I, and Free the plain 7th chord. With V/x it plays the dominant 7th.
+- **Smart (column 5).** It plays the chord size set in the Chord column, in the inversion and octave nearest the last chord, and walks the bass like a pianist's left hand: the root when it's a step away from the last bass note, otherwise the 3rd or 7th when one of those is (I–V–vi–IV in C gives C, G/B, Am, F/A), otherwise a leap to the root. The 5th never goes in the bass. Play a progression with Smart to hear it; a single chord on its own sounds like the other columns.
 - **Expression.** While you hold a chord pad, its Y sends CC74 and its pressure sends channel pressure, both on channel 16.
 - **Thumb strip.** Tap V/x, Borrow, sus4 or add9 to arm it for the next chord (it lights white), or hold it while you press chord pads. Tap an armed one again to disarm it.
 - **Harmony changes.** Memories and footswitches still change the harmony in Perform mode. A sounding chord follows to the same degree in the new harmony, and re-strikes if its notes changed. With Held notes on Hold, it keeps ringing until the next chord.
@@ -299,8 +301,8 @@ For Perform mode, add a second instrument track for the chords, a pad or piano s
 9. **Back to stock:** on the Harmony page, pick Off. The stock chromatic layout returns. Pick On to come back.
 10. **Split tap and hold:** tap Split. It turns magenta and columns 1–5 show the chord split. Hold it for half a second and the Harmony page opens; tap it to close the page.
 11. **Chords:** tap Memory 1 (D Dorian, bottom of column 6), then I in root position (column 1, second row from the bottom). The chord track plays D minor with a D bass on channel 16 and keeps playing after you let go. The melody lights show the chord. Tap it again to stop.
-12. **Voicings:** try the same degree in columns 2–5 and check the bass note and spread change. Smart moves as few notes as it can from the last chord.
-13. **Thumb strip:** tap V/x, then IV in the 7th-chord column (column 4). You get the dominant of IV: D7 in D Dorian. Hold sus4 while tapping chords and they come out suspended.
+12. **Voicings:** try the same degree in columns 1–4 and check the bass note and spread change; column 4 plays the style's color chord (in Pop, an add9). Then tap Key C and Ionian, and play I, V, vi, IV in column 5 (Smart): the chords move as few notes as they can, and the bass walks C, B, A, A (C, G/B, Am, F/A).
+13. **Thumb strip:** tap V/x, then IV in the color column (column 4). You get the dominant of IV: D7 in D Dorian. Hold sus4 while tapping chords and they come out suspended.
 14. **Expression:** hold a chord pad and rock your finger up and down, then press harder. The chord track gets CC74 and channel pressure on channel 16.
 15. **Harmony changes:** latch a chord, then tap Memory 2 or 3. The chord re-strikes as the same degree in the new harmony. Set Held notes to Hold and it rings on instead.
 16. **Patterns:** hold Split, pick Pulse in column 25, and tap Split to close the page. Latch a chord: it pulses in time. Try Strum and Arpeggio, then turn on MIDI clock output to the LinnStrument in your DAW (in Ableton: Settings, Link/Tempo/MIDI, Sync on for the LinnStrument output) and press Play; the pattern follows the DAW's tempo. Pick Internal (bottom pad of column 25) and it goes back to the LinnStrument's own tempo while the DAW keeps playing.

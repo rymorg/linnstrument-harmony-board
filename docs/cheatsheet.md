@@ -37,8 +37,8 @@ Perform mode: left-hand chords
 | 1 | root position | **V/x**: the dominant that leads into the next chord |
 | 2 | 1st inversion | **Borrow** from parallel major/minor (Jazz: tritone sub) |
 | 3 | 2nd inversion | **sus4** |
-| 4 | 7th chord | **add9** |
-| 5 | Smart: nearest voicing | **Latch** |
+| 4 | Color: the style's chord (Pop add9, Rock power, Jazz 9/13…) | **add9** |
+| 5 | Smart: nearest voicing, walking bass | **Latch** |
 | 6 | Memory, as in Compose mode | |
 
 Chords and their bass go out on **MIDI channel 16**. Tap a modifier for the next chord, or hold it while you play chords.

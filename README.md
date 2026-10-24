@@ -14,7 +14,7 @@ It's an unofficial fork of [Roger Linn Design's LinnStrument firmware](https://g
 
 ![The Harmony Board in Perform mode: chord pads for I to VII on the left with a latched IV7, and the melody pads lit for that chord](docs/images/harmony-board-perform.jpg)
 
-*Perform mode. Columns 1–5 become left-hand chord pads (rows I–VII; root position, inversions, 7th and Smart voicing) with a thumb strip for V/x, Borrow, sus4, add9 and Latch. A latched IV7 is playing, and the melody pads light its tones.*
+*Perform mode. Columns 1–5 become left-hand chord pads (rows I–VII; root position, inversions, the style's color chord and Smart voicing with a walking bass) with a thumb strip for V/x, Borrow, sus4, add9 and Latch. A latched IV7 is playing, and the melody pads light its tones.*
 
 Try it
 ------

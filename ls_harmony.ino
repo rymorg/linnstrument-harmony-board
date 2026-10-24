@@ -27,8 +27,8 @@ steps apart. X slides interpolate through the row's notes so they land on scale 
 are held while the harmony changes glide to their new degree with per-note pitch bend (MPE only).
 
 Perform mode turns columns 1-5 into left-hand chords: rows 1-7 are degrees I-VII, the columns are root
-position, 1st inversion, 2nd inversion, 7th chord and Smart (the voicing nearest the last chord), and the
-bottom row is a thumb strip with V/x, Borrow, sus4, add9 and Latch. Chords and their bass note go out on
+position, 1st inversion, 2nd inversion, the style's color chord (Pop add9, Rock power chord, Jazz 9ths and
+13ths...) and Smart (the voicing and bass note nearest the last chord), and the bottom row is a thumb strip with V/x, Borrow, sus4, add9 and Latch. Chords and their bass note go out on
 MIDI channel 16, with the chord pad's Y on CC74 and its pressure as channel pressure.
 
 Every control button keeps its factory job except Split, which becomes the Harmony button: a tap switches
@@ -113,9 +113,9 @@ boolean harmonySplitHeld = false;
 #define HARM_CHORD_CHANNEL  16               // chords and their bass note go out on their own MIDI channel
 #define HARM_CHORD_SPLIT    RIGHT            // note tracking slot for chord notes, apart from the melody's
 #define HARM_CHORD_ROOT     0                // chord columns 1-5: root position, 1st inversion, 2nd inversion,
-#define HARM_CHORD_INV1     1                // 7th chord and Smart voicing
+#define HARM_CHORD_INV1     1                // the style's color chord and Smart voicing
 #define HARM_CHORD_INV2     2
-#define HARM_CHORD_SEVENTH  3
+#define HARM_CHORD_COLOR    3
 #define HARM_CHORD_SMART    4
 #define HARM_THUMB_LATCH    4                // thumb strip under the chord columns: V/x, Borrow, sus4, add9, Latch
 #define HARM_MOD_VX         1
@@ -148,6 +148,7 @@ byte harmonyChordSent[HARM_MAX_CHORD + 1];   // every note that went out, bass i
 byte harmonyChordSentCount = 0;
 byte harmonyChordPrev[HARM_MAX_CHORD];       // the last voicing, for Smart's voice leading
 byte harmonyChordPrevCount = 0;
+byte harmonyChordPrevBass = 0;               // the last bass note, 0 before the first chord: Smart's bass walks from it
 byte harmonyChordLastY = 255;
 byte harmonyChordLastZ = 255;
 
@@ -1487,12 +1488,62 @@ void harmonySortNotes(byte* a, byte n) {
   }
 }
 
+// column 4: the chord each style is known for, as scale steps above the root (2 the 3rd, 4 the 5th, 6 the 7th,
+// 8 the 9th, 10 the 11th, 12 the 13th, len the octave); returns how many
+byte harmonyColorSteps(byte deg, const byte* sc, byte len, byte* steps) {
+  short third = harmonyScaleSemis(sc, len, deg + 2) - sc[deg];
+  short seventh = harmonyScaleSemis(sc, len, deg + 6) - sc[deg];
+  byte n = 0;
+  steps[n++] = 0;
+  switch (harmonyStyle) {
+    case HARM_STYLE_POP:                     // add9: bright, without a 7th's pull
+      steps[n++] = 2; steps[n++] = 4; steps[n++] = 8;
+      break;
+    case HARM_STYLE_ROCK:                    // power chord: root, 5th and octave
+      steps[n++] = 4; steps[n++] = len;
+      break;
+    case HARM_STYLE_JAZZ:                    // 9ths; dominant chords take the 13th instead of the 5th
+      steps[n++] = 2;
+      if (third == 4 && seventh == 10) {
+        steps[n++] = 6; steps[n++] = 8; steps[n++] = 12;
+      }
+      else {
+        steps[n++] = 4; steps[n++] = 6; steps[n++] = 8;
+      }
+      break;
+    case HARM_STYLE_SOUL:                    // minor 11ths, otherwise 9ths
+      steps[n++] = 2;
+      if (third == 3) {
+        steps[n++] = 6; steps[n++] = 8; steps[n++] = 10;
+      }
+      else {
+        steps[n++] = 4; steps[n++] = 6; steps[n++] = 8;
+      }
+      break;
+    case HARM_STYLE_CINEMATIC:               // open 5th and 9th: neither major nor minor
+      steps[n++] = 4; steps[n++] = 8;
+      break;
+    case HARM_STYLE_BLUES:                   // 9ths; the style's own chord tones make I, IV and V dominant 9ths
+      steps[n++] = 2; steps[n++] = 4; steps[n++] = 6; steps[n++] = 8;
+      break;
+    case HARM_STYLE_FLAMENCO:                // a 7th, and the style's own 7(b9) on I
+      steps[n++] = 2; steps[n++] = 4; steps[n++] = 6;
+      if (deg == 0) steps[n++] = 8;
+      break;
+    default:                                 // Free: the plain 7th chord
+      steps[n++] = 2; steps[n++] = 4; steps[n++] = 6;
+      break;
+  }
+  return n;
+}
+
 // chord tones as semitones above the chord root for degree deg; returns how many, 0 when it's not possible
 byte harmonyChordTones(byte type, byte deg, byte mods, signed char* rel, byte& rootPc) {
   byte n = harmonyLen;
   if (deg >= n || deg >= 7) return 0;
 
-  byte size = type == HARM_CHORD_SEVENTH ? 4 : (type == HARM_CHORD_SMART ? harmonyCur.chordSize : 3);
+  // V/x and the tritone substitute play a dominant 7th in the color column
+  byte size = type == HARM_CHORD_COLOR ? 4 : (type == HARM_CHORD_SMART ? harmonyCur.chordSize : 3);
   byte count = 0;
   short ninth = 14;
 
@@ -1516,8 +1567,17 @@ byte harmonyChordTones(byte type, byte deg, byte mods, signed char* rel, byte& r
       len = 7;
     }
     rootPc = (harmonyCur.root + sc[deg]) % 12;
-    for (byte j = 0; j < size && count < HARM_MAX_CHORD; ++j) {
-      rel[count++] = harmonyScaleSemis(sc, len, deg + 2 * j) - sc[deg];
+    if (type == HARM_CHORD_COLOR) {
+      byte steps[HARM_MAX_CHORD];
+      size = harmonyColorSteps(deg, sc, len, steps);
+      for (byte j = 0; j < size; ++j) {
+        rel[count++] = harmonyScaleSemis(sc, len, deg + steps[j]) - sc[deg];
+      }
+    }
+    else {
+      for (byte j = 0; j < size && count < HARM_MAX_CHORD; ++j) {
+        rel[count++] = harmonyScaleSemis(sc, len, deg + 2 * j) - sc[deg];
+      }
     }
     if (len == 7) ninth = harmonyScaleSemis(sc, len, deg + 8) - sc[deg];
     if (!(mods & HARM_MOD_BRW)) {
@@ -1526,7 +1586,8 @@ byte harmonyChordTones(byte type, byte deg, byte mods, signed char* rel, byte& r
     }
   }
 
-  if ((mods & HARM_MOD_SUS) && count > 1) rel[1] = 5;
+  // sus4 replaces the 3rd; chords without one (power chords, open 5ths) stay as they are
+  if ((mods & HARM_MOD_SUS) && count > 1 && (rel[1] == 3 || rel[1] == 4)) rel[1] = 5;
   if (mods & HARM_MOD_ADD9) {
     boolean hasNinth = false;
     for (byte i = 0; i < count; ++i) {
@@ -1603,6 +1664,48 @@ void harmonySmartVoicing(byte* notes, byte n) {
   }
 }
 
+// Smart's bass walks like a pianist's left hand: the root when it's a step away from the last bass note (or
+// the same note); otherwise the 3rd or the 7th when one of those is (I-V-vi-IV in C: C, G/B, Am, F/A);
+// otherwise a leap to the root in the middle of the range, as at a V-I cadence. The 5th never goes in the
+// bass. It keeps between E1 and D3, below the chord.
+#define HARM_BASS_LOW   28
+#define HARM_BASS_HIGH  50
+#define HARM_BASS_MID   40
+
+// the note of pitch class pc in the bass range nearest target, below the chord; 0 if there's none
+byte harmonyBassNear(byte pc, short target, byte lowest) {
+  byte best = 0;
+  for (short b = HARM_BASS_LOW; b <= HARM_BASS_HIGH && b < lowest; ++b) {
+    if (b % 12 == pc && (best == 0 || abs(b - target) < abs((short)best - target))) best = b;
+  }
+  return best;
+}
+
+byte harmonySmartBass(byte rootPc, const signed char* rel, byte count, byte lowest) {
+  short prev = harmonyChordPrevBass;
+  byte root = harmonyBassNear(rootPc, prev, lowest);
+  if (root && abs(root - prev) <= 2) return root;
+
+  byte best = 0;
+  short bestDist = 3;
+  for (byte pass = 0; pass < 2; ++pass) {              // the 3rd first, then the 7th
+    for (byte i = 0; i < count; ++i) {
+      signed char r = rel[i];
+      boolean wanted = pass == 0 ? (r == 3 || r == 4) : (r == 10 || r == 11);
+      if (!wanted) continue;
+      byte b = harmonyBassNear((rootPc + r) % 12, prev, lowest);
+      if (b && abs(b - prev) < bestDist) {
+        best = b;
+        bestDist = abs(b - prev);
+      }
+    }
+  }
+  if (best) return best;
+
+  root = harmonyBassNear(rootPc, HARM_BASS_MID, lowest);
+  return root ? root : 36 + rootPc;
+}
+
 // the notes of a chord pad: voiced chord plus a bass note; the inversion columns put that note in the bass
 boolean harmonyBuildChord(byte type, byte deg, byte mods, byte* notes, byte& count, byte& bass, byte& rootPc, signed char* rel) {
   count = harmonyChordTones(type, deg, mods, rel, rootPc);
@@ -1623,6 +1726,7 @@ boolean harmonyBuildChord(byte type, byte deg, byte mods, byte* notes, byte& cou
 
   byte bassPc = (type == HARM_CHORD_INV1 || type == HARM_CHORD_INV2) ? notes[0] % 12 : rootPc;
   bass = 36 + bassPc;
+  if (type == HARM_CHORD_SMART && harmonyChordPrevBass) bass = harmonySmartBass(rootPc, rel, count, notes[0]);
   return true;
 }
 
@@ -1692,6 +1796,7 @@ boolean harmonyVoiceChord(byte type, byte deg, byte mods) {
     harmonyChordPrev[i] = notes[i];
   }
   harmonyChordPrevCount = count;
+  harmonyChordPrevBass = bass;
   return true;
 }
 

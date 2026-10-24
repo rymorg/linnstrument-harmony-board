@@ -328,9 +328,9 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
       <p class="caption" id="demoCaption2" aria-live="polite">Press play. The demo sets up three sections in Compose mode, switches to Perform mode, then plays with both hands.</p>
       <ol class="steps" id="steps2">
         <li data-step="1"><div><b>Set up sections in Compose mode.</b> Pick a key and mode, choose a chord pattern on the Harmony page (hold Split), and store it in Memory. <span class="dn">Demo: Memory 5 is D Dorian with Pulse, 6 is B♭ Lydian with Strum, 7 is D Dorian with Arpeggio.</span></div></li>
-        <li data-step="2"><div><b>Switch to Perform mode.</b> Tap Split, the Harmony button. Columns 1–5 become chord pads: rows are I to VII, and the columns are Root, 1st inversion, 2nd inversion, 7th and Smart. Memory and the melody pads don’t move.</div></li>
+        <li data-step="2"><div><b>Switch to Perform mode.</b> Tap Split, the Harmony button. Columns 1–5 become chord pads: rows are I to VII, and the columns are Root, 1st inversion, 2nd inversion, Color (the style’s signature chord) and Smart. Memory and the melody pads don’t move.</div></li>
         <li data-step="3"><div><b>Latch a chord.</b> Tap Latch in the thumb strip (the bottom row), then a chord. It keeps playing in the section’s pattern, so your left hand is free. Tap another chord to switch, or the same one to stop.</div></li>
-        <li data-step="4"><div><b>Let Smart voice it.</b> The Smart column picks the voicing nearest the last chord, so changes move as few notes as possible. <span class="dn">Demo: Dm7 to G7 moves two notes, one step each.</span></div></li>
+        <li data-step="4"><div><b>Let Smart voice it.</b> The Smart column picks the voicing nearest the last chord, so changes move as few notes as possible, and its bass walks by step where it can. <span class="dn">Demo: Dm7 to G7 moves two notes, one step each.</span></div></li>
         <li data-step="5"><div><b>Play the melody.</b> The lit pads on the right follow the left-hand chord, so you can always see its tones.</div></li>
         <li data-step="6"><div><b>Walk the bass with inversions.</b> The inversion columns put the 3rd or 5th in the bass. <span class="dn">Demo: G/B leads down a half step to B♭.</span></div></li>
         <li data-step="7"><div><b>Change sections with your foot.</b> Each footswitch press recalls the next memory, so key, mode and pattern change together. Tap the new chord right on the change.</div></li>
@@ -342,7 +342,7 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
         <ul>
           <li><b>One job per limb.</b> The left hand picks chords, the right hand plays melody, and your foot changes sections.</li>
           <li><b>Latch frees your hand.</b> A latched chord keeps time on its own while you reach for a modifier or play melody with both hands.</li>
-          <li><b>Smart voicing does the arranging.</b> Chords move to the nearest notes, which is what makes changes sound smooth.</li>
+          <li><b>Smart voicing does the arranging.</b> Chords move to the nearest notes and the bass walks by step (C, G/B, Am, F/A), which is what makes changes sound smooth.</li>
           <li><b>Nothing moves under you.</b> Switching modes or sections never moves the melody pads; only the lights change.</li>
         </ul>
       </div>
@@ -433,7 +433,7 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
           <tr><td>Held notes on a harmony change: Morph, Hold, Retrigger</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Split: tap for Compose or Perform, hold for the Harmony page</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Harmony page: every setting, plus zone side and width</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
-          <tr><td>Perform chord split: I–VII in root position, 1st and 2nd inversion, 7th and Smart voicing</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Perform chord split: I–VII in root position, 1st and 2nd inversion, the style’s color chord and Smart voicing</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Thumb strip: V/x, Borrow, sus4, add9, Latch (on by default)</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Chords and bass on channel 16, CC74 and pressure from the chord pad, re-strike on harmony changes</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Footswitches step memories when assigned to PREV and NEXT</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
@@ -481,7 +481,7 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
         <thead><tr><th>Column</th><th>In Perform mode</th></tr></thead>
         <tbody>
           <tr><td>0</td><td>Tapping Split (the Harmony button) switches Compose and Perform. The chord pattern (Sustain, Pulse, Strum or Arpeggio, following the MIDI clock) is set on the Harmony page.</td></tr>
-          <tr><td>1–5</td><td>Chords. Rows 2–8 are I to VII. The columns are root position, 1st inversion, 2nd inversion, 7th chord and Smart (the voicing nearest the last chord). The inversion columns put that note in the bass. Row 1 is a thumb strip: V/x, Borrow, sus4, add9 and Latch.</td></tr>
+          <tr><td>1–5</td><td>Chords. Rows 2–8 are I to VII. The columns are root position, 1st inversion, 2nd inversion, Color (the style’s signature chord: Pop add9, Rock power chord, Blues and Jazz 9ths with 13ths on Jazz dominants, Soul minor 11ths, Cinematic open 5th and 9th, Flamenco 7♭9 on I, Free plain 7th) and Smart (the voicing nearest the last chord, with a bass that walks by step). The inversion columns put that note in the bass. Row 1 is a thumb strip: V/x, Borrow, sus4, add9 and Latch.</td></tr>
           <tr><td>6</td><td>Memory. Each slot also stores the chord pattern, so the footswitch changes key, mode and groove together.</td></tr>
           <tr><td>7–25</td><td>Melody. The lit pads follow whatever chord the left hand is playing.</td></tr>
         </tbody>
@@ -719,7 +719,7 @@ function describe(st) {
 
 /* ---------- board geometry ---------- */
 const MODS = ['keyAcc','keyNat','mode','alter','chord','memory'];
-const MOD_LABEL = { keyAcc:'Key ♯♭', keyNat:'Key', mode:'Mode', alter:'Alter', chord:'Chord', memory:'Memory', chRoot:'Root', chInv1:'1st', chInv2:'2nd', ch7:'7th', chSmart:'Smart' };
+const MOD_LABEL = { keyAcc:'Key ♯♭', keyNat:'Key', mode:'Mode', alter:'Alter', chord:'Chord', memory:'Memory', chRoot:'Root', chInv1:'1st', chInv2:'2nd', chColor:'Color', chSmart:'Smart' };
 let colKind = [], P = 0;
 // mirror mode: the LinnStrument's state arrives over USB MIDI and the board follows it (see the end of this script)
 const MIRROR = { on: false, input: null, output: null, notes: new Map(), last: 0, display: 0, frame: null };
@@ -864,8 +864,8 @@ const PATS = ['sustain','pulse','strum','arp'];
 const PAT_NAME = { sustain:'Sustain', pulse:'Pulse', strum:'Strum', arp:'Arpeggio' };
 const PAT_SHORT = { sustain:'SUS', pulse:'PLS', strum:'STR', arp:'ARP' };
 const PAT_COLOR = { sustain:'GREEN', pulse:'YELLOW', strum:'ORANGE', arp:'PINK' };
-const CH_MODS = ['chRoot','chInv1','chInv2','ch7','chSmart'];
-const CH_LABEL = { chRoot:'Root position', chInv1:'1st inversion', chInv2:'2nd inversion', ch7:'7th chord', chSmart:'Smart voicing' };
+const CH_MODS = ['chRoot','chInv1','chInv2','chColor','chSmart'];
+const CH_LABEL = { chRoot:'Root position', chInv1:'1st inversion', chInv2:'2nd inversion', chColor:'Color chord', chSmart:'Smart voicing' };
 // the bottom row of the chord split, one pad under each voicing column
 const THUMB = [
   { k:'vx', label:'V/x', color:'ORANGE', title:'V/x: tap it (or hold it with your thumb), then a chord pad, to play the dominant 7th that leads into that chord' },
@@ -874,7 +874,7 @@ const THUMB = [
   { k:'add9', label:'ADD9', color:'YELLOW', title:'add9: tap it, then a chord pad, to add the 9th' },
   { k:'latch', label:'LATCH', color:'GREEN', title:'Latch: chords keep playing after you let go. Tap the same chord again to stop it.' },
 ];
-const CH = { act:null, prev:null, lit:null, mods:{ vx:null, brw:null, sus:null, add9:null }, modPtr:null, pnodes:[], sub:-1, arpI:0, y:0.4, ybase:0.4, cy:0, h:1, lastCC:-1, lastT:0 };
+const CH = { act:null, prev:null, prevBass:0, lit:null, mods:{ vx:null, brw:null, sus:null, add9:null }, modPtr:null, pnodes:[], sub:-1, arpI:0, y:0.4, ybase:0.4, cy:0, h:1, lastCC:-1, lastT:0 };
 const TR = { t0:0, running:false };                      // pattern clock; stands in for MIDI clock
 const trBeat = now => (now - TR.t0) / 60000 * S.bpm;
 const beatSec = b => b * 60 / S.bpm;
@@ -895,12 +895,23 @@ function seventhMark(roman, rel) {
   if (s.has(9) && roman.endsWith('°')) return roman + '7';
   return roman;
 }
+// the color column's label: I5, Isus2, Iadd9, IΔ9, ii11, V13, I7♭9...
+function colorMark(roman, rel) {
+  const s = below12(rel), ext = rel.filter(x => x > 12);
+  if (!s.has(3) && !s.has(4)) return roman.replace(/[°+]$/, '') + (ext.length ? 'sus2' : '5');
+  if (!s.has(10) && !s.has(11)) return roman + (ext.length ? 'add9' : '');
+  const m7 = seventhMark(roman, rel);
+  if (rel.includes(13)) return m7 + '♭9';
+  const top = rel.some(x => x >= 20) ? '13' : rel.includes(17) ? '11' : ext.length ? '9' : '7';
+  return top === '7' ? m7 : m7.replace(/7$/, top);
+}
 function qual(rel) {
   const s = below12(rel);
   const m3 = s.has(3) && !s.has(4), M3 = s.has(4), sus = !s.has(3) && !s.has(4) && s.has(5);
   const d5 = s.has(6) && !s.has(7), a5 = s.has(8) && !s.has(7);
   const M7 = s.has(11), m7 = s.has(10), dd7 = s.has(9) && m3 && d5;
   const nine = rel.includes(14) ? '9' : rel.includes(13) ? '♭9' : rel.includes(15) ? '♯9' : '';
+  if (!m3 && !M3 && !s.has(5)) return nine === '9' || s.has(2) ? (m7 ? '7sus2' : 'sus2') : s.has(7) ? '5' : '';
   let q;
   if (m3 && d5) q = m7 ? 'm7♭5' : dd7 ? '°7' : '°';
   else if (M3 && a5) q = M7 ? '+maj7' : m7 ? '+7' : '+';
@@ -908,15 +919,32 @@ function qual(rel) {
   else if (sus) q = m7 ? '7sus4' : 'sus4';
   else if (M3 && d5) q = m7 ? '7♭5' : '(♭5)';
   else q = M7 ? 'maj7' : m7 ? '7' : '';
-  if (nine === '9') q = /7/.test(q) ? q.replace('7', '9') : q + 'add9';
+  if (nine === '9') q = /7/.test(q) ? q.replace('7', rel.some(x => x >= 20) ? '13' : rel.includes(17) ? '11' : '9') : q + 'add9';
   else if (nine) q += '(' + nine + ')';
   return q;
+}
+// the color column: the chord each style is known for, as scale steps above the root (2 the 3rd, 4 the 5th,
+// 6 the 7th, 8 the 9th, 10 the 11th, 12 the 13th), like harmonyColorSteps() in the firmware
+function colorSteps(d, sc) {
+  const semis = st => sc[st % sc.length] + 12 * Math.floor(st / sc.length);
+  const third = semis(d + 2) - sc[d], seventh = semis(d + 6) - sc[d];
+  switch (S.style) {
+    case 'pop': return [0, 2, 4, 8];                                        // add9
+    case 'rock': return [0, 4, sc.length];                                  // power chord: root, 5th, octave
+    case 'jazz': return third === 4 && seventh === 10 ? [0, 2, 6, 8, 12] : [0, 2, 4, 6, 8];   // 13ths on dominants, else 9ths
+    case 'soul': return third === 3 ? [0, 2, 6, 8, 10] : [0, 2, 4, 6, 8];   // minor 11ths, else 9ths
+    case 'cinematic': return [0, 4, 8];                                     // open 5th and 9th
+    case 'blues': return [0, 2, 4, 6, 8];                                   // 9ths; I, IV and V come out dominant
+    case 'flamenco': return d === 0 ? [0, 2, 4, 6, 8] : [0, 2, 4, 6];       // 7(♭9) on I
+    default: return [0, 2, 4, 6];                                           // Free: the plain 7th
+  }
 }
 // chord tones as semitones above the chord root, for degree d and the modifiers in effect
 function chordTones(m, d, mods) {
   const iv = H.iv, n = iv.length;
   if (d >= n) return null;
-  const size = m === 'ch7' ? 4 : m === 'chSmart' ? S.chordSize : 3;
+  // V/x and the tritone substitute play a dominant 7th in the color column
+  const size = m === 'chColor' ? 4 : m === 'chSmart' ? S.chordSize : 3;
   const semis = (sc, st) => sc[st % sc.length] + 12 * Math.floor(st / sc.length);
   let rootPc, rel, roman, ninth = 14;
   if (mods.brw && S.style === 'jazz') {          // in Jazz, the Borrow pad plays the tritone substitute
@@ -936,14 +964,15 @@ function chordTones(m, d, mods) {
     let sc = iv;
     if (mods.brw) { if (n !== 7) return null; sc = iv[2] === 4 ? [0,2,3,5,7,8,10] : [0,2,4,5,7,9,11]; }
     rootPc = (S.root + sc[d]) % 12;
-    rel = [];
-    for (let j = 0; j < size; j++) rel.push(semis(sc, d + 2 * j) - sc[d]);
+    const steps = m === 'chColor' ? colorSteps(d, sc) : [...Array(size).keys()].map(j => 2 * j);
+    rel = steps.map(st => semis(sc, d + st) - sc[d]);
     roman = romanFor(d, sc, rel);
     if (sc.length === 7) ninth = semis(sc, d + 8) - sc[d];
-    const styled = !mods.brw && n === 7 ? styleChordRel(d, size) : null;
+    const styled = !mods.brw && n === 7 ? styleChordRel(d, steps.length) : null;
     if (styled) { rel = styled.slice(); roman = romanFor(d, sc, rel); }
   }
-  if (mods.sus) rel = rel.map((x, j) => j === 1 ? 5 : x);
+  // sus4 replaces the 3rd; chords without one (power chords, open 5ths) stay as they are
+  if (mods.sus && (rel[1] === 3 || rel[1] === 4)) rel = rel.map((x, j) => j === 1 ? 5 : x);
   if (mods.add9 && !rel.some(x => x >= 13 && x <= 15)) rel.push(ninth);
   rel = [...new Set(rel)].sort((a, b) => a - b);
   return { rootPc, rel, roman };
@@ -952,11 +981,31 @@ function chordLabel(m, t, mods) {
   if (mods.vx) return t.roman;
   if (m === 'chInv1') return t.roman + '⁶';
   if (m === 'chInv2') return t.roman + '⁶₄';
-  if (m === 'ch7' || (m === 'chSmart' && S.chordSize >= 4)) return seventhMark(t.roman, t.rel);
+  if (m === 'chColor') return colorMark(t.roman, t.rel);
+  if (m === 'chSmart' && S.chordSize >= 4) return seventhMark(t.roman, t.rel);
   return t.roman;
 }
-// notes for a chord pad; Smart picks the inversion and octave nearest the previous chord
-function buildChord(m, d, mods, ref) {
+// Smart's bass walks like a pianist's left hand: the root when it's a step from the last bass note, else the 3rd
+// or 7th when one of those is, else a leap to the root mid-range; never the 5th. E1 to D3, below the chord.
+// The same rule as harmonySmartBass() in the firmware.
+function smartBass(rootPc, rel, lowest, prev) {
+  const near = (pc, target) => {
+    let best = 0;
+    for (let b = 28; b <= 50 && b < lowest; b++) if (b % 12 === pc && (!best || Math.abs(b - target) < Math.abs(best - target))) best = b;
+    return best;
+  };
+  const root = near(rootPc, prev);
+  if (root && Math.abs(root - prev) <= 2) return root;
+  let best = 0, dist = 3;
+  for (const roles of [[3, 4], [10, 11]]) for (const r of rel) {
+    if (!roles.includes(r)) continue;
+    const b = near((rootPc + r) % 12, prev);
+    if (b && Math.abs(b - prev) < dist) { best = b; dist = Math.abs(b - prev); }
+  }
+  return best || near(rootPc, 40) || 36 + rootPc;
+}
+// notes for a chord pad; Smart picks the inversion and octave nearest the previous chord, and walks the bass
+function buildChord(m, d, mods, ref, refBass = CH.prevBass) {
   const t = chordTones(m, d, mods);
   if (!t) return null;
   const inv = (arr, k) => { const a = sortNum(arr); for (let i = 0; i < k; i++) a[i] += 12; return sortNum(a); };
@@ -981,9 +1030,11 @@ function buildChord(m, d, mods, ref) {
   }
   for (let i = 0; i < 3 && notes[notes.length - 1] > 80; i++) notes = notes.map(x => x - 12);
   for (let i = 0; i < 3 && notes[0] < 45; i++) notes = notes.map(x => x + 12);
-  const bassPc = (m === 'chInv1' || m === 'chInv2') ? notes[0] % 12 : t.rootPc;
+  let bass = 36 + ((m === 'chInv1' || m === 'chInv2') ? notes[0] % 12 : t.rootPc);
+  if (m === 'chSmart' && refBass) bass = smartBass(t.rootPc, t.rel, notes[0], refBass);
+  const bassPc = bass % 12;
   const sym = H.pcName(t.rootPc) + qual(t.rel) + (bassPc !== t.rootPc ? '/' + H.pcName(bassPc) : '');
-  return { notes, bass: 36 + bassPc, rootPc: t.rootPc, rel: t.rel, sym, short: chordLabel(m, t, mods) };
+  return { notes, bass, rootPc: t.rootPc, rel: t.rel, sym, short: chordLabel(m, t, mods) };
 }
 function litOf(b) {
   const pcRole = {};
@@ -1098,7 +1149,7 @@ function chordPress(m, d, el, pid) {
   trEnsure();
   const now = performance.now();
   CH.act = Object.assign(b, { m, d, mods, key, pid, latched: false, startAt: now, held: null });
-  CH.prev = b.notes; CH.lit = litOf(b); CH.arpI = 0;
+  CH.prev = b.notes; CH.prevBass = b.bass; CH.lit = litOf(b); CH.arpI = 0;
   CH.sub = Math.floor(trBeat(now) * 4);
   if (S.pat === 'sustain') startHeld(); else patternHit(CH.sub, true);
   log(16, `Chord ${b.short} = ${b.sym}  ${b.notes.map(H.noteName).join(' ')} · bass ${H.noteName(b.bass)}${S.pat === 'sustain' ? '' : ' · ' + PAT_NAME[S.pat]}`, 'on');
@@ -1126,11 +1177,11 @@ function chordStop(switching, rel) {
 function chordRetune() {
   const a = CH.act;
   if (!a) { CH.lit = null; return; }
-  const b = buildChord(a.m, a.d, a.mods, a.notes);
+  const b = buildChord(a.m, a.d, a.mods, a.notes, a.bass);
   if (!b) { chordStop(); return; }
   const old = a.notes, oldBass = a.bass;
   Object.assign(a, b);
-  CH.prev = b.notes; CH.lit = litOf(b);
+  CH.prev = b.notes; CH.prevBass = b.bass; CH.lit = litOf(b);
   // chords share channel 16, so they can't bend per note: re-strike when the notes change (as the firmware does)
   if (!a.held || S.retune === 'hold') return;
   if (b.notes.length === old.length && b.notes.every((m, i) => m === old[i]) && b.bass === oldBass) return;
@@ -2300,7 +2351,7 @@ function demoStart(id) {
   Object.assign(S, { side:'left', width:6, layout:'scale', rowStep:1, octave:0, retune:'morph', latch:false, lights:'guide', hints:true, style:'pop', template:'off', tplIdx:0, page:false, harmony:true, sound:true,
     fam:0, alter:zero7(), chordDeg:null, chordSize:4, perf:false, pat:'sustain', chLatch: id === 1, bpm: song.bpm });
   Object.keys(CH.mods).forEach(k => { CH.mods[k] = null; });
-  CH.prev = null; CH.y = 0.4;
+  CH.prev = null; CH.prevBass = 0; CH.y = 0.4;
   structural();
   const kit = makeKit(song);
   song.build(kit);
@@ -2398,7 +2449,7 @@ function applyFwState(d) {
     const m = CH_MODS[type], deg = d[27], cm = d[28];
     const mods = { vx: !!(cm & 1), brw: !!(cm & 2), sus: !!(cm & 4), add9: !!(cm & 8) };
     const b = buildChord(m, deg, mods, CH.prev);
-    if (b) { CH.act = Object.assign(b, { m, d: deg, mods, key: `${m}:${deg}:${cm}`, pid: null, latched: true, startAt: 0, held: null }); CH.prev = b.notes; CH.lit = litOf(b); }
+    if (b) { CH.act = Object.assign(b, { m, d: deg, mods, key: `${m}:${deg}:${cm}`, pid: null, latched: true, startAt: 0, held: null }); CH.prev = b.notes; CH.prevBass = b.bass; CH.lit = litOf(b); }
   } else { CH.act = null; CH.lit = null; }
   const added = [...pitchSet(curState())].filter(pc => !prevSet.has(pc));
   if (added.length && prevSet.size) {
