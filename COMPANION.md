@@ -19,6 +19,8 @@ The app uses Web MIDI, which works in Chrome and Edge (not Safari) on a page ser
 
 3. Open http://localhost:8766 in Chrome or Edge and click **Connect LinnStrument**. Allow MIDI, including the part about system exclusive messages, when the browser asks.
 
+The same folder holds the browser flasher, at http://localhost:8766/flash/ when served this way (`companion/flash/`; see [INSTALL.md](INSTALL.md)). It uses Web Serial with OS Update on, not Web MIDI.
+
 Ableton (or any other app) can use the LinnStrument at the same time: macOS lets several apps share a MIDI device. The app reconnects by itself if the LinnStrument is unplugged and plugged back in.
 
 While it's mirroring, the board and the Controls panel on the page don't respond to clicks, so the screen can't drift away from the instrument. Pads that play a held note light white, matched by note number: every pad that plays that note lights, like the LinnStrument's "Same" note lights.

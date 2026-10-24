@@ -9,6 +9,7 @@ Where things live
 - **Repository:** https://github.com/rymorg/linnstrument-harmony-board, branch `main`. It started as a fork of the official firmware and keeps its history; the `upstream` remote still points to Roger Linn Design's repository for pulling in their changes, and the `stock-firmware` branch is the stock code this project started from.
 - **Firmware code:** almost everything is in `ls_harmony.ino`. Hooks into the stock code are small and live in `ls_handleTouches.ino`, `ls_displayModes.ino`, `ls_settings.ino` (Split button), `ls_switches.ino` (PREV/NEXT), `ls_lowRow.ino`, `ls_rtos.ino` and `ls_midi.ino` (clock ticks and same-note lights), and `ls_leds.ino` (new colors and dimming).
 - **Flash helper:** `tools/flash_keep_settings.py` backs up settings, calibration and sequencer projects over serial, flashes, and restores them. Set it up once with the commands in HARMONY.md. Backups go to `~/linnstrument-backups/`.
+- **Browser flasher:** `companion/flash/`, published with the companion on GitHub Pages: the same backup, flash and restore from Chrome or Edge over Web Serial, writing the firmware through the SAM3X's ROM bootloader itself (a port of bossac's SAM-BA sequence). Tests: `node --test tools/test_web_flasher.mjs`, against a simulated LinnStrument.
 - **Companion app:** `companion/index.html`, the mockup turned into an app that mirrors the LinnStrument over USB MIDI. [COMPANION.md](COMPANION.md) covers running it and the SysEx protocol.
 - **Mockup:** the playable web version is the private artifact at https://claude.ai/artifact/1fP479mH7pkHc9nNYZKw6w. Its Build plan section has a "What's in the firmware" table, and FW tags and ✓ marks show which of its settings the firmware has.
 
@@ -25,6 +26,7 @@ Done
 | `f1feb74` | Eight styles and 21 progression templates; same-note lights fixed for the harmony layout; melody-fit chord coloring removed | Yes: playing is visually clean |
 | the commit after `cde6ccf` | Companion app phase 1: the firmware sends its harmony state and memories as SysEx, and `companion/index.html` mirrors the board | Yes: mirrors the LinnStrument in Chrome |
 | (after `b93f8c6`) | Saving across power-off: the harmony, memories and Harmony page settings in 16 rotating, checksummed flash pages, saved once changes settle; the flash helper backs them up and restores them | Yes: everything came back after unplugging |
+| `cc5f45d` and after | Browser flasher (`companion/flash/`): backup, WAIT, 1200-baud touch, SAM-BA erase/write/verify, restore, from Chrome | Yes: a full install with settings restored, in Chrome on macOS |
 | (after `8408c2f`) | Chromatic and snap layouts, zone side (left or right) and width (4, 5 or 6), on the Harmony page and in the companion; saves now happen when OS Update is turned on, and a playing pattern delays a save by 20 seconds at most | Yes: layouts work, and harmony and memories survived a flash |
 
 Lessons from hardware testing, worth keeping in mind:

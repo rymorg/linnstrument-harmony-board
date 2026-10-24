@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to the Harmony Board. Versions before 1.0 are experimental: anything can change between them, and changes that affect saved data, backups or the companion protocol are listed under **Breaking**.
 
+## Unreleased
+
+### Added
+
+- Browser flasher at https://rymorg.github.io/linnstrument-harmony-board/flash/: installs and updates from Chrome or Edge with nothing to download. It backs up settings, calibration, sequencer projects and Harmony Board data to the same `.lsbackup` files as the downloadable flasher, shows WAIT, writes the firmware through the SAM3X's ROM bootloader, checks every byte, and restores the backup. Recovery modes flash with a saved backup or without one (FWUP mode). Tested on a LinnStrument 200 in Chrome on macOS. The downloadable flasher stays as the fallback.
+
 ## [0.1.0] - 2026-10-24
 
 The first public pre-release.
@@ -20,6 +26,6 @@ The first public pre-release.
 - A reset pad on the Harmony page (column 1, bottom: tap twice).
 - The Harmony Board version on the OS Version screen (`H0.1`) and in the companion app.
 - Companion app: mirrors the LinnStrument over USB MIDI, settings screens included, at https://rymorg.github.io/linnstrument-harmony-board/.
-- Flasher: backs up settings, calibration, sequencer projects and Harmony Board data, flashes, and restores them; with no arguments it downloads the latest release. Standalone apps for macOS (Apple Silicon), Windows and Linux.
+- Flasher: backs up settings, calibration, sequencer projects and Harmony Board data, flashes, and restores them; with no arguments it downloads the latest release, and `--no-backup` recovers a LinnStrument that can't answer (for example in FWUP mode). Standalone apps for macOS (Apple Silicon), Windows and Linux.
 
 [0.1.0]: https://github.com/rymorg/linnstrument-harmony-board/releases/tag/v0.1.0

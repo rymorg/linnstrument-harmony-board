@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harmony Board Flasher</title>
+<meta name="description" content="Install or update the Harmony Board firmware on a LinnStrument 200 from Chrome or Edge, keeping its settings and calibration.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#e3e8e6; --surface:#f4f7f6; --fg:#141a1a; --muted:#56625f; --line:#c3ccca; --chip:#e8eeec;
+  --accent:#0a6b74; --accent-ink:#ffffff;
+  --warn-bg:#fff4dc; --warn-line:#e2b54a; --warn-ink:#5a3d00;
+  --bad-bg:#fde8e6; --bad-line:#e0877c; --bad-ink:#6e1b12;
+  --good-bg:#e3f5e8; --good-line:#71c08a; --good-ink:#0f4a23;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1112; --surface:#151b1c; --fg:#e1e8e6; --muted:#95a29f; --line:#29312f; --chip:#1c2324;
+    --accent:#47c4cc; --accent-ink:#052528;
+    --warn-bg:#2b2310; --warn-line:#8a6a1f; --warn-ink:#f3d58d;
+    --bad-bg:#2f1714; --bad-line:#93443a; --bad-ink:#ffc2b8;
+    --good-bg:#11271a; --good-line:#2f7a48; --good-ink:#a9e8bd;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1112; --surface:#151b1c; --fg:#e1e8e6; --muted:#95a29f; --line:#29312f; --chip:#1c2324;
+  --accent:#47c4cc; --accent-ink:#052528;
+  --warn-bg:#2b2310; --warn-line:#8a6a1f; --warn-ink:#f3d58d;
+  --bad-bg:#2f1714; --bad-line:#93443a; --bad-ink:#ffc2b8;
+  --good-bg:#11271a; --good-line:#2f7a48; --good-ink:#a9e8bd;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 15.5px/1.55 var(--f-body)}
+a{color:var(--accent)}
+.wrap{max-width:820px;margin:0 auto;padding:28px 16px 80px;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font:600 13px/1 var(--f-display);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.eyebrow a{color:inherit}
+h1{font:700 clamp(34px,6vw,52px)/.95 var(--f-display);text-transform:uppercase;margin:4px 0 4px;text-wrap:balance}
+.lede{margin:0;color:var(--muted);max-width:68ch}
+.lede b{color:var(--fg)}
+.box{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--surface)}
+.box.warn{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn-ink)}
+.box.bad{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad-ink)}
+.box.good{background:var(--good-bg);border-color:var(--good-line);color:var(--good-ink)}
+.box h2{font:700 15px/1.2 var(--f-body);margin:0 0 6px}
+.box p{margin:0 0 8px}
+.box p:last-child,.box ul:last-child,.box ol:last-child{margin-bottom:0}
+.box ul,.box ol{margin:0 0 8px;padding-left:20px}
+.box li{margin:2px 0}
+.modes{display:flex;flex-wrap:wrap;gap:6px}
+.modes label{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;cursor:pointer;font-size:14px;background:var(--surface)}
+.modes input{accent-color:var(--accent);margin:0}
+.modes label:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.card[hidden]{display:none}
+.card h2{display:flex;align-items:baseline;gap:10px;font:700 21px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;margin:0}
+.card h2 .n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--chip);border:1px solid var(--line);font:700 15px/1 var(--f-display);flex:none;transform:translateY(-2px)}
+.card.done h2 .n{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.card p{margin:0}
+.card ol{margin:0;padding-left:20px}
+.muted{color:var(--muted)}
+.small{font-size:13.5px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+button.btn,label.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font:700 14.5px/1 var(--f-body);padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+button.btn:hover:not(:disabled),label.btn:hover{background:var(--chip)}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.btn.primary:hover:not(:disabled){filter:brightness(1.08);background:var(--accent)}
+button.btn.danger{background:#b3261e;border-color:#b3261e;color:#fff}
+button.btn:disabled{cursor:not-allowed;opacity:.45}
+button.btn:focus-visible,label.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+label.btn input{position:absolute;opacity:0;width:1px;height:1px}
+.check{display:flex;gap:9px;align-items:flex-start;font-size:14.5px}
+.check input{accent-color:var(--accent);margin-top:4px;flex:none}
+.state{font-size:14px}
+.state.ok{color:var(--good-ink)}
+.state.err{color:var(--bad-ink)}
+.bar{height:10px;border-radius:5px;background:var(--chip);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14.5px}
+.steps li{display:flex;gap:8px;align-items:baseline;color:var(--muted)}
+.steps li::before{content:"○";font-family:var(--f-mono);width:1.2em;flex:none}
+.steps li.now{color:var(--fg);font-weight:700}
+.steps li.now::before{content:"●";color:var(--accent)}
+.steps li.ok{color:var(--fg)}
+.steps li.ok::before{content:"✓";color:var(--good-ink)}
+.steps li.fail::before{content:"✕";color:var(--bad-ink)}
+.big{font:700 22px/1.2 var(--f-display);letter-spacing:.01em;margin:0}
+details.log summary{cursor:pointer;color:var(--muted);font-size:14px}
+pre#log{font:400 12px/1.5 var(--f-mono);background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:10px 12px;max-height:300px;overflow:auto;white-space:pre-wrap;margin:8px 0 0}
+#reconnect{position:sticky;top:10px;z-index:5}
+/* how to turn on OS Update: a drawing of the LinnStrument 200 with the lights it shows, looping through
+   playing, Global Settings and OS Update (10 s) */
+.howto{margin:2px 0 0;display:flex;flex-direction:column;gap:6px}
+.howto svg{width:100%;height:auto;display:block}
+.howto figcaption{font-size:13px;color:var(--muted)}
+.howto .wood{fill:url(#howtoWood)}
+.howto .panel{fill:#131516}
+.howto .pad{fill:#6a6f73}
+.howto .key{fill:#d0d4d6}
+.howto .silk{font:600 16px var(--f-display);letter-spacing:.08em;text-transform:uppercase;fill:#c2c9cb}
+.howto .cap{font:700 23px var(--f-body);fill:var(--fg)}
+.howto .ring{fill:none;stroke:#fff;stroke-width:3.5}
+.howto .warn{fill:none;stroke:#ff5a4d;stroke-width:3;stroke-dasharray:5 4}
+.howto .warntext{font:700 18px var(--f-body);fill:#ff7a6e}
+.howto .badge circle{fill:#fff}
+.howto .badge text{font:700 17px var(--f-body);fill:#111;text-anchor:middle;dominant-baseline:central}
+.howto .s0,.howto .s1,.howto .s2,.howto .s3,.howto .global,.howto .osu,.howto .tap1,.howto .tap2{opacity:0}
+@media (prefers-reduced-motion: no-preference){
+  .howto .s0{animation:howto-s0 10s infinite}
+  .howto .s1{animation:howto-s1 10s infinite}
+  .howto .s2{animation:howto-s2 10s infinite}
+  .howto .s3{animation:howto-s3 10s infinite}
+  .howto .play{animation:howto-play 10s infinite}
+  .howto .global{animation:howto-global 10s infinite}
+  .howto .osu{animation:howto-osu 10s infinite}
+  .howto .tempo{animation:howto-tempo .5s steps(1) infinite}
+  .howto .tap1{animation:howto-tap1 10s infinite;transform-box:fill-box;transform-origin:center}
+  .howto .tap2{animation:howto-tap2 10s infinite;transform-box:fill-box;transform-origin:center}
+  .howto .ring{animation:howto-pulse .8s ease-in-out infinite alternate}
+}
+@media (prefers-reduced-motion: reduce){
+  .howto .play{opacity:0}
+  .howto .s3,.howto .global,.howto .osu{opacity:1}
+}
+@keyframes howto-s0{0%,17%{opacity:1}19%,100%{opacity:0}}
+@keyframes howto-s1{0%,17%{opacity:0}19%,41%{opacity:1}43%,100%{opacity:0}}
+@keyframes howto-s2{0%,42%{opacity:0}44%,74%{opacity:1}76%,100%{opacity:0}}
+@keyframes howto-s3{0%,75%{opacity:0}77%,97%{opacity:1}99%,100%{opacity:0}}
+@keyframes howto-play{0%,27%{opacity:1}28%,98%{opacity:0}100%{opacity:1}}
+@keyframes howto-global{0%,27%{opacity:0}28%,98%{opacity:1}100%{opacity:0}}
+@keyframes howto-osu{0%,60%{opacity:0}61%,98%{opacity:1}100%{opacity:0}}
+@keyframes howto-tempo{0%{opacity:1}12%,100%{opacity:0}}
+@keyframes howto-tap1{0%,21%{opacity:0;transform:scale(1.7)}26%{opacity:.9;transform:scale(1)}31%,100%{opacity:0;transform:scale(1)}}
+@keyframes howto-tap2{0%,54%{opacity:0;transform:scale(1.7)}59%{opacity:.9;transform:scale(1)}64%,100%{opacity:0;transform:scale(1)}}
+@keyframes howto-pulse{from{stroke-opacity:1}to{stroke-opacity:.4}}
+code{font:500 13px/1 var(--f-mono);background:var(--chip);padding:2px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow"><a href="../">Harmony Board</a> · flasher</span>
+    <h1>Install the Harmony Board</h1>
+    <p class="lede">Install or update the Harmony Board firmware on a <b>LinnStrument 200</b>, straight from this page. It backs up your settings, calibration, sequencer projects and Harmony Board data first, writes the new firmware, checks every byte, and puts your settings back. Nothing to download or install.</p>
+  </header>
+
+  <div class="box bad" id="unsupported" hidden>
+    <h2>This browser can't talk to the LinnStrument</h2>
+    <p>The flasher needs the Web Serial API: use <b>Chrome</b> or <b>Edge</b> on a desktop or laptop computer (macOS, Windows, Linux or ChromeOS). Safari, Firefox and phones can't do it.</p>
+    <p>Or use the downloadable flasher instead: see <a href="https://github.com/rymorg/linnstrument-harmony-board/blob/main/INSTALL.md#the-downloadable-flasher">INSTALL.md</a>.</p>
+  </div>
+
+  <div class="box warn">
+    <h2>Use at your own risk</h2>
+    <p>The Harmony Board is unofficial, experimental firmware, provided as is, without warranty of any kind. It isn't made, tested or supported by Roger Linn Design. If flashing is interrupted, the LinnStrument won't work until it's flashed again; that's almost always recoverable (see <a href="#recovery">If something goes wrong</a>).</p>
+    <ul>
+      <li>Plug the LinnStrument <b>straight into the computer</b>, not into a hub, and keep a laptop on its charger.</li>
+      <li><b>The lights go dark for a minute or two while it flashes. That's expected.</b> Don't unplug it, don't touch it, and keep this tab open and in front until it says Done.</li>
+    </ul>
+  </div>
+
+  <div class="box warn" id="reconnect" hidden>
+    <h2>Pick the LinnStrument again</h2>
+    <p>The LinnStrument restarted and reconnected, and Chrome needs you to choose it once more to carry on. Nothing is lost. <b>Don't unplug it.</b></p>
+    <div class="row"><button class="btn primary" id="reconnectBtn" type="button">Choose the LinnStrument</button></div>
+  </div>
+
+  <div class="modes" role="radiogroup" aria-label="What to do">
+    <label><input type="radio" name="mode" value="install" checked> Install or update</label>
+    <label><input type="radio" name="mode" value="backup"> Back up only</label>
+    <label><input type="radio" name="mode" value="restore"> Restore a backup</label>
+    <label><input type="radio" name="mode" value="recover"> Recover: flash with a saved backup</label>
+    <label><input type="radio" name="mode" value="nobackup"> Recover: flash without a backup</label>
+  </div>
+  <p class="muted small" id="modeHint"></p>
+
+  <!-- 1. Back up -->
+  <section class="card" id="cardBackup" data-modes="install backup">
+    <h2><span class="n">1</span>Back up the LinnStrument</h2>
+    <figure class="howto">
+      <svg id="howtoSvg" viewBox="0 0 860 382" role="img" aria-labelledby="howtoTitle">
+        <title id="howtoTitle">The LinnStrument 200 from above: press Global Settings, the bottom button on the left edge, then briefly press OS Update, the pad in column 16, third from the bottom, so it lights up blue. Don't touch the bottom pad of that column.</title>
+      </svg>
+      <figcaption>Turning on OS Update, with the lights you'll see. The playing lights are the Harmony Board's; with the stock firmware they look different, and the Global Settings screen shows your own settings, so a few of its blue pads may differ.</figcaption>
+    </figure>
+    <ol>
+      <li>Plug in the LinnStrument and press <b>Global Settings</b> (the bottom button on the left edge).</li>
+      <li>Briefly press <b>OS Update</b> once: column 16, counting from the control buttons, third pad from the bottom, so its light turns on. Use one finger and don't touch the bottom pad of that column: pressing both together resets the settings.</li>
+      <li>Click the button and choose <b>LinnStrument</b> in the list. Reading the settings changes nothing on the LinnStrument.</li>
+    </ol>
+    <div class="row">
+      <button class="btn primary" id="backupBtn" type="button">Connect and back up</button>
+      <span class="state" id="backupState" aria-live="polite"></span>
+    </div>
+    <div class="bar" id="backupBar" hidden><i></i></div>
+  </section>
+
+  <!-- 2. Save the backup -->
+  <section class="card" id="cardSave" data-modes="install backup">
+    <h2><span class="n">2</span>Save the backup file</h2>
+    <p>Keep this file until the update is done: if anything goes wrong, it brings back your settings and calibration. The flasher also keeps a copy in this browser.</p>
+    <div class="row">
+      <button class="btn primary" id="saveBtn" type="button" disabled>Save backup file</button>
+      <span class="state" id="saveState" aria-live="polite"></span>
+    </div>
+    <label class="check" id="savedConfirmRow" hidden><input type="checkbox" id="savedConfirm"> I have the downloaded backup file.</label>
+  </section>
+
+  <!-- a saved backup, for restoring or recovering -->
+  <section class="card" id="cardLoad" data-modes="restore recover">
+    <h2><span class="n">1</span>Choose your backup</h2>
+    <p>The <code>.lsbackup</code> file from an earlier run (this flasher or the downloadable one, which keeps them in the <code>linnstrument-backups</code> folder in your home folder).</p>
+    <div class="row">
+      <label class="btn">Choose backup file<input type="file" id="backupFile" accept=".lsbackup,application/octet-stream"></label>
+      <button class="btn" id="storedBtn" type="button" hidden>Use the copy saved in this browser</button>
+    </div>
+    <span class="state" id="loadState" aria-live="polite"></span>
+  </section>
+
+  <!-- restore on its own -->
+  <section class="card" id="cardRestore" data-modes="restore">
+    <h2><span class="n">2</span>Restore</h2>
+    <p>For a LinnStrument that's waiting in serial mode: one that was just flashed and hasn't been calibrated yet, or one with OS Update turned on. Projects and Harmony Board data go first, settings last; then it leaves serial mode.</p>
+    <div class="row">
+      <button class="btn primary" id="restoreBtn" type="button" disabled>Connect and restore</button>
+      <span class="state" id="restoreState" aria-live="polite"></span>
+    </div>
+    <div class="bar" id="restoreBar" hidden><i></i></div>
+  </section>
+
+  <!-- the firmware -->
+  <section class="card" id="cardFirmware" data-modes="install recover nobackup">
+    <h2><span class="n" data-n="install:3 recover:2 nobackup:1">3</span>Firmware</h2>
+    <p class="state" id="fwState" aria-live="polite">Looking up the latest release…</p>
+    <div class="row">
+      <label class="btn">Use a different file instead<input type="file" id="fwFile" accept=".bin,.elf" multiple></label>
+      <span class="muted small">Only for your own builds: a <code>.bin</code>, optionally with its <code>.elf</code> to check the settings layout.</span>
+    </div>
+    <div class="box warn" id="sizeWarn" hidden>
+      <p id="sizeWarnText"></p>
+      <label class="check"><input type="checkbox" id="sizeForce"> Flash anyway; I'll calibrate again if the settings can't be used.</label>
+    </div>
+  </section>
+
+  <!-- flash -->
+  <section class="card" id="cardFlash" data-modes="install recover nobackup">
+    <h2><span class="n" data-n="install:4 recover:3 nobackup:2">4</span><span id="flashTitle">Erase and install</span></h2>
+    <div class="box bad" id="nobackupWarn" hidden>
+      <p><b>Without a backup, the LinnStrument's settings, calibration and Harmony Board data are lost.</b> Use this to recover a LinnStrument that can't answer: one in Firmware Upgrade mode (unplug it, hold <b>Global Settings</b> and plug it back in: it shows <b>FWUP</b> in red), or one with dark lights after an interrupted flash. Afterwards you calibrate it again.</p>
+    </div>
+    <p id="flashExplain">The LinnStrument shows a red <b>WAIT</b>, then its lights go out while it's erased, written and checked (about two minutes). Then it restarts and gets its settings back, and shows a green <b>OK</b>.</p>
+    <label class="check"><input type="checkbox" id="riskCheck"> I've read the risks above. The LinnStrument is plugged straight into the computer, and I won't unplug it until this page says Done.</label>
+    <div class="row">
+      <button class="btn danger" id="flashBtn" type="button" disabled>Erase and install</button>
+      <span class="state" id="flashState" aria-live="polite"></span>
+    </div>
+    <ul class="steps" id="steps" hidden>
+      <li data-step="reset">Show WAIT and start the bootloader</li>
+      <li data-step="write">Erase and write the firmware</li>
+      <li data-step="verify">Check every byte and start the firmware</li>
+      <li data-step="restore">Restore settings, projects and Harmony Board data</li>
+    </ul>
+    <div class="bar" id="flashBar" hidden><i></i></div>
+  </section>
+
+  <div class="box" id="result" hidden aria-live="assertive"></div>
+
+  <details class="log">
+    <summary>Details (for bug reports)</summary>
+    <pre id="log"></pre>
+    <div class="row" style="margin-top:8px"><button class="btn" id="copyLog" type="button">Copy details</button></div>
+  </details>
+
+  <section class="box" id="recovery">
+    <h2>If something goes wrong</h2>
+    <p>The LinnStrument's processor has a recovery bootloader in read-only memory that flashing can't erase, so a LinnStrument with dark lights can still take new firmware. In order:</p>
+    <ol>
+      <li><b>Leave it plugged in and flash again</b> from this page: choose <b>Recover: flash with a saved backup</b> and your backup file. Without one, choose <b>Recover: flash without a backup</b> (you'll calibrate afterwards).</li>
+      <li><b>Use Firmware Upgrade mode.</b> Unplug the LinnStrument, hold <b>Global Settings</b> and plug it back in: it shows <b>FWUP</b> in red. Then use <b>Recover: flash without a backup</b>, or with your backup.</li>
+      <li><b>Use the official LinnStrument Updater</b> from <a href="https://www.rogerlinndesign.com">rogerlinndesign.com</a>, which installs the stock firmware. Roger Linn Design's FAQ says a LinnStrument with no lights "will still accept an OS update".</li>
+      <li><b>If none of that works</b>, the hardware may need repair. Roger Linn Design offers repair options for LinnStrument hardware; tell them it was running unofficial firmware, and don't ask them for help with the Harmony Board itself.</li>
+    </ol>
+    <p>The downloadable flasher does the same as this page; see <a href="https://github.com/rymorg/linnstrument-harmony-board/blob/main/INSTALL.md#risks-and-recovery">INSTALL.md</a>. Problems: <a href="https://github.com/rymorg/linnstrument-harmony-board/issues/new/choose">open an issue</a>, with the details above.</p>
+  </section>
+</div>
+
+<script type="module">
+import { sha256hex } from "./bytes.js";
+import { Backup, OS_UPDATE_HINT, backupFileName, settingsSizeInElf } from "./linnstrument.js";
+import { checkImage } from "./samba.js";
+import { backupDevice, flashAndRestore, restoreOnly, settingsSizeProblem } from "./flow.js";
+import { WebSerialProvider, FILTERS } from "./webserial.js";
+
+const $ = (id) => document.getElementById(id);
+const STORE_KEY = "harmony-board-flasher-backup";
+
+const state = {
+  mode: "install",
+  busy: false,
+  backup: null,          // a Backup
+  backupName: "",
+  backupSaved: false,
+  image: null,           // Uint8Array
+  imageLabel: "",
+  imageSettingsSize: null,
+  release: null,
+  flashAttempted: false, // after a flash, the LinnStrument holds defaults at best: don't back that up over the real backup
+  finished: false,       // flashed: nothing more to do in this mode
+};
+
+// ------------------------------------------------------------------ log
+
+const started = performance.now();
+function log(line) {
+  const t = ((performance.now() - started) / 1000).toFixed(1).padStart(6);
+  $("log").textContent += `${t}s  ${line}\n`;
+  $("log").scrollTop = $("log").scrollHeight;
+}
+$("copyLog").onclick = () => navigator.clipboard.writeText(`${navigator.userAgent}\n${$("log").textContent}`);
+
+function setState(id, text, kind = "") {
+  const el = $(id);
+  el.textContent = text;
+  el.className = `state ${kind}`;
+}
+
+function setBar(id, fraction) {
+  const bar = $(id);
+  bar.hidden = fraction === null;
+  if (fraction !== null) bar.querySelector("i").style.width = `${Math.round(fraction * 100)}%`;
+}
+
+function showResult(kind, html) {
+  const el = $("result");
+  el.hidden = !html;
+  el.className = `box ${kind}`;
+  el.innerHTML = html || "";
+  if (html) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+const escape = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+// ------------------------------------------------------------------ the port
+
+// Trying the page without hardware: served from the repository root on this computer, ?simulate swaps
+// in the simulated LinnStrument from tools/ (which isn't published with the site).
+let serial = navigator.serial;
+if (new URLSearchParams(location.search).has("simulate") && ["localhost", "127.0.0.1"].includes(location.hostname)) {
+  const { simulatedSerial } = await import("../../tools/web_flasher_sim.mjs");
+  serial = simulatedSerial();
+  log("Simulated LinnStrument (tools/web_flasher_sim.mjs): no hardware is used.");
+}
+
+const supported = !!serial;
+let pickResolve = null;
+const provider = supported ? new WebSerialProvider({
+  serial,
+  log,
+  pickAgain: () => new Promise((resolve) => {
+    pickResolve = resolve;
+    $("reconnect").hidden = false;
+    $("reconnect").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }),
+}) : null;
+
+$("reconnectBtn").onclick = async () => {
+  try {
+    const sp = await serial.requestPort({ filters: FILTERS });
+    $("reconnect").hidden = true;
+    const resolve = pickResolve;
+    pickResolve = null;
+    resolve?.(sp);
+  } catch (e) {
+    log(`No port chosen (${e.message}).`);
+  }
+};
+
+// must be called from a click: the first time, the user picks the LinnStrument. Says what's going on, since
+// an embedded browser (an app's preview pane) may never show the chooser at all.
+async function ensurePort() {
+  if (provider.chosen) return true;
+  showResult("warn", "<p>Choose <b>LinnStrument</b> in the list the browser shows, then click <b>Connect</b>.</p>" +
+    "<p class='small'>No list? Open this page in Chrome or Edge itself, not in an app's built-in browser.</p>");
+  try {
+    await provider.choose();
+    showResult("", "");
+    log("LinnStrument chosen.");
+    return true;
+  } catch (e) {
+    log(`No port chosen (${e.name}: ${e.message}).`);
+    if (e.name === "NotFoundError") {
+      showResult("warn", "<p>No LinnStrument was chosen. If it wasn't in the list, check that the <b>OS Update</b> pad is lit " +
+        "(Global Settings, column 16, third pad from the bottom), try another cable or port, and close other apps or tabs " +
+        "that use its serial port. On Windows, install the <a href=\"https://github.com/rymorg/linnstrument-harmony-board/blob/main/LinnStrument%20Windows%20Driver.zip\">LinnStrument driver</a>.</p>");
+    } else {
+      showResult("bad", `<p><b>The browser wouldn't open the port chooser:</b> ${escape(e.message)}</p><p>Open this page in Chrome or Edge itself.</p>`);
+    }
+    return false;
+  }
+}
+
+// ------------------------------------------------------------------ keeping the page alive
+
+let wakeLock = null;
+async function setBusy(busy) {
+  state.busy = busy;
+  document.querySelectorAll("input[name=mode]").forEach((r) => { r.disabled = busy; });
+  if (busy) {
+    try {
+      wakeLock = await navigator.wakeLock?.request("screen");
+    } catch { /* not allowed: fine */ }
+  } else {
+    try {
+      await wakeLock?.release();
+    } catch { /* already released */ }
+    wakeLock = null;
+  }
+  refresh();
+}
+window.addEventListener("beforeunload", (e) => {
+  if (state.busy) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
+
+// ------------------------------------------------------------------ modes
+
+const HINTS = {
+  install: "Backs up, flashes the firmware, and restores your settings.",
+  backup: "Saves the settings to a file and changes nothing. Turn OS Update off afterwards.",
+  restore: "Sends a backup to a LinnStrument that's waiting in serial mode.",
+  recover: "For a LinnStrument that's erased or stuck after a flash stopped partway: flashes, then restores your saved backup.",
+  nobackup: "For a LinnStrument that can't answer (FWUP mode, or dark lights) when you have no backup.",
+};
+
+function setMode(mode) {
+  state.mode = mode;
+  state.finished = false;
+  $("modeHint").textContent = HINTS[mode];
+  document.querySelectorAll("[data-modes]").forEach((el) => { el.hidden = !el.dataset.modes.split(" ").includes(mode); });
+  document.querySelectorAll("[data-n]").forEach((el) => {
+    const n = el.dataset.n.split(" ").map((p) => p.split(":")).find(([m]) => m === mode);
+    if (n) el.textContent = n[1];
+  });
+  const titles = { install: "Erase and install", recover: "Flash and restore", nobackup: "Flash without a backup" };
+  $("flashTitle").textContent = titles[mode] || "";
+  $("flashBtn").textContent = titles[mode] || "";
+  $("nobackupWarn").hidden = mode !== "nobackup";
+  $("flashExplain").hidden = mode === "nobackup";
+  if (mode === "restore" || mode === "recover") offerStoredBackup();
+  showResult("", "");
+  refresh();
+}
+document.querySelectorAll("input[name=mode]").forEach((r) => { r.onchange = () => setMode(r.value); });
+
+function refresh() {
+  const { mode, busy } = state;
+  const haveBackup = !!state.backup;
+  $("backupBtn").disabled = busy || !supported || state.flashAttempted;
+  $("saveBtn").disabled = busy || !haveBackup || mode === "restore" || mode === "recover";
+  $("restoreBtn").disabled = busy || !supported || !haveBackup;
+  const sizeProblem = mode !== "nobackup" && settingsSizeProblem(state.backup, state.imageSettingsSize);
+  $("sizeWarn").hidden = !sizeProblem;
+  if (sizeProblem) $("sizeWarnText").textContent = sizeProblem;
+  const backupReady = mode === "nobackup" || (mode === "install" ? haveBackup && state.backupSaved : haveBackup);
+  $("flashBtn").disabled = busy || !supported || state.finished || !backupReady || !state.image || !$("riskCheck").checked ||
+    (sizeProblem && !$("sizeForce").checked);
+  $("cardBackup").classList.toggle("done", haveBackup && mode === "install");
+  $("cardSave").classList.toggle("done", state.backupSaved);
+}
+$("riskCheck").onchange = refresh;
+$("sizeForce").onchange = refresh;
+
+// ------------------------------------------------------------------ backup
+
+// the last few backups, newest first, kept in this browser in case the file goes missing
+function storedList() {
+  try {
+    const list = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberBackup(backup, name) {
+  try {
+    const bytes = backup.toBytes();
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    const list = [{ name, at: new Date().toISOString(), data: btoa(binary) }, ...storedList()].slice(0, 5);
+    localStorage.setItem(STORE_KEY, JSON.stringify(list));
+  } catch (e) {
+    log(`Couldn't keep a copy of the backup in this browser (${e.message}).`);
+  }
+}
+
+function storedBackup() {
+  try {
+    const stored = storedList()[0];
+    if (!stored) return null;
+    const bytes = Uint8Array.from(atob(stored.data), (c) => c.charCodeAt(0));
+    return { ...stored, backup: Backup.fromBytes(bytes, stored.name) };
+  } catch {
+    return null;
+  }
+}
+
+function offerStoredBackup() {
+  const stored = storedBackup();
+  $("storedBtn").hidden = !stored;
+  if (stored) $("storedBtn").textContent = `Use the newest copy saved in this browser (${new Date(stored.at).toLocaleString()})`;
+}
+
+function useBackup(backup, name, saved) {
+  state.backup = backup;
+  state.backupName = name;
+  state.backupSaved = saved;
+  log(`Backup ${name}: ${backup.describe()}.`);
+  refresh();
+}
+
+$("backupBtn").onclick = async () => {
+  showResult("", "");
+  if (!(await ensurePort())) return;
+  await setBusy(true);
+  setState("backupState", "Reading the settings…");
+  setBar("backupBar", 0);
+  try {
+    const backup = await backupDevice(provider, {
+      log,
+      progress: (what, done, total) => {
+        setState("backupState", what === "settings" ? `Reading the settings: ${done} of ${total} bytes` : `Reading the sequencer projects: ${done} of ${total} bytes`);
+        setBar("backupBar", what === "settings" ? 0.4 * done / total : 0.4 + 0.6 * done / total);
+      },
+    });
+    const name = backupFileName();
+    useBackup(backup, name, false);
+    rememberBackup(backup, name);
+    setBar("backupBar", null);
+    setState("backupState", `Backed up ${backup.describe()}.`, "ok");
+    if (state.mode === "backup") {
+      showResult("good", "<p class='big'>Backup read.</p><p>Save the file (step 2), then turn OS Update off (the same pad) to get MIDI back.</p>");
+    }
+  } catch (e) {
+    setBar("backupBar", null);
+    setState("backupState", e.message, "err");
+    log(`Backup failed: ${e.stack || e}`);
+    showResult("bad", `<p><b>The backup didn't work:</b> ${escape(e.message)}</p><p>Nothing was changed on the LinnStrument. Check that the OS Update pad is lit (${escape(OS_UPDATE_HINT.replace(/^Turn on OS Update: /, ""))}), close any other app that might use its serial port, try another cable or port, and try again. On Windows, if no LinnStrument appears in the list, install the <a href="https://github.com/rymorg/linnstrument-harmony-board/blob/main/LinnStrument%20Windows%20Driver.zip">LinnStrument driver</a>.</p>`);
+  } finally {
+    await setBusy(false);
+  }
+};
+
+$("saveBtn").onclick = async () => {
+  const bytes = state.backup.toBytes();
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: state.backupName,
+        types: [{ description: "LinnStrument backup", accept: { "application/octet-stream": [".lsbackup"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(bytes);
+      await writable.close();
+      state.backupSaved = true;
+      state.backupName = handle.name;
+      setState("saveState", `Saved as ${handle.name}.`, "ok");
+      log(`Saved the backup as ${handle.name} (${bytes.length} bytes).`);
+      refresh();
+      return;
+    } catch (e) {
+      if (e.name === "AbortError") return;
+      log(`The save dialog failed (${e.message}); downloading instead.`);
+    }
+  }
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: state.backupName });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  setState("saveState", `Downloading ${state.backupName}. Check your downloads folder.`);
+  $("savedConfirmRow").hidden = false;
+};
+$("savedConfirm").onchange = () => {
+  state.backupSaved = $("savedConfirm").checked;
+  refresh();
+};
+
+$("backupFile").onchange = async () => {
+  const file = $("backupFile").files[0];
+  if (!file) return;
+  try {
+    const backup = Backup.fromBytes(new Uint8Array(await file.arrayBuffer()), file.name);
+    useBackup(backup, file.name, true);
+    setState("loadState", `${file.name}: ${backup.describe()}.`, "ok");
+  } catch (e) {
+    state.backup = null;
+    setState("loadState", e.message, "err");
+    refresh();
+  }
+};
+$("storedBtn").onclick = () => {
+  const stored = storedBackup();
+  if (!stored) return;
+  useBackup(stored.backup, stored.name, true);
+  setState("loadState", `${stored.name} (kept in this browser): ${stored.backup.describe()}.`, "ok");
+};
+
+// ------------------------------------------------------------------ firmware
+
+function useImage(image, label, settingsSize) {
+  checkImage(image);
+  state.image = image;
+  state.imageLabel = label;
+  state.imageSettingsSize = settingsSize;
+  log(`Firmware ${label}: ${image.length} bytes${settingsSize ? `, ${settingsSize}-byte settings` : ""}.`);
+  refresh();
+}
+
+async function loadLatest() {
+  try {
+    const res = await fetch("firmware/latest.json", { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const release = await res.json();
+    if (!release.file) throw new Error("no release with a firmware file yet");
+    const bin = await fetch(`firmware/${release.file}`, { cache: "no-cache" });
+    if (!bin.ok) throw new Error(`HTTP ${bin.status} for the firmware`);
+    const image = new Uint8Array(await bin.arrayBuffer());
+    if (image.length !== release.size || (await sha256hex(image)) !== release.sha256) {
+      throw new Error("the downloaded firmware doesn't match its checksum");
+    }
+    state.release = release;
+    useImage(image, `${release.tag}${release.prerelease ? " (pre-release)" : ""}`, release.settingsSize || null);
+    $("fwState").innerHTML = release.local
+      ? `<b>Ready:</b> your local build (${escape(release.file)}, ${release.size} bytes), downloaded with this page. You don't need to choose a file.`
+      : `<b>Ready:</b> Harmony Board <b>${escape(release.tag)}</b>${release.prerelease ? " (pre-release)" : ""}, the latest release` +
+        `${release.published ? `, from ${escape(new Date(release.published).toLocaleDateString())}` : ""}, downloaded with this page. ` +
+        `You don't need to choose a file. <a href="${escape(release.url)}" target="_blank" rel="noopener">Release notes</a>.`;
+    $("fwState").className = "state ok";
+  } catch (e) {
+    log(`No release firmware (${e.message}).`);
+    if (!state.image) setState("fwState", "No release firmware found here. Choose a firmware file from your computer.", "");
+  }
+}
+
+$("fwFile").onchange = async () => {
+  const files = [...$("fwFile").files];
+  const bin = files.find((f) => f.name.toLowerCase().endsWith(".bin"));
+  const elf = files.find((f) => f.name.toLowerCase().endsWith(".elf"));
+  if (!bin) {
+    setState("fwState", "Choose the firmware's .bin file (with its .elf if you have it).", "err");
+    return;
+  }
+  try {
+    const settingsSize = elf ? settingsSizeInElf(new Uint8Array(await elf.arrayBuffer())) : null;
+    useImage(new Uint8Array(await bin.arrayBuffer()), bin.name, settingsSize);
+    let note = `${bin.name}, ${state.image.length} bytes, from this computer.`;
+    if (elf) note += settingsSize ? ` Its settings are ${settingsSize} bytes.` : ` ${elf.name} has no settings size.`;
+    else note += " Without its .elf, the settings layout can't be checked.";
+    setState("fwState", note, "ok");
+  } catch (e) {
+    state.image = null;
+    setState("fwState", e.message, "err");
+    refresh();
+  }
+};
+
+// ------------------------------------------------------------------ flash
+
+const STEP_ORDER = ["reset", "write", "verify", "restore"];
+function markStep(step, how = "now") {
+  const at = step === "done" ? STEP_ORDER.length : STEP_ORDER.indexOf(step);
+  document.querySelectorAll("#steps li").forEach((li) => {
+    const i = STEP_ORDER.indexOf(li.dataset.step);
+    li.className = i < at ? "ok" : i === at ? how : "";
+  });
+}
+
+function recoveryHtml(e) {
+  const name = escape(state.backupName);
+  if (e.stage === "start") {
+    return `<p><b>Nothing was changed:</b> ${escape(e.message)}</p>`;
+  }
+  if (e.stage === "restore") {
+    return `<p><b>The new firmware is installed, but the settings weren't restored:</b> ${escape(e.message)}</p>` +
+      `<p>Your settings are safe in <b>${name}</b>. <b>Don't calibrate yet</b>: calibrating on this first start ends serial mode. ` +
+      `Choose <b>Restore a backup</b> above and restore it. If the LinnStrument already left serial mode, turn OS Update on again first.</p>`;
+  }
+  const saved = state.backup ? `Your settings are safe in <b>${name}</b>. ` : "";
+  return `<p><b>Flashing stopped:</b> ${escape(e.message)}</p>` +
+    `<p>The LinnStrument may now be erased and waiting in its bootloader, with all lights off. <b>That's recoverable, so leave it plugged in.</b> ${saved}` +
+    `Click <b>${escape($("flashBtn").textContent)}</b> again to retry${state.backup ? "; it uses the backup you already have" : ""}. ` +
+    `If that keeps failing, follow <a href="#recovery">If something goes wrong</a>.</p>`;
+}
+
+$("flashBtn").onclick = async () => {
+  showResult("", "");
+  if (!(await ensurePort())) return;
+  await setBusy(true);
+  $("steps").hidden = false;
+  $("steps").querySelector("[data-step=restore]").hidden = !state.backup || state.mode === "nobackup";
+  setBar("flashBar", 0);
+  const flashStarted = performance.now();
+  const timer = setInterval(() => setState("flashState", `${Math.round((performance.now() - flashStarted) / 1000)} s`), 1000);
+  const backup = state.mode === "nobackup" ? null : state.backup;
+  let current = "reset";
+  try {
+    log(`Flashing ${state.imageLabel}${backup ? `, then restoring ${state.backupName}` : " without a backup"}.`);
+    await flashAndRestore(provider, state.image, backup, {
+      log,
+      step: (step) => {
+        if (step === "reset") {
+          state.flashAttempted = true;
+          refresh();
+        }
+        current = step;
+        markStep(step);
+        if (step === "restore") setBar("flashBar", 0.92);
+      },
+      progress: (what, done, total) => {
+        if (what === "write") setBar("flashBar", 0.05 + 0.45 * done / total);
+        if (what === "verify") {
+          if (current !== "verify") markStep((current = "verify"));
+          setBar("flashBar", 0.5 + 0.4 * done / total);
+        }
+        if (current === "restore") setBar("flashBar", 0.92 + 0.08 * done / total);
+      },
+    });
+    markStep("done");
+    state.flashAttempted = false;
+    state.finished = true;
+    setBar("flashBar", 1);
+    clearInterval(timer);
+    setState("flashState", `Done in ${Math.round((performance.now() - flashStarted) / 1000)} s.`, "ok");
+    if (backup) {
+      showResult("good", "<p class='big'>Done.</p><p>The LinnStrument shows a green <b>OK</b> and runs the new firmware in normal (MIDI) mode, with its settings and calibration. " +
+        "(From firmware older than Harmony Board 0.1.0 there's no OK.)</p>" +
+        `<p>If it shows the <b>calibration</b> screen instead, the firmware couldn't use the saved settings: slide a finger along each lit row, then each lit column, until it shows OK, then set up MPE again. The backup stays in <b>${escape(state.backupName)}</b>.</p>`);
+    } else {
+      showResult("good", "<p class='big'>Done.</p><p>The LinnStrument runs the new firmware. It starts in OS Update mode on the <b>calibration</b> screen: slide a finger along each lit row, then each lit column, until everything turns green and it shows OK. " +
+        "Then press <b>Global Settings</b> and briefly press <b>OS Update</b> to turn it off, and set up MPE again (see INSTALL.md).</p>");
+    }
+  } catch (e) {
+    clearInterval(timer);
+    document.querySelectorAll("#steps li.now").forEach((li) => { li.className = "fail"; });
+    setState("flashState", "Stopped.", "err");
+    log(`Stopped (${e.stage || "?"}): ${e.stack || e}`);
+    showResult("bad", recoveryHtml(e));
+  } finally {
+    await setBusy(false);
+  }
+};
+
+$("restoreBtn").onclick = async () => {
+  showResult("", "");
+  if (!(await ensurePort())) return;
+  await setBusy(true);
+  setState("restoreState", "Restoring…");
+  setBar("restoreBar", 0);
+  try {
+    await restoreOnly(provider, state.backup, {
+      log,
+      progress: (what, done, total) => setBar("restoreBar", what === "projects" ? 0.7 * done / total : 0.7 + 0.3 * done / total),
+    });
+    setBar("restoreBar", 1);
+    setState("restoreState", "Restored.", "ok");
+    showResult("good", "<p class='big'>Done.</p><p>The LinnStrument is back in normal (MIDI) mode with the restored settings. If it shows the calibration screen, the firmware couldn't use them: calibrate it.</p>");
+  } catch (e) {
+    setBar("restoreBar", null);
+    setState("restoreState", e.message, "err");
+    log(`Restore failed: ${e.stack || e}`);
+    showResult("bad", `<p><b>The restore didn't work:</b> ${escape(e.message)}</p><p>The backup file is unchanged. Make sure the LinnStrument is in serial mode (just flashed and not calibrated yet, or with OS Update on) and try again.</p>`);
+  } finally {
+    await setBusy(false);
+  }
+};
+
+// ------------------------------------------------------------------ the OS Update drawing
+
+// The LinnStrument 200: a column of 8 control buttons, then 25 columns by 8 rows of pads. Rows count
+// from the bottom, as in the firmware. The lights are the real ones:
+// - playing: the Harmony Board's power-up screen (D Dorian, Compose), as companion/index.html draws it;
+// - Global Settings with factory settings, from paintGlobalSettingsDisplay() in ls_displayModes.ino: note
+//   lights for a major scale (columns 2-4), MAIN, row offset +5, left foot switch on arpeggiator, medium
+//   velocity and pressure, replay-all arpeggio at 16th swing, the tempo flash, MIDI over USB, calibrated
+//   (green); all in globalColor (blue). OS Update (column 16, row 2) lights blue when serial mode is on.
+const PLAYING_LIGHTS = "1,7,2fdc55 2,7,2fdc55 3,7,b8ff2e 5,7,ffd60a 7,7,2ee6ea 8,7,3aa8ff 9,7,2fdc55 10,7,3aa8ff 11,7,2fdc55 12,7,3aa8ff 13,7,2fdc55 14,7,2ee6ea 15,7,3aa8ff 16,7,2fdc55 17,7,3aa8ff 18,7,2fdc55 19,7,3aa8ff 20,7,2fdc55 21,7,2ee6ea 22,7,3aa8ff 23,7,2fdc55 24,7,3aa8ff 25,7,2fdc55 " +
+  "1,6,ffd60a 2,6,ff8a1c 3,6,ff8a1c 4,6,3d6dff 5,6,955c27 7,6,2fdc55 8,6,3aa8ff 9,6,2fdc55 10,6,2ee6ea 11,6,3aa8ff 12,6,2fdc55 13,6,3aa8ff 14,6,2fdc55 15,6,3aa8ff 16,6,2fdc55 17,6,2ee6ea 18,6,3aa8ff 19,6,2fdc55 20,6,3aa8ff 21,6,2fdc55 22,6,3aa8ff 23,6,2fdc55 24,6,2ee6ea 25,6,3aa8ff " +
+  "1,5,955c27 2,5,2fdc55 3,5,ffd60a 4,5,3d6dff 5,5,3aa8ff 7,5,3aa8ff 8,5,2fdc55 9,5,3aa8ff 10,5,2fdc55 11,5,3aa8ff 12,5,2fdc55 13,5,2ee6ea 14,5,3aa8ff 15,5,2fdc55 16,5,3aa8ff 17,5,2fdc55 18,5,3aa8ff 19,5,2fdc55 20,5,2ee6ea 21,5,3aa8ff 22,5,2fdc55 23,5,3aa8ff 24,5,2fdc55 25,5,3aa8ff " +
+  "1,4,955c27 2,4,2fdc55 3,4,2fdc55 4,4,3d6dff 5,4,955c27 7,4,3aa8ff 8,4,2fdc55 9,4,2ee6ea 10,4,3aa8ff 11,4,2fdc55 12,4,3aa8ff 13,4,2fdc55 14,4,3aa8ff 15,4,2fdc55 16,4,2ee6ea 17,4,3aa8ff 18,4,2fdc55 19,4,3aa8ff 20,4,2fdc55 21,4,3aa8ff 22,4,2fdc55 23,4,2ee6ea 24,4,3aa8ff 25,4,2fdc55 " +
+  "1,3,955c27 2,3,ff8a1c 3,3,ffffff 4,3,3d6dff 5,3,2fdc55 6,3,2fdc55 7,3,2fdc55 8,3,3aa8ff 9,3,2fdc55 10,3,3aa8ff 11,3,2fdc55 12,3,2ee6ea 13,3,3aa8ff 14,3,2fdc55 15,3,3aa8ff 16,3,2fdc55 17,3,3aa8ff 18,3,2fdc55 19,3,2ee6ea 20,3,3aa8ff 21,3,2fdc55 22,3,3aa8ff 23,3,2fdc55 24,3,3aa8ff 25,3,2fdc55 " +
+  "1,2,ffffff 2,2,ffd60a 3,2,2fdc55 4,2,3d6dff 5,2,336b98 6,2,2fdc55 7,2,2fdc55 8,2,2ee6ea 9,2,3aa8ff 10,2,2fdc55 11,2,3aa8ff 12,2,2fdc55 13,2,3aa8ff 14,2,2fdc55 15,2,2ee6ea 16,2,3aa8ff 17,2,2fdc55 18,2,3aa8ff 19,2,2fdc55 20,2,3aa8ff 21,2,2fdc55 22,2,2ee6ea 23,2,3aa8ff 24,2,2fdc55 25,2,3aa8ff " +
+  "1,1,955c27 2,1,2ee6ea 3,1,ffd60a 4,1,3d6dff 5,1,2fdc55 6,1,ffffff 7,1,3aa8ff 8,1,2fdc55 9,1,3aa8ff 10,1,2fdc55 11,1,2ee6ea 12,1,3aa8ff 13,1,2fdc55 14,1,3aa8ff 15,1,2fdc55 16,1,3aa8ff 17,1,2fdc55 18,1,2ee6ea 19,1,3aa8ff 20,1,2fdc55 21,1,3aa8ff 22,1,2fdc55 23,1,3aa8ff 24,1,2fdc55 25,1,2ee6ea " +
+  "1,0,955c27 2,0,ffd60a 3,0,ff8a1c 5,0,ffffff 6,0,ffffff 7,0,2ee6ea 8,0,3aa8ff 9,0,2fdc55 10,0,3aa8ff 11,0,2fdc55 12,0,3aa8ff 13,0,2fdc55 14,0,2ee6ea 15,0,3aa8ff 16,0,2fdc55 17,0,3aa8ff 18,0,2fdc55 19,0,3aa8ff 20,0,2fdc55 21,0,2ee6ea 22,0,3aa8ff 23,0,2fdc55 24,0,3aa8ff 25,0,2fdc55";
+const BLUE = "3d6dff", GREEN = "2fdc55";
+const GLOBAL_LIGHTS = [[1, 0], [2, 0], [4, 0], [3, 1], [4, 1], [3, 2], [2, 3], [4, 3], [5, 1], [7, 0], [8, 0], [10, 1], [11, 1],
+  [12, 3], [13, 0], [13, 1], [15, 0]].map(([c, r]) => [c, r, BLUE]).concat([[16, 3, GREEN]]);
+
+function drawHowto() {
+  const PAD = 26, STEP = 30, TOP = 72, KEYX = 34, GRIDX = 84;
+  const rowY = (r) => TOP + (7 - r) * STEP;          // r: firmware row, 0 = bottom
+  const colX = (c) => GRIDX + (c - 1) * STEP;        // c: 1..25
+  const pad = (c, r, color, cls = "") => `<rect class="${cls}" x="${colX(c)}" y="${rowY(r)}" width="${PAD}" height="${PAD}" rx="3" fill="#${color}"/>`;
+  const key = (r, color, cls = "") => `<rect class="${cls}" x="${KEYX}" y="${rowY(r) + 14}" width="34" height="11" rx="2" fill="#${color}"/>`;
+  const parts = [`<defs><linearGradient id="howtoWood" x1="0" x2="1"><stop offset="0" stop-color="#5b321a"/><stop offset=".45" stop-color="#9c6137"/><stop offset="1" stop-color="#5b321a"/></linearGradient></defs>`];
+  const cap = (cls, text) => `<text class="cap ${cls}" x="430" y="30" text-anchor="middle">${text}</text>`;
+  parts.push(cap("s0", "Playing: the lights show the harmony"));
+  parts.push(cap("s1", "1. Press Global Settings"));
+  parts.push(cap("s2", "2. Tap OS Update: column 16, third from the bottom"));
+  parts.push(cap("s3", "OS Update is on: its pad stays lit blue"));
+  // the panel holds the 8 rows with a 12-unit margin above and below
+  const panelTop = rowY(7) - 12, panelHeight = 8 * STEP - (STEP - PAD) + 24;
+  parts.push(`<rect class="wood" x="0" y="${panelTop}" width="20" height="${panelHeight}" rx="6"/>`);
+  parts.push(`<rect class="wood" x="840" y="${panelTop}" width="20" height="${panelHeight}" rx="6"/>`);
+  parts.push(`<rect class="panel" x="20" y="${panelTop}" width="820" height="${panelHeight}"/>`);
+  for (let r = 0; r < 8; r++) {
+    parts.push(`<rect class="key" x="${KEYX}" y="${rowY(r) + 14}" width="34" height="11" rx="2"/>`);
+    for (let c = 1; c <= 25; c++) parts.push(`<rect class="pad" x="${colX(c)}" y="${rowY(r)}" width="${PAD}" height="${PAD}" rx="3"/>`);
+  }
+  // playing: the Split button is the Harmony button, lit in Compose
+  parts.push(`<g class="play">${key(1, "2ee6ea")}${PLAYING_LIGHTS.split(" ").map((cell) => {
+    const [c, r, color] = cell.split(",");
+    return pad(+c, +r, color);
+  }).join("")}</g>`);
+  // Global Settings: its button lit, the settings, and the tempo pad flashing on the beat
+  parts.push(`<g class="global">${key(0, BLUE)}${GLOBAL_LIGHTS.map(([c, r, color]) => pad(c, r, color)).join("")}${pad(14, 3, BLUE, "tempo")}</g>`);
+  parts.push(pad(16, 2, BLUE, "osu"));
+  // labels: column numbers above, names below
+  for (const c of [1, 16, 25]) parts.push(`<text class="silk" x="${colX(c) + PAD / 2}" y="${panelTop - 8}" text-anchor="middle">${c}</text>`);
+  parts.push(`<text class="silk" x="${KEYX - 8}" y="${rowY(0) + PAD + 34}">Global Settings</text>`);
+  parts.push(`<text class="silk" x="${colX(16) + PAD / 2}" y="${rowY(0) + PAD + 34}" text-anchor="middle">column 16</text>`);
+  // step 1: Global Settings
+  const gy = rowY(0) + 14;
+  parts.push(`<g class="s1"><rect class="ring" x="${KEYX - 7}" y="${gy - 7}" width="48" height="25" rx="7"/>` +
+    `<g class="badge"><circle cx="${KEYX + 17}" cy="${gy - 22}" r="11"/><text x="${KEYX + 17}" y="${gy - 22}">1</text></g></g>`);
+  parts.push(`<circle class="tap1" cx="${KEYX + 17}" cy="${gy + 5}" r="14" fill="#fff"/>`);
+  // step 2: OS Update, and the pad not to touch
+  const ux = colX(16), uy = rowY(2), ry = rowY(0);
+  parts.push(`<g class="s2"><rect class="ring" x="${ux - 6}" y="${uy - 6}" width="${PAD + 12}" height="${PAD + 12}" rx="7"/>` +
+    `<g class="badge"><circle cx="${ux + PAD + 22}" cy="${uy + PAD / 2}" r="11"/><text x="${ux + PAD + 22}" y="${uy + PAD / 2}">2</text></g>` +
+    `<rect class="warn" x="${ux - 4}" y="${ry - 4}" width="${PAD + 8}" height="${PAD + 8}" rx="6"/>` +
+    `<text class="warntext" x="${ux + PAD / 2}" y="${ry + PAD + 62}" text-anchor="middle">Not the bottom pad: pressing it too resets the settings</text></g>`);
+  parts.push(`<circle class="tap2" cx="${ux + PAD / 2}" cy="${uy + PAD / 2}" r="15" fill="#fff"/>`);
+  $("howtoSvg").insertAdjacentHTML("beforeend", parts.join(""));
+}
+drawHowto();
+
+// ------------------------------------------------------------------ start
+
+if (!supported) {
+  $("unsupported").hidden = false;
+}
+setMode("install");
+loadLatest();
+</script>
+</body>
+</html>
