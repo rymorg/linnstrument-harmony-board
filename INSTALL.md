@@ -6,7 +6,12 @@ This guide is for anyone who wants to try the Harmony Board on their LinnStrumen
 > [!WARNING]
 > **Use at your own risk.** The Harmony Board is unofficial, experimental firmware, provided as is, without warranty of any kind (see the [license](LICENSE.txt)). It isn't made, tested or supported by Roger Linn Design. Flashing replaces your LinnStrument's firmware; if it's interrupted, the LinnStrument won't work until it's flashed again. Read [Risks and recovery](#risks-and-recovery) before you start.
 
-The flasher keeps your settings and calibration, and you can go back to the official firmware at any time (see [Going back to the stock firmware](#going-back-to-the-stock-firmware)).
+There are two flashers, and both keep your settings and calibration:
+
+- **The browser flasher** at [rymorg.github.io/linnstrument-harmony-board/flash](https://rymorg.github.io/linnstrument-harmony-board/flash/) runs in Chrome or Edge on a computer. Nothing to download or install. Start here.
+- **The downloadable flasher** is an app for macOS (Apple Silicon), Windows and Linux. Use it if you can't use Chrome or Edge, or if the browser flasher doesn't work for you.
+
+You can go back to the official firmware at any time (see [Going back to the stock firmware](#going-back-to-the-stock-firmware)).
 
 Risks and recovery
 ------------------
@@ -21,8 +26,8 @@ Risks and recovery
 
 **If it does go wrong, it's almost always recoverable.** The LinnStrument's processor has a recovery bootloader built into its read-only memory, which flashing can't erase, so a LinnStrument with dark lights can still take new firmware. In order:
 
-1. **Leave it plugged in and run the flasher again.** It prints the exact command to use, with your backup. If you don't have that, run it with `--latest --no-backup` (your settings and calibration are lost; you'll calibrate afterwards).
-2. **Use Firmware Upgrade mode.** Unplug the LinnStrument, hold **Global Settings**, and plug it back in: it shows **FWUP** in red, a recovery mode built into the firmware ([community wiki](https://linnstrument.miraheze.org/wiki/Firmware)). Then run the flasher with `--latest --no-backup`.
+1. **Leave it plugged in and flash again.** In the browser flasher, click the flash button again, or choose **Recover: flash with a saved backup** and your backup file (it also keeps a copy in the browser). The downloadable flasher prints the exact command to use, with your backup. If you don't have a backup, choose **Recover: flash without a backup**, or run the downloadable flasher with `--latest --no-backup` (your settings and calibration are lost; you'll calibrate afterwards).
+2. **Use Firmware Upgrade mode.** Unplug the LinnStrument, hold **Global Settings**, and plug it back in: it shows **FWUP** in red, a recovery mode built into the firmware ([community wiki](https://linnstrument.miraheze.org/wiki/Firmware)). Then use the browser flasher's **Recover: flash without a backup** (or with your backup), or run the downloadable flasher with `--latest --no-backup`.
 3. **Use the official LinnStrument Updater** from [rogerlinndesign.com](https://www.rogerlinndesign.com), which installs the stock firmware. Roger Linn Design's FAQ says a LinnStrument with no lights "will still accept an OS update".
 4. **If none of that works**, the hardware may need repair. Roger Linn Design offers repair options for LinnStrument hardware; tell them it was running unofficial firmware, and don't ask them for help with the Harmony Board itself.
 
@@ -32,11 +37,35 @@ What you need
 -------------
 
 - A **LinnStrument 200** (the LinnStrument 128 isn't supported yet) and its USB cable.
-- A computer with macOS (Apple Silicon), Windows or Linux, and an internet connection.
+- A computer with **Chrome or Edge** (macOS, Windows, Linux or ChromeOS) and an internet connection. For the downloadable flasher instead: macOS (Apple Silicon), Windows or Linux.
 - About 10 minutes in which you don't unplug the LinnStrument.
 
-1. Download the flasher
------------------------
+1. Put the LinnStrument in OS Update mode
+-----------------------------------------
+
+1. Plug the LinnStrument straight into the computer, not into a hub.
+2. Press **Global Settings** (the bottom button on the left edge).
+3. Find **OS Update**: column 16, counting from the control buttons, third pad from the bottom. Briefly press it once, with one finger, so its light turns on. Don't hold it, and don't touch the pad below it: pressing both together resets the LinnStrument's settings.
+
+Not sure which pad that is? Open the [companion app](https://rymorg.github.io/linnstrument-harmony-board/) in Chrome, click **Connect LinnStrument** before step 2, and open Global Settings: the app labels the OS Update pad **UPDT**.
+
+2. Flash from your browser
+--------------------------
+
+1. Open the [browser flasher](https://rymorg.github.io/linnstrument-harmony-board/flash/) in **Chrome** or **Edge**.
+2. Click **Connect and back up**, choose **LinnStrument** in the list Chrome shows, and click **Connect**. The page reads the settings, calibration, sequencer projects and Harmony Board data. That changes nothing on the LinnStrument.
+3. Click **Save backup file** and keep the file until you're done. The page also keeps a copy in the browser.
+4. The page shows the newest Harmony Board release. Tick the box that you've read the risks, and click **Erase and install**.
+5. It shows **WAIT** on the LinnStrument, erases it, writes the new firmware and checks every byte, then restores your backup, about two minutes in all. Keep the tab open and in front until it says **Done**.
+
+If the page asks you to **pick the LinnStrument again** partway through, click the button and choose it: the LinnStrument restarted, and Chrome wants your permission once more. Nothing is lost, and the flash carries on.
+
+If anything goes wrong, the page says what happened and what to do; see also [Risks and recovery](#risks-and-recovery).
+
+The downloadable flasher
+------------------------
+
+Use this instead of step 2 if you can't use Chrome or Edge, or if the browser flasher doesn't work for you. It does the same thing.
 
 Go to the [Releases page](https://github.com/rymorg/linnstrument-harmony-board/releases) and, under **Assets** of the newest release, download the flasher for your computer:
 
@@ -50,19 +79,9 @@ You don't need to download the firmware file: the flasher fetches the newest rel
 
 **Mac:** the flasher uses an Intel tool from Arduino to write the firmware, so your Mac needs Rosetta. If you've never installed it, open Terminal and run `softwareupdate --install-rosetta --agree-to-license`.
 
-**Intel Mac:** there's no ready-made flasher yet; follow [Flashing from source](HARMONY.md#flash) instead.
+**Intel Mac:** there's no ready-made app; use the browser flasher, or follow [Flashing from source](HARMONY.md#flash).
 
-2. Put the LinnStrument in OS Update mode
------------------------------------------
-
-1. Plug the LinnStrument into the computer.
-2. Press **Global Settings** (the bottom button on the left edge).
-3. Find **OS Update**: column 16, counting from the control buttons, third pad from the bottom. Briefly press it once, with one finger, so its light turns on. Don't hold it, and don't touch the pad below it: pressing both together resets the LinnStrument's settings.
-
-Not sure which pad that is? Open the [companion app](https://rymorg.github.io/linnstrument-harmony-board/) in Chrome, click **Connect LinnStrument** before step 2, and open Global Settings: the app labels the OS Update pad **UPDT**.
-
-3. Run the flasher
-------------------
+With the LinnStrument in OS Update mode (step 1), run the flasher:
 
 - **Mac:** the first time, macOS says the flasher is from an unidentified developer. Right-click (or Control-click) the file, choose **Open**, then **Open** again. If it still won't open, go to System Settings → Privacy & Security and click **Open Anyway**.
 - **Windows:** if SmartScreen says it protected your PC, click **More info**, then **Run anyway**.
@@ -77,9 +96,9 @@ The flasher then:
 5. restores your backup.
 
 > [!IMPORTANT]
-> **The lights go dark while it flashes, for a minute or two. That's expected.** Just before, the pads show a red **WAIT**. Then the LinnStrument is erased and rewritten, and nothing can light up until the new firmware starts. When it's finished, the pads show a green **OK**. (Updating from firmware older than 0.1.0, there's no WAIT, and from the stock firmware no OK.) Don't unplug it, don't touch it, and don't close the flasher; wait for **Done**. If the flasher stops with an error, leave the LinnStrument plugged in and see [Risks and recovery](#risks-and-recovery).
+> **With either flasher, the lights go dark while it flashes, for a minute or two. That's expected.** Just before, the pads show a red **WAIT**. Then the LinnStrument is erased and rewritten, and nothing can light up until the new firmware starts. When it's finished, the pads show a green **OK**. (Updating from firmware older than 0.1.0, there's no WAIT, and from the stock firmware no OK.) Don't unplug it, don't touch it, and don't close the flasher; wait for **Done**. If the flasher stops with an error, leave the LinnStrument plugged in and see [Risks and recovery](#risks-and-recovery).
 
-4. After flashing
+3. After flashing
 -----------------
 
 - The LinnStrument restarts in normal (MIDI) mode with your settings.
@@ -92,7 +111,7 @@ You're done. The [cheat sheet](docs/cheatsheet.md) shows what every pad does; [H
 Updating to a new version
 -------------------------
 
-Download the newest flasher if the release notes say to, put the LinnStrument in OS Update mode, and run the flasher again. Your settings, calibration, harmony and memories are kept.
+Put the LinnStrument in OS Update mode and open the [browser flasher](https://rymorg.github.io/linnstrument-harmony-board/flash/) again; it always offers the newest release. (With the downloadable flasher, download the newest one if the release notes say to, and run it.) Your settings, calibration, harmony and memories are kept.
 
 To check which version you're running: press **Global Settings**, then the **VER** pad (column 16, second from the bottom). It always opens on `234`, the version of the stock firmware the Harmony Board is built on. Tap the surface once to see the Harmony Board's own version, such as `H0.1`; each tap switches between the two. The screen only shows information, so nothing else changes. Press Global Settings to leave.
 
@@ -104,11 +123,13 @@ Download the official **LinnStrument Updater** from [rogerlinndesign.com](https:
 Troubleshooting
 ---------------
 
-**The flasher says it can't find the LinnStrument.** It only sees the LinnStrument in OS Update mode. Check that the OS Update pad is lit, try another USB cable or port, and close any app that might be using the LinnStrument's serial port. On Windows, if no COM port appears in Device Manager in OS Update mode, install the driver from [LinnStrument Windows Driver.zip](LinnStrument%20Windows%20Driver.zip) (the official one from Roger Linn Design).
+**The browser flasher says this browser can't talk to the LinnStrument.** It needs the Web Serial API, which only Chrome and Edge on a computer have. Use one of those, or the [downloadable flasher](#the-downloadable-flasher).
 
-**The flasher stopped partway, or the lights stayed dark.** Don't panic and don't unplug it: your backup is safe in the `linnstrument-backups` folder, and the flasher prints the command to finish the job. A dark LinnStrument is usually waiting in its bootloader: run the command the flasher printed, or run the flasher again from a terminal with the backup it names and `--latest`, for example `./harmony-board-flasher-macos-apple-silicon --restore ~/linnstrument-backups/linnstrument-<date>.lsbackup --latest`. It flashes and restores in one go. If that doesn't work, follow [Risks and recovery](#risks-and-recovery).
+**The flasher can't find the LinnStrument, or it isn't in Chrome's list.** The flashers only see the LinnStrument in OS Update mode. Check that the OS Update pad is lit, try another USB cable or port, and close any app that might use the LinnStrument's serial port (including another tab with the flasher). On Windows, if no COM port appears in Device Manager in OS Update mode, install the driver from [LinnStrument Windows Driver.zip](LinnStrument%20Windows%20Driver.zip) (the official one from Roger Linn Design). On Linux, if Chrome can't open the port, add yourself to the `dialout` group (`sudo usermod -aG dialout $USER`) and log in again.
 
-**"bossac can't run" on a Mac.** Install Rosetta (see step 1) and run the flasher again. Nothing was erased.
+**The flasher stopped partway, or the lights stayed dark.** Don't panic and don't unplug it: your backup is safe. A dark LinnStrument is usually waiting in its bootloader. In the browser flasher, click the flash button again, or choose **Recover: flash with a saved backup** with your backup file; it flashes and restores in one go. The downloadable flasher keeps the backup in the `linnstrument-backups` folder and prints the command to finish the job: run that, or run the flasher again from a terminal with the backup it names and `--latest`, for example `./harmony-board-flasher-macos-apple-silicon --restore ~/linnstrument-backups/linnstrument-<date>.lsbackup --latest`. Backups from either flasher work in both. If that doesn't work, follow [Risks and recovery](#risks-and-recovery).
+
+**"bossac can't run" on a Mac.** The downloadable flasher needs Rosetta (see [The downloadable flasher](#the-downloadable-flasher)); install it and run the flasher again, or use the browser flasher, which doesn't need it. Nothing was erased.
 
 **My DAW doesn't see the LinnStrument after flashing.** It's probably still in OS Update mode, where it shows up as a serial device instead of MIDI. Press Global Settings and briefly press OS Update so its light turns off.
 

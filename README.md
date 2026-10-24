@@ -20,7 +20,7 @@ Try it
 ------
 
 - **No LinnStrument handy?** The [companion app](https://rymorg.github.io/linnstrument-harmony-board/) runs in your browser: a playable version of the board with demo songs and a guide to the lights.
-- **Install it:** follow [INSTALL.md](INSTALL.md). Download the flasher for your computer from the [Releases page](https://github.com/rymorg/linnstrument-harmony-board/releases), put the LinnStrument in OS Update mode, and run it. It backs up your settings and calibration, installs the latest release and restores them; no programming or command line needed.
+- **Install it:** put the LinnStrument in OS Update mode and open the [browser flasher](https://rymorg.github.io/linnstrument-harmony-board/flash/) in Chrome or Edge. It backs up your settings and calibration, installs the latest release and restores them; nothing to download, no programming or command line. [INSTALL.md](INSTALL.md) walks through it, and has a downloadable flasher for macOS, Windows and Linux as a fallback.
 - **Learn the pads:** the [cheat sheet](docs/cheatsheet.md) fits everything on one page.
 
 What it does
@@ -71,7 +71,7 @@ Most people should use the ready-made releases (see [INSTALL.md](INSTALL.md)). T
    tools/.venv/bin/python tools/flash_keep_settings.py build/linnstrument-firmware.ino.bin
    ```
 
-   With no file, the helper downloads and flashes the latest release instead.
+   With no file, the helper downloads and flashes the latest release instead. The [browser flasher](https://rymorg.github.io/linnstrument-harmony-board/flash/) can flash your own build too: choose **Use a file from this computer** and pick the `.bin` together with its `.elf`.
 
 3. **Turn on MPE** in Per-Split Settings (hold Channel Per Note), and use an MPE instrument with a pitch bend range of 48 semitones. In Perform mode, add a second instrument on channel 16 for the chords.
 
@@ -81,16 +81,16 @@ Most people should use the ready-made releases (see [INSTALL.md](INSTALL.md)). T
    python3 -m http.server 8766 --bind 127.0.0.1 --directory companion
    ```
 
-   Open http://localhost:8766 in Chrome or Edge and click Connect LinnStrument.
+   Open http://localhost:8766 in Chrome or Edge and click Connect LinnStrument. The flasher is at http://localhost:8766/flash/; its protocol tests run in Node with `node --test tools/test_web_flasher.mjs`, against a simulated LinnStrument.
 
-Releases are built by GitHub Actions: pushing a tag like `v0.2.0` that matches `HarmonyVersion` in `linnstrument-firmware.ino` publishes the firmware, the flashers and that version's CHANGELOG section.
+Releases are built by GitHub Actions: pushing a tag like `v0.2.0` that matches `HarmonyVersion` in `linnstrument-firmware.ino` publishes the firmware, the flashers and that version's CHANGELOG section, then republishes the GitHub Pages site so the browser flasher offers the new firmware.
 
 To go back to the stock firmware at any time, use the LinnStrument Updater from [rogerlinndesign.com](https://www.rogerlinndesign.com).
 
 Status
 ------
 
-This is a personal project in active development. Everything listed above runs on my LinnStrument 200 and has been tested there, but only by me, only on macOS with Ableton Live, and not yet on a LinnStrument 128. The Windows and Linux flashers are built automatically but haven't been tried on real hardware yet; please [report how they go](https://github.com/rymorg/linnstrument-harmony-board/issues/new/choose). Ideas still being explored include controlling the harmony from the companion app, song files with memory banks, and memories that also store the pattern and style. See [HARMONY-STATUS.md](HARMONY-STATUS.md) for the current list.
+This is a personal project in active development. Everything listed above runs on my LinnStrument 200 and has been tested there, but only by me, only on macOS with Ableton Live, and not yet on a LinnStrument 128. The Windows and Linux flashers are built automatically but haven't been tried on real hardware yet, and the browser flasher is new; please [report how they go](https://github.com/rymorg/linnstrument-harmony-board/issues/new/choose). Ideas still being explored include controlling the harmony from the companion app, song files with memory banks, and memories that also store the pattern and style. See [HARMONY-STATUS.md](HARMONY-STATUS.md) for the current list.
 
 Because things are still moving, don't rely on saved harmonies, backups or the companion protocol staying compatible from one commit to the next.
 

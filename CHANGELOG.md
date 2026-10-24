@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to the Harmony Board. Versions before 1.0 are experimental: anything can change between them, and changes that affect saved data, backups or the companion protocol are listed under **Breaking**.
 
+## Unreleased
+
+### Added
+
+- Browser flasher at https://rymorg.github.io/linnstrument-harmony-board/flash/: installs and updates from Chrome or Edge with nothing to download. It backs up settings, calibration, sequencer projects and Harmony Board data to the same `.lsbackup` files as the downloadable flasher, shows WAIT, writes the firmware through the SAM3X's ROM bootloader, checks every byte, and restores the backup. Recovery modes flash with a saved backup or without one (FWUP mode). The downloadable flasher stays as the fallback.
+
 ## [0.1.0] - 2026-10-24
 
 The first public pre-release.

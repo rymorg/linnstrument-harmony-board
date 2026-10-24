@@ -1,10 +1,12 @@
 name: Companion app
 
-# Publish companion/ to GitHub Pages, so the app runs in Chrome or Edge without a local server.
+# Publish companion/ to GitHub Pages, so the app and the flasher run in Chrome or Edge without a local server.
+# The flasher (companion/flash/) loads the latest release's firmware from this site, because browsers
+# can't download release assets from GitHub directly. release.yml runs this workflow after each release.
 on:
   push:
     branches: [main]
-    paths: ["companion/**", ".github/workflows/pages.yml"]
+    paths: ["companion/**", ".github/workflows/pages.yml", "tools/web_flasher_firmware.mjs"]
   workflow_dispatch:
 
 permissions:
@@ -24,6 +26,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Add the latest release's firmware for the flasher
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # the newest release that isn't a draft and has a firmware file, like the downloadable flasher picks
+          gh api "repos/$GITHUB_REPOSITORY/releases" \
+            --jq '[.[] | select(.draft | not) | select(any(.assets[]; .name | endswith(".bin")))][0] // empty' > release.json
+          if [ -s release.json ]; then
+            tag=$(jq -r .tag_name release.json)
+            gh release download "$tag" -R "$GITHUB_REPOSITORY" -p '*.bin' -p '*.elf' -D release-assets
+            node tools/web_flasher_firmware.mjs release.json release-assets companion/flash/firmware
+          else
+            node tools/web_flasher_firmware.mjs --none companion/flash/firmware
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

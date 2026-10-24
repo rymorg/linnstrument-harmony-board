@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: write          # to rerun the Pages workflow, which gives the browser flasher the new firmware
 
 jobs:
   firmware:
@@ -95,3 +96,8 @@ jobs:
           prerelease=""
           case "$GITHUB_REF_NAME" in v0.*|*-*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" assets/* --title "Harmony Board $GITHUB_REF_NAME" --notes-file notes.md $prerelease
+      - name: Give the browser flasher the new firmware
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # a release made with this workflow's token doesn't trigger other workflows, so start the Pages build here
+        run: gh workflow run pages.yml --ref main
