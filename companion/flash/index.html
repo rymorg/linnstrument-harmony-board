@@ -182,7 +182,7 @@ code{font:500 13px/1 var(--f-mono);background:var(--chip);padding:2px 5px;border
   <section class="card" id="cardBackup" data-modes="install backup">
     <h2><span class="n">1</span>Back up the LinnStrument</h2>
     <figure class="howto">
-      <svg id="howtoSvg" viewBox="0 0 860 412" role="img" aria-labelledby="howtoTitle">
+      <svg id="howtoSvg" viewBox="0 0 860 382" role="img" aria-labelledby="howtoTitle">
         <title id="howtoTitle">The LinnStrument 200 from above: press Global Settings, the bottom button on the left edge, then briefly press OS Update, the pad in column 16, third from the bottom, so it lights up. Don't touch the bottom pad of that column.</title>
       </svg>
       <figcaption>Turning on OS Update. The animation repeats.</figcaption>
@@ -788,23 +788,25 @@ $("restoreBtn").onclick = async () => {
 // from the bottom; Global Settings is the bottom button, OS Update is column 16, row 3 from the bottom,
 // and the bottom pad of that column resets the settings when pressed together with it.
 function drawHowto() {
-  const PAD = 26, STEP = 30, TOP = 86, KEYX = 34, GRIDX = 84;
-  const rowY = (r) => TOP + (7 - r) * STEP;          // r: 1 = bottom row
+  const PAD = 26, STEP = 30, TOP = 72, KEYX = 34, GRIDX = 84;
+  const rowY = (r) => TOP + (8 - r) * STEP;          // r: 1 = bottom row, 8 = top row
   const colX = (c) => GRIDX + (c - 1) * STEP;        // c: 1..25
   const parts = [`<defs><linearGradient id="howtoWood" x1="0" x2="1"><stop offset="0" stop-color="#5b321a"/><stop offset=".45" stop-color="#9c6137"/><stop offset="1" stop-color="#5b321a"/></linearGradient></defs>`];
   const cap = (cls, text) => `<text class="cap ${cls}" x="430" y="30" text-anchor="middle">${text}</text>`;
   parts.push(cap("s1", "1. Press Global Settings"));
   parts.push(cap("s2", "2. Tap OS Update: column 16, third from the bottom"));
   parts.push(cap("s3", "OS Update is on: its light stays lit"));
-  parts.push(`<rect class="wood" x="0" y="${TOP - 14}" width="20" height="${8 * STEP + 24}" rx="6"/>`);
-  parts.push(`<rect class="wood" x="840" y="${TOP - 14}" width="20" height="${8 * STEP + 24}" rx="6"/>`);
-  parts.push(`<rect class="panel" x="20" y="${TOP - 14}" width="820" height="${8 * STEP + 24}"/>`);
+  // the panel holds the 8 rows with a 12-unit margin above and below
+  const panelTop = rowY(8) - 12, panelHeight = 8 * STEP - (STEP - PAD) + 24;
+  parts.push(`<rect class="wood" x="0" y="${panelTop}" width="20" height="${panelHeight}" rx="6"/>`);
+  parts.push(`<rect class="wood" x="840" y="${panelTop}" width="20" height="${panelHeight}" rx="6"/>`);
+  parts.push(`<rect class="panel" x="20" y="${panelTop}" width="820" height="${panelHeight}"/>`);
   for (let r = 1; r <= 8; r++) {
     parts.push(`<rect class="key" x="${KEYX}" y="${rowY(r) + 14}" width="34" height="11" rx="2"/>`);
     for (let c = 1; c <= 25; c++) parts.push(`<rect class="pad" x="${colX(c)}" y="${rowY(r)}" width="${PAD}" height="${PAD}" rx="3"/>`);
   }
   // column numbers above, the button's name below
-  for (const c of [1, 16, 25]) parts.push(`<text class="silk" x="${colX(c) + PAD / 2}" y="${TOP - 22}" text-anchor="middle">${c}</text>`);
+  for (const c of [1, 16, 25]) parts.push(`<text class="silk" x="${colX(c) + PAD / 2}" y="${panelTop - 8}" text-anchor="middle">${c}</text>`);
   parts.push(`<text class="silk" x="${KEYX - 8}" y="${rowY(1) + PAD + 34}">Global Settings</text>`);
   parts.push(`<text class="silk" x="${colX(16) + PAD / 2}" y="${rowY(1) + PAD + 34}" text-anchor="middle">column 16</text>`);
   // step 1: Global Settings
