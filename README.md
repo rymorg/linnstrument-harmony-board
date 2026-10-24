@@ -90,7 +90,7 @@ To go back to the stock firmware at any time, use the LinnStrument Updater from 
 Status
 ------
 
-This is a personal project in active development. Everything listed above runs on my LinnStrument 200 and has been tested there, but only by me, only on macOS with Ableton Live, and not yet on a LinnStrument 128. The Windows and Linux flashers are built automatically but haven't been tried on real hardware yet, and the browser flasher is new; please [report how they go](https://github.com/rymorg/linnstrument-harmony-board/issues/new/choose). Ideas still being explored include controlling the harmony from the companion app, song files with memory banks, and memories that also store the pattern and style. See [HARMONY-STATUS.md](HARMONY-STATUS.md) for the current list.
+This is a personal project in active development. Everything listed above runs on my LinnStrument 200 and has been tested there, but only by me, only on macOS with Ableton Live, and not yet on a LinnStrument 128. The Windows and Linux flashers are built automatically but haven't been tried on real hardware yet, and the browser flasher has only been tried in Chrome on macOS; please [report how they go](https://github.com/rymorg/linnstrument-harmony-board/issues/new/choose). Ideas still being explored include controlling the harmony from the companion app, song files with memory banks, and memories that also store the pattern and style. See [HARMONY-STATUS.md](HARMONY-STATUS.md) for the current list.
 
 Because things are still moving, don't rely on saved harmonies, backups or the companion protocol staying compatible from one commit to the next.
 
