@@ -10,7 +10,7 @@ body:
     id: version
     attributes:
       label: Harmony Board version
-      description: Global Settings → VER (column 16, second pad from the bottom), then tap the screen once. It shows something like H0.1. The companion app shows it too.
+      description: Global Settings → VER (column 16, second pad from the bottom). It opens on 234 (the stock base); tap the screen once for the Harmony Board version, like H0.1. The companion app shows it too.
       placeholder: H0.1
     validations:
       required: true

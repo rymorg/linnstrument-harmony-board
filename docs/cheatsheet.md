@@ -13,6 +13,8 @@ Control buttons
 | **Split** | Tap: switch Compose (cyan) and Perform (magenta). Hold half a second: the Harmony page (white). |
 | Everything else | Its factory job. Global Settings, Per-Split Settings, Preset, Volume, Octave/Transpose, Switch 1 and 2 work as usual. |
 
+Which version? Global Settings → **VER** (column 16, second from the bottom) shows `234`, the stock firmware it's built on; tap once for the Harmony Board version, such as `H0.1`.
+
 Compose mode: the harmony zone
 ------------------------------
 

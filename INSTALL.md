@@ -70,7 +70,7 @@ Updating to a new version
 
 Download the newest flasher if the release notes say to, put the LinnStrument in OS Update mode, and run the flasher again. Your settings, calibration, harmony and memories are kept.
 
-To check which version you're running: press **Global Settings**, then the **VER** pad (column 16, second from the bottom). It shows `234` (the stock firmware it's based on); tap it again for the Harmony Board version, such as `H0.1`.
+To check which version you're running: press **Global Settings**, then the **VER** pad (column 16, second from the bottom). It always opens on `234`, the version of the stock firmware the Harmony Board is built on. Tap the surface once to see the Harmony Board's own version, such as `H0.1`; each tap switches between the two. The screen only shows information, so nothing else changes. Press Global Settings to leave.
 
 Going back to the stock firmware
 --------------------------------
