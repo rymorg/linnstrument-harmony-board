@@ -97,46 +97,51 @@ label.btn input{position:absolute;opacity:0;width:1px;height:1px}
 details.log summary{cursor:pointer;color:var(--muted);font-size:14px}
 pre#log{font:400 12px/1.5 var(--f-mono);background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:10px 12px;max-height:300px;overflow:auto;white-space:pre-wrap;margin:8px 0 0}
 #reconnect{position:sticky;top:10px;z-index:5}
-/* how to turn on OS Update: a drawing of the LinnStrument 200, looping through the two presses */
+/* how to turn on OS Update: a drawing of the LinnStrument 200 with the lights it shows, looping through
+   playing, Global Settings and OS Update (10 s) */
 .howto{margin:2px 0 0;display:flex;flex-direction:column;gap:6px}
 .howto svg{width:100%;height:auto;display:block}
 .howto figcaption{font-size:13px;color:var(--muted)}
 .howto .wood{fill:url(#howtoWood)}
 .howto .panel{fill:#131516}
-.howto .pad{fill:#8a8f93}
+.howto .pad{fill:#6a6f73}
 .howto .key{fill:#d0d4d6}
 .howto .silk{font:600 16px var(--f-display);letter-spacing:.08em;text-transform:uppercase;fill:#c2c9cb}
-.howto .num{font:700 13px var(--f-display);fill:#fff}
 .howto .cap{font:700 23px var(--f-body);fill:var(--fg)}
-.howto .ring{fill:none;stroke:#2ee6ea;stroke-width:3}
-.howto .warn{fill:none;stroke:#ff5a4d;stroke-width:2.5;stroke-dasharray:5 4}
+.howto .ring{fill:none;stroke:#fff;stroke-width:3.5}
+.howto .warn{fill:none;stroke:#ff5a4d;stroke-width:3;stroke-dasharray:5 4}
 .howto .warntext{font:700 18px var(--f-body);fill:#ff7a6e}
-.howto .lit-key{fill:#2ee6ea}
-.howto .lit-pad{fill:#2fdc55}
-.howto .badge circle{fill:#2ee6ea}
-.howto .badge text{font:700 17px var(--f-body);fill:#052528;text-anchor:middle;dominant-baseline:central}
-.howto .s1,.howto .s2,.howto .s3,.howto .on1,.howto .on2,.howto .tap1,.howto .tap2{opacity:0}
+.howto .badge circle{fill:#fff}
+.howto .badge text{font:700 17px var(--f-body);fill:#111;text-anchor:middle;dominant-baseline:central}
+.howto .s0,.howto .s1,.howto .s2,.howto .s3,.howto .global,.howto .osu,.howto .tap1,.howto .tap2{opacity:0}
 @media (prefers-reduced-motion: no-preference){
-  .howto .s1{animation:howto-s1 9s infinite}
-  .howto .s2{animation:howto-s2 9s infinite}
-  .howto .s3{animation:howto-s3 9s infinite}
-  .howto .on1{animation:howto-on1 9s infinite}
-  .howto .on2{animation:howto-on2 9s infinite}
-  .howto .tap1{animation:howto-tap1 9s infinite;transform-box:fill-box;transform-origin:center}
-  .howto .tap2{animation:howto-tap2 9s infinite;transform-box:fill-box;transform-origin:center}
-  .howto .ring{animation:howto-pulse 1s ease-in-out infinite alternate}
+  .howto .s0{animation:howto-s0 10s infinite}
+  .howto .s1{animation:howto-s1 10s infinite}
+  .howto .s2{animation:howto-s2 10s infinite}
+  .howto .s3{animation:howto-s3 10s infinite}
+  .howto .play{animation:howto-play 10s infinite}
+  .howto .global{animation:howto-global 10s infinite}
+  .howto .osu{animation:howto-osu 10s infinite}
+  .howto .tempo{animation:howto-tempo .5s steps(1) infinite}
+  .howto .tap1{animation:howto-tap1 10s infinite;transform-box:fill-box;transform-origin:center}
+  .howto .tap2{animation:howto-tap2 10s infinite;transform-box:fill-box;transform-origin:center}
+  .howto .ring{animation:howto-pulse .8s ease-in-out infinite alternate}
 }
 @media (prefers-reduced-motion: reduce){
-  .howto .s3,.howto .on1,.howto .on2{opacity:1}
+  .howto .play{opacity:0}
+  .howto .s3,.howto .global,.howto .osu{opacity:1}
 }
-@keyframes howto-s1{0%,36%{opacity:1}38%,100%{opacity:0}}
-@keyframes howto-s2{0%,37%{opacity:0}39%,74%{opacity:1}76%,100%{opacity:0}}
-@keyframes howto-s3{0%,75%{opacity:0}77%,97%{opacity:1}100%{opacity:0}}
-@keyframes howto-on1{0%,18%{opacity:0}20%,97%{opacity:1}100%{opacity:0}}
-@keyframes howto-on2{0%,56%{opacity:0}58%,97%{opacity:1}100%{opacity:0}}
-@keyframes howto-tap1{0%,12%{opacity:0;transform:scale(1.6)}17%{opacity:.9;transform:scale(1)}22%,100%{opacity:0;transform:scale(1)}}
-@keyframes howto-tap2{0%,50%{opacity:0;transform:scale(1.6)}55%{opacity:.9;transform:scale(1)}60%,100%{opacity:0;transform:scale(1)}}
-@keyframes howto-pulse{from{stroke-opacity:1}to{stroke-opacity:.35}}
+@keyframes howto-s0{0%,17%{opacity:1}19%,100%{opacity:0}}
+@keyframes howto-s1{0%,17%{opacity:0}19%,41%{opacity:1}43%,100%{opacity:0}}
+@keyframes howto-s2{0%,42%{opacity:0}44%,74%{opacity:1}76%,100%{opacity:0}}
+@keyframes howto-s3{0%,75%{opacity:0}77%,97%{opacity:1}99%,100%{opacity:0}}
+@keyframes howto-play{0%,27%{opacity:1}28%,98%{opacity:0}100%{opacity:1}}
+@keyframes howto-global{0%,27%{opacity:0}28%,98%{opacity:1}100%{opacity:0}}
+@keyframes howto-osu{0%,60%{opacity:0}61%,98%{opacity:1}100%{opacity:0}}
+@keyframes howto-tempo{0%{opacity:1}12%,100%{opacity:0}}
+@keyframes howto-tap1{0%,21%{opacity:0;transform:scale(1.7)}26%{opacity:.9;transform:scale(1)}31%,100%{opacity:0;transform:scale(1)}}
+@keyframes howto-tap2{0%,54%{opacity:0;transform:scale(1.7)}59%{opacity:.9;transform:scale(1)}64%,100%{opacity:0;transform:scale(1)}}
+@keyframes howto-pulse{from{stroke-opacity:1}to{stroke-opacity:.4}}
 code{font:500 13px/1 var(--f-mono);background:var(--chip);padding:2px 5px;border-radius:4px}
 </style>
 </head>
@@ -183,9 +188,9 @@ code{font:500 13px/1 var(--f-mono);background:var(--chip);padding:2px 5px;border
     <h2><span class="n">1</span>Back up the LinnStrument</h2>
     <figure class="howto">
       <svg id="howtoSvg" viewBox="0 0 860 382" role="img" aria-labelledby="howtoTitle">
-        <title id="howtoTitle">The LinnStrument 200 from above: press Global Settings, the bottom button on the left edge, then briefly press OS Update, the pad in column 16, third from the bottom, so it lights up. Don't touch the bottom pad of that column.</title>
+        <title id="howtoTitle">The LinnStrument 200 from above: press Global Settings, the bottom button on the left edge, then briefly press OS Update, the pad in column 16, third from the bottom, so it lights up blue. Don't touch the bottom pad of that column.</title>
       </svg>
-      <figcaption>Turning on OS Update. The animation repeats.</figcaption>
+      <figcaption>Turning on OS Update, with the lights you'll see. The playing lights are the Harmony Board's; with the stock firmware they look different, and the Global Settings screen shows your own settings, so a few of its blue pads may differ.</figcaption>
     </figure>
     <ol>
       <li>Plug in the LinnStrument and press <b>Global Settings</b> (the bottom button on the left edge).</li>
@@ -785,43 +790,68 @@ $("restoreBtn").onclick = async () => {
 // ------------------------------------------------------------------ the OS Update drawing
 
 // The LinnStrument 200: a column of 8 control buttons, then 25 columns by 8 rows of pads. Rows count
-// from the bottom; Global Settings is the bottom button, OS Update is column 16, row 3 from the bottom,
-// and the bottom pad of that column resets the settings when pressed together with it.
+// from the bottom, as in the firmware. The lights are the real ones:
+// - playing: the Harmony Board's power-up screen (D Dorian, Compose), as companion/index.html draws it;
+// - Global Settings with factory settings, from paintGlobalSettingsDisplay() in ls_displayModes.ino: note
+//   lights for a major scale (columns 2-4), MAIN, row offset +5, left foot switch on arpeggiator, medium
+//   velocity and pressure, replay-all arpeggio at 16th swing, the tempo flash, MIDI over USB, calibrated
+//   (green); all in globalColor (blue). OS Update (column 16, row 2) lights blue when serial mode is on.
+const PLAYING_LIGHTS = "1,7,2fdc55 2,7,2fdc55 3,7,b8ff2e 5,7,ffd60a 7,7,2ee6ea 8,7,3aa8ff 9,7,2fdc55 10,7,3aa8ff 11,7,2fdc55 12,7,3aa8ff 13,7,2fdc55 14,7,2ee6ea 15,7,3aa8ff 16,7,2fdc55 17,7,3aa8ff 18,7,2fdc55 19,7,3aa8ff 20,7,2fdc55 21,7,2ee6ea 22,7,3aa8ff 23,7,2fdc55 24,7,3aa8ff 25,7,2fdc55 " +
+  "1,6,ffd60a 2,6,ff8a1c 3,6,ff8a1c 4,6,3d6dff 5,6,955c27 7,6,2fdc55 8,6,3aa8ff 9,6,2fdc55 10,6,2ee6ea 11,6,3aa8ff 12,6,2fdc55 13,6,3aa8ff 14,6,2fdc55 15,6,3aa8ff 16,6,2fdc55 17,6,2ee6ea 18,6,3aa8ff 19,6,2fdc55 20,6,3aa8ff 21,6,2fdc55 22,6,3aa8ff 23,6,2fdc55 24,6,2ee6ea 25,6,3aa8ff " +
+  "1,5,955c27 2,5,2fdc55 3,5,ffd60a 4,5,3d6dff 5,5,3aa8ff 7,5,3aa8ff 8,5,2fdc55 9,5,3aa8ff 10,5,2fdc55 11,5,3aa8ff 12,5,2fdc55 13,5,2ee6ea 14,5,3aa8ff 15,5,2fdc55 16,5,3aa8ff 17,5,2fdc55 18,5,3aa8ff 19,5,2fdc55 20,5,2ee6ea 21,5,3aa8ff 22,5,2fdc55 23,5,3aa8ff 24,5,2fdc55 25,5,3aa8ff " +
+  "1,4,955c27 2,4,2fdc55 3,4,2fdc55 4,4,3d6dff 5,4,955c27 7,4,3aa8ff 8,4,2fdc55 9,4,2ee6ea 10,4,3aa8ff 11,4,2fdc55 12,4,3aa8ff 13,4,2fdc55 14,4,3aa8ff 15,4,2fdc55 16,4,2ee6ea 17,4,3aa8ff 18,4,2fdc55 19,4,3aa8ff 20,4,2fdc55 21,4,3aa8ff 22,4,2fdc55 23,4,2ee6ea 24,4,3aa8ff 25,4,2fdc55 " +
+  "1,3,955c27 2,3,ff8a1c 3,3,ffffff 4,3,3d6dff 5,3,2fdc55 6,3,2fdc55 7,3,2fdc55 8,3,3aa8ff 9,3,2fdc55 10,3,3aa8ff 11,3,2fdc55 12,3,2ee6ea 13,3,3aa8ff 14,3,2fdc55 15,3,3aa8ff 16,3,2fdc55 17,3,3aa8ff 18,3,2fdc55 19,3,2ee6ea 20,3,3aa8ff 21,3,2fdc55 22,3,3aa8ff 23,3,2fdc55 24,3,3aa8ff 25,3,2fdc55 " +
+  "1,2,ffffff 2,2,ffd60a 3,2,2fdc55 4,2,3d6dff 5,2,336b98 6,2,2fdc55 7,2,2fdc55 8,2,2ee6ea 9,2,3aa8ff 10,2,2fdc55 11,2,3aa8ff 12,2,2fdc55 13,2,3aa8ff 14,2,2fdc55 15,2,2ee6ea 16,2,3aa8ff 17,2,2fdc55 18,2,3aa8ff 19,2,2fdc55 20,2,3aa8ff 21,2,2fdc55 22,2,2ee6ea 23,2,3aa8ff 24,2,2fdc55 25,2,3aa8ff " +
+  "1,1,955c27 2,1,2ee6ea 3,1,ffd60a 4,1,3d6dff 5,1,2fdc55 6,1,ffffff 7,1,3aa8ff 8,1,2fdc55 9,1,3aa8ff 10,1,2fdc55 11,1,2ee6ea 12,1,3aa8ff 13,1,2fdc55 14,1,3aa8ff 15,1,2fdc55 16,1,3aa8ff 17,1,2fdc55 18,1,2ee6ea 19,1,3aa8ff 20,1,2fdc55 21,1,3aa8ff 22,1,2fdc55 23,1,3aa8ff 24,1,2fdc55 25,1,2ee6ea " +
+  "1,0,955c27 2,0,ffd60a 3,0,ff8a1c 5,0,ffffff 6,0,ffffff 7,0,2ee6ea 8,0,3aa8ff 9,0,2fdc55 10,0,3aa8ff 11,0,2fdc55 12,0,3aa8ff 13,0,2fdc55 14,0,2ee6ea 15,0,3aa8ff 16,0,2fdc55 17,0,3aa8ff 18,0,2fdc55 19,0,3aa8ff 20,0,2fdc55 21,0,2ee6ea 22,0,3aa8ff 23,0,2fdc55 24,0,3aa8ff 25,0,2fdc55";
+const BLUE = "3d6dff", GREEN = "2fdc55";
+const GLOBAL_LIGHTS = [[1, 0], [2, 0], [4, 0], [3, 1], [4, 1], [3, 2], [2, 3], [4, 3], [5, 1], [7, 0], [8, 0], [10, 1], [11, 1],
+  [12, 3], [13, 0], [13, 1], [15, 0]].map(([c, r]) => [c, r, BLUE]).concat([[16, 3, GREEN]]);
+
 function drawHowto() {
   const PAD = 26, STEP = 30, TOP = 72, KEYX = 34, GRIDX = 84;
-  const rowY = (r) => TOP + (8 - r) * STEP;          // r: 1 = bottom row, 8 = top row
+  const rowY = (r) => TOP + (7 - r) * STEP;          // r: firmware row, 0 = bottom
   const colX = (c) => GRIDX + (c - 1) * STEP;        // c: 1..25
+  const pad = (c, r, color, cls = "") => `<rect class="${cls}" x="${colX(c)}" y="${rowY(r)}" width="${PAD}" height="${PAD}" rx="3" fill="#${color}"/>`;
+  const key = (r, color, cls = "") => `<rect class="${cls}" x="${KEYX}" y="${rowY(r) + 14}" width="34" height="11" rx="2" fill="#${color}"/>`;
   const parts = [`<defs><linearGradient id="howtoWood" x1="0" x2="1"><stop offset="0" stop-color="#5b321a"/><stop offset=".45" stop-color="#9c6137"/><stop offset="1" stop-color="#5b321a"/></linearGradient></defs>`];
   const cap = (cls, text) => `<text class="cap ${cls}" x="430" y="30" text-anchor="middle">${text}</text>`;
+  parts.push(cap("s0", "Playing: the lights show the harmony"));
   parts.push(cap("s1", "1. Press Global Settings"));
   parts.push(cap("s2", "2. Tap OS Update: column 16, third from the bottom"));
-  parts.push(cap("s3", "OS Update is on: its light stays lit"));
+  parts.push(cap("s3", "OS Update is on: its pad stays lit blue"));
   // the panel holds the 8 rows with a 12-unit margin above and below
-  const panelTop = rowY(8) - 12, panelHeight = 8 * STEP - (STEP - PAD) + 24;
+  const panelTop = rowY(7) - 12, panelHeight = 8 * STEP - (STEP - PAD) + 24;
   parts.push(`<rect class="wood" x="0" y="${panelTop}" width="20" height="${panelHeight}" rx="6"/>`);
   parts.push(`<rect class="wood" x="840" y="${panelTop}" width="20" height="${panelHeight}" rx="6"/>`);
   parts.push(`<rect class="panel" x="20" y="${panelTop}" width="820" height="${panelHeight}"/>`);
-  for (let r = 1; r <= 8; r++) {
+  for (let r = 0; r < 8; r++) {
     parts.push(`<rect class="key" x="${KEYX}" y="${rowY(r) + 14}" width="34" height="11" rx="2"/>`);
     for (let c = 1; c <= 25; c++) parts.push(`<rect class="pad" x="${colX(c)}" y="${rowY(r)}" width="${PAD}" height="${PAD}" rx="3"/>`);
   }
-  // column numbers above, the button's name below
+  // playing: the Split button is the Harmony button, lit in Compose
+  parts.push(`<g class="play">${key(1, "2ee6ea")}${PLAYING_LIGHTS.split(" ").map((cell) => {
+    const [c, r, color] = cell.split(",");
+    return pad(+c, +r, color);
+  }).join("")}</g>`);
+  // Global Settings: its button lit, the settings, and the tempo pad flashing on the beat
+  parts.push(`<g class="global">${key(0, BLUE)}${GLOBAL_LIGHTS.map(([c, r, color]) => pad(c, r, color)).join("")}${pad(14, 3, BLUE, "tempo")}</g>`);
+  parts.push(pad(16, 2, BLUE, "osu"));
+  // labels: column numbers above, names below
   for (const c of [1, 16, 25]) parts.push(`<text class="silk" x="${colX(c) + PAD / 2}" y="${panelTop - 8}" text-anchor="middle">${c}</text>`);
-  parts.push(`<text class="silk" x="${KEYX - 8}" y="${rowY(1) + PAD + 34}">Global Settings</text>`);
-  parts.push(`<text class="silk" x="${colX(16) + PAD / 2}" y="${rowY(1) + PAD + 34}" text-anchor="middle">column 16</text>`);
+  parts.push(`<text class="silk" x="${KEYX - 8}" y="${rowY(0) + PAD + 34}">Global Settings</text>`);
+  parts.push(`<text class="silk" x="${colX(16) + PAD / 2}" y="${rowY(0) + PAD + 34}" text-anchor="middle">column 16</text>`);
   // step 1: Global Settings
-  const gx = KEYX, gy = rowY(1) + 14;
-  parts.push(`<rect class="lit-key on1" x="${gx}" y="${gy}" width="34" height="11" rx="2"/>`);
-  parts.push(`<g class="s1"><rect class="ring" x="${gx - 7}" y="${gy - 7}" width="48" height="25" rx="7"/>` +
-    `<g class="badge"><circle cx="${gx + 17}" cy="${gy - 22}" r="11"/><text x="${gx + 17}" y="${gy - 22}">1</text></g></g>`);
-  parts.push(`<circle class="tap1" cx="${gx + 17}" cy="${gy + 5}" r="14" fill="#fff"/>`);
+  const gy = rowY(0) + 14;
+  parts.push(`<g class="s1"><rect class="ring" x="${KEYX - 7}" y="${gy - 7}" width="48" height="25" rx="7"/>` +
+    `<g class="badge"><circle cx="${KEYX + 17}" cy="${gy - 22}" r="11"/><text x="${KEYX + 17}" y="${gy - 22}">1</text></g></g>`);
+  parts.push(`<circle class="tap1" cx="${KEYX + 17}" cy="${gy + 5}" r="14" fill="#fff"/>`);
   // step 2: OS Update, and the pad not to touch
-  const ux = colX(16), uy = rowY(3), rx = colX(16), ry = rowY(1);
-  parts.push(`<rect class="lit-pad on2" x="${ux}" y="${uy}" width="${PAD}" height="${PAD}" rx="3"/>`);
+  const ux = colX(16), uy = rowY(2), ry = rowY(0);
   parts.push(`<g class="s2"><rect class="ring" x="${ux - 6}" y="${uy - 6}" width="${PAD + 12}" height="${PAD + 12}" rx="7"/>` +
     `<g class="badge"><circle cx="${ux + PAD + 22}" cy="${uy + PAD / 2}" r="11"/><text x="${ux + PAD + 22}" y="${uy + PAD / 2}">2</text></g>` +
-    `<rect class="warn" x="${rx - 4}" y="${ry - 4}" width="${PAD + 8}" height="${PAD + 8}" rx="6"/>` +
-    `<text class="warntext" x="${rx + PAD / 2}" y="${ry + PAD + 62}" text-anchor="middle">Not the bottom pad: pressing it too resets the settings</text></g>`);
+    `<rect class="warn" x="${ux - 4}" y="${ry - 4}" width="${PAD + 8}" height="${PAD + 8}" rx="6"/>` +
+    `<text class="warntext" x="${ux + PAD / 2}" y="${ry + PAD + 62}" text-anchor="middle">Not the bottom pad: pressing it too resets the settings</text></g>`);
   parts.push(`<circle class="tap2" cx="${ux + PAD / 2}" cy="${uy + PAD / 2}" r="15" fill="#fff"/>`);
   $("howtoSvg").insertAdjacentHTML("beforeend", parts.join(""));
 }
