@@ -51,6 +51,13 @@ Building from source
 
 Most people should use the ready-made releases (see [INSTALL.md](INSTALL.md)). To build it yourself you'll need [arduino-cli](https://arduino.github.io/arduino-cli/) with the Arduino Due core 1.6.12 and Python 3; on Apple Silicon the Arduino toolchain needs Rosetta. HARMONY.md has the details; in short:
 
+0. **Clone into a folder named `linnstrument-firmware`.** arduino-cli needs the folder named like the main sketch file, `linnstrument-firmware.ino`:
+
+   ```bash
+   git clone https://github.com/rymorg/linnstrument-harmony-board.git linnstrument-firmware
+   ```
+
+
 1. **Build:**
 
    ```bash

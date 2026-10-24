@@ -12,8 +12,14 @@ permissions:
 jobs:
   firmware:
     runs-on: ubuntu-latest
+    # arduino-cli needs the sketch folder named like its main file, linnstrument-firmware.ino
+    defaults:
+      run:
+        working-directory: linnstrument-firmware
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: linnstrument-firmware
       - name: Check the tag matches the firmware's version
         run: |
           version=$(sed -n 's/^const char\* HarmonyVersion = "\(.*\)";.*/\1/p' linnstrument-firmware.ino)
@@ -36,7 +42,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: dist/
+          path: linnstrument-firmware/dist/
 
   flasher:
     strategy:

@@ -214,7 +214,11 @@ Flashing erases everything, saved harmony included, so the flash helper backs it
 Build
 -----
 
-The firmware builds with the Arduino Due core 1.6.12 and its GCC 4.8.3 toolchain, the same as the stock firmware. On Apple Silicon, that toolchain needs Rosetta.
+The firmware builds with the Arduino Due core 1.6.12 and its GCC 4.8.3 toolchain, the same as the stock firmware. On Apple Silicon, that toolchain needs Rosetta. arduino-cli also needs the project folder named like the main sketch file, so clone it as `linnstrument-firmware`:
+
+```bash
+git clone https://github.com/rymorg/linnstrument-harmony-board.git linnstrument-firmware
+```
 
 ```bash
 softwareupdate --install-rosetta --agree-to-license

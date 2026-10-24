@@ -9,8 +9,14 @@ on:
 jobs:
   firmware:
     runs-on: ubuntu-latest
+    # arduino-cli needs the sketch folder named like its main file, linnstrument-firmware.ino
+    defaults:
+      run:
+        working-directory: linnstrument-firmware
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: linnstrument-firmware
       - uses: arduino/setup-arduino-cli@v2
       - name: Install the Arduino Due core
         run: |
@@ -22,8 +28,8 @@ jobs:
         with:
           name: firmware
           path: |
-            build/linnstrument-firmware.ino.bin
-            build/linnstrument-firmware.ino.elf
+            linnstrument-firmware/build/linnstrument-firmware.ino.bin
+            linnstrument-firmware/build/linnstrument-firmware.ino.elf
 
   flash-helper-tests:
     runs-on: ubuntu-latest
