@@ -283,4 +283,4 @@ Known limits
 - On the Host clock, if the DAW stops sending clock without a Stop message, patterns stop too, and their notes end after half a second. Memories don't store the pattern yet.
 - Low-row functions are off in Harmony mode, and splits are unavailable.
 - Harmony, the Harmony page settings, Compose or Perform, Latch and memories reset at power-off.
-- Compose mode has been tested on hardware. Perform mode, Split tap and hold, Retrigger and chord patterns have been compiled, and their chord voicings and pattern timing checked on a computer, but not yet tested on the LinnStrument.
+- Everything above has been tested on a LinnStrument 200. The LinnStrument 128 hasn't been tested. See [HARMONY-STATUS.md](HARMONY-STATUS.md) for what's done and what's left.
