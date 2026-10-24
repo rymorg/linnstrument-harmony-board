@@ -1,0 +1,2480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Harmony Board Companion</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the instrument is the hero and spans the page; a three-up rack (harmony readout · controls · MIDI out) sits under it; the build plan follows as plain reading. */
+:root{
+  --bg:#e3e8e6;
+  --surface:#f4f7f6;
+  --fg:#141a1a;
+  --muted:#56625f;
+  --line:#c3ccca;
+  --chip:#e8eeec;
+  --accent:#0a6b74;
+  --accent-ink:#ffffff;
+  /* the instrument is a physical object, so it looks the same in both themes */
+  --panel:#131516;
+  --panel-edge:#2a2e30;
+  --silk:#c2c9cb;
+  --silk-dim:#7c8588;
+  --pad:#8a8f93;
+  --pad-hi:#a7acb0;
+  --pad-lo:#6a6f73;
+  --wood-a:#5b321a;
+  --wood-b:#9c6137;
+  --focus:#ffffff;
+  /* the eleven LED colors the hardware can show */
+  --led-red:#ff3b30; --led-yellow:#ffd60a; --led-green:#2fdc55; --led-cyan:#2ee6ea; --led-blue:#3d6dff;
+  --led-magenta:#e144e6; --led-white:#ffffff; --led-orange:#ff8a1c; --led-lime:#b8ff2e; --led-pink:#ff7bbb;
+  --led-teal:#1fe0a8; --led-azure:#3aa8ff; --led-violet:#9b5cff;   /* proposed blends */
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ps:clamp(24px, calc((min(100vw, 1320px) - 230px) / 26.6), 40px);
+  --gap:3px;
+  --lblw:70px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1112; --surface:#151b1c; --fg:#e1e8e6; --muted:#95a29f; --line:#29312f; --chip:#1c2324;
+    --accent:#47c4cc; --accent-ink:#052528; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1112; --surface:#151b1c; --fg:#e1e8e6; --muted:#95a29f; --line:#29312f; --chip:#1c2324;
+  --accent:#47c4cc; --accent-ink:#052528; color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font:400 15px/1.55 var(--f-body)}
+.wrap{max-width:1360px;margin:0 auto;padding-block:28px 72px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font:600 13px/1 var(--f-display);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+h1{font:700 clamp(36px,5.4vw,58px)/.92 var(--f-display);letter-spacing:.005em;text-transform:uppercase;margin:4px 0 6px;text-wrap:balance}
+.lede{max-width:72ch;color:var(--muted);margin:0}
+.lede b{color:var(--fg)}
+
+/* ---------- instrument ---------- */
+.board-scroll{overflow-x:auto;padding:4px 2px 14px;-webkit-overflow-scrolling:touch}
+.board{display:flex;width:max-content;margin:0 auto;border-radius:7px;box-shadow:0 22px 44px -22px rgba(0,0,0,.55),0 2px 0 rgba(0,0,0,.25)}
+.cheek{width:24px;background:linear-gradient(90deg,var(--wood-a),var(--wood-b) 42%,var(--wood-a))}
+.cheek.l{border-radius:7px 0 0 7px}
+.cheek.r{border-radius:0 7px 7px 0}
+.panel{background:var(--panel);padding:8px 14px 8px 8px;border-block:1px solid var(--panel-edge);display:flex;flex-direction:column;gap:6px}
+.silk,.grid{display:grid;grid-template-columns:var(--lblw) repeat(26,var(--ps));column-gap:var(--gap)}
+.grid{grid-auto-rows:var(--ps);row-gap:var(--gap)}
+.silk{min-height:24px;align-items:end}
+.silk.bottom{align-items:start}
+.silk span{font:600 10px/1.1 var(--f-display);letter-spacing:.09em;text-transform:uppercase;color:var(--silk);text-align:center;white-space:nowrap;overflow:hidden}
+.silk .mod{padding-bottom:2px;overflow:visible;font-size:min(10px,calc(var(--ps)*.29));letter-spacing:.04em}
+.silk .span{border-bottom:1px solid var(--silk-dim);padding-bottom:3px;color:var(--silk-dim)}
+.silk.bottom .span{border-bottom:0;border-top:1px solid var(--silk-dim);padding-top:3px;padding-bottom:0}
+.silk.bottom .zone-br{color:var(--silk)}
+.hwlbl{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;padding-right:5px;text-align:right;gap:1px}
+.hwlbl b{font:700 10.5px/1 var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--silk)}
+.hwlbl i{font:500 9px/1 var(--f-display);font-style:normal;letter-spacing:.04em;color:var(--silk-dim);white-space:nowrap}
+
+.pad{all:unset;box-sizing:border-box;position:relative;width:var(--ps);height:var(--ps);border-radius:3px;display:grid;place-items:center;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  background:linear-gradient(155deg,var(--pad-hi),var(--pad) 50%,var(--pad-lo));box-shadow:inset 0 -2px 0 rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.22)}
+.pad::before{content:"";position:absolute;left:50%;top:50%;width:20%;height:20%;transform:translate(-50%,-50%);border-radius:50%;background:#5b6064;box-shadow:inset 0 1px 1px rgba(0,0,0,.45);transition:width .07s,height .07s,border-radius .07s}
+.pad.lit::before{width:88%;height:88%;border-radius:3px;background:radial-gradient(circle,var(--led) 0 36%,color-mix(in srgb,var(--led) 60%,#8a8f93) 80%);box-shadow:0 0 11px 1px color-mix(in srgb,var(--led) 62%,transparent)}
+.pad.dead{cursor:default;opacity:.55}
+.pad.notfw{opacity:.5}
+.pad.notfw::after{content:"";position:absolute;inset:3px;border:1px dashed rgba(255,255,255,.4);border-radius:4px;pointer-events:none}
+.fw{display:inline-block;margin-left:5px;padding:2px 4px 1px;border-radius:3px;font:700 9px/1 var(--f-display);letter-spacing:.06em;color:#0e1a12;background:var(--led-green);vertical-align:1px;text-transform:uppercase}
+.silk .fwk{color:var(--led-green)}
+.st-y{color:var(--led-green);font-weight:700}
+.st-n{color:var(--muted)}
+.pad .lbl{position:relative;z-index:1;font:700 calc(var(--ps)*.27)/1 var(--f-display);color:var(--ink,#22262a);max-width:calc(var(--ps) - 3px);overflow:hidden;white-space:nowrap;text-align:center;pointer-events:none}
+.pad .lbl.sm{font-size:calc(var(--ps)*.22)}
+.pad .lbl.xs{font-size:calc(var(--ps)*.185);letter-spacing:-.01em}
+.pad.dim .lbl{opacity:.5}
+.pad:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.pad.low::before{box-shadow:none}
+.pad.pulse::before{animation:padpulse .8s ease-in-out infinite alternate}
+@keyframes padpulse{from{filter:brightness(1.15)}to{filter:brightness(.4)}}
+.pad.reject::before{width:88%;height:88%;border-radius:3px;background:var(--led-red);box-shadow:0 0 12px 2px var(--led-red)}
+.status{min-height:1.5em;margin:-8px 0 0;text-align:center;color:var(--muted);font-size:14px}
+
+/* ---------- rack ---------- */
+.rack{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card h2,.spec h2,.song h2{font:700 13px/1 var(--f-display);letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin:0}
+.hname{font:700 clamp(28px,3.2vw,38px)/1 var(--f-display);margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:13.5px;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;flex-direction:column;align-items:center;min-width:42px;padding:6px 6px 5px;border-radius:6px;background:var(--chip);border:2px solid transparent}
+.chip b{font:700 18px/1 var(--f-display)}
+.chip span{font:500 11px/1 var(--f-mono);color:var(--muted);margin-top:4px}
+.chip.root{border-color:var(--led-cyan)}
+.chip.alt{border-color:var(--led-orange)}
+.chip.out{opacity:.35}
+.chord{display:flex;flex-direction:column;gap:2px;padding-top:10px;border-top:1px solid var(--line)}
+.chord strong{font:700 22px/1.1 var(--f-display)}
+.touch{font:500 12.5px/1.4 var(--f-mono);color:var(--muted);margin:0}
+
+.ctl{display:grid;grid-template-columns:86px minmax(0,1fr);align-items:center;gap:9px 10px}
+.ctl .k{font:600 12px/1.2 var(--f-display);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:7px;overflow:hidden;width:max-content;max-width:100%}
+.seg button{all:unset;cursor:pointer;padding:5px 10px;font:500 13px/1.25 var(--f-body);color:var(--fg);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--chip)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+kbd{font:500 11.5px/1 var(--f-mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 5px;background:var(--chip)}
+
+.monitor{font:400 12px/1.55 var(--f-mono);background:var(--chip);border-radius:8px;padding:10px 12px;height:268px;overflow:auto;margin:0}
+.mrow{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px}
+.mrow .ch{color:var(--muted)}
+.mrow.h .msg{color:var(--accent)}
+.mrow.bend .msg,.mrow.cc .msg{color:var(--muted)}
+.mrow .msg{overflow-wrap:anywhere}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.btn{all:unset;cursor:pointer;font:600 13px/1 var(--f-body);padding:7px 11px;border-radius:7px;border:1px solid var(--line);color:var(--fg)}
+.btn:hover{background:var(--chip)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* ---------- legend ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.legend h2{width:100%}
+.li{display:flex;align-items:center;gap:7px;font-size:13.5px}
+.sw{width:14px;height:14px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.sw.off{background:var(--pad)}
+
+/* ---------- spec ---------- */
+.spec{display:flex;flex-direction:column;gap:14px;max-width:980px}
+.spec h2{font-size:14px;margin-top:14px}
+.spec h3{font:700 24px/1.1 var(--f-display);margin:0;text-wrap:balance}
+.spec p,.spec li{max-width:74ch}
+.spec p{margin:0}
+.spec ul,.spec ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font:600 12px/1.2 var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--chip)}
+td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);padding:1px 4px;border-radius:4px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.two > div{min-width:0;display:flex;flex-direction:column;gap:8px}
+.tag{display:inline-block;font:600 11px/1 var(--f-display);letter-spacing:.1em;text-transform:uppercase;padding:4px 7px;border-radius:5px;background:var(--chip);color:var(--muted)}
+.pad{transition:transform .09s,box-shadow .09s}
+.pad.press{transform:scale(.86);box-shadow:0 0 0 3px #ffffff,0 0 16px 4px rgba(255,255,255,.55)}
+
+/* ---------- song guide ---------- */
+.song{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.song-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px}
+.song-head > div{min-width:0;display:flex;flex-direction:column;gap:5px;max-width:72ch}
+.song-title{font:700 clamp(26px,3vw,34px)/1 var(--f-display);margin:0}
+.play{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font:700 15px/1 var(--f-body);padding:12px 20px;border-radius:9px;background:var(--accent);color:var(--accent-ink)}
+.play:hover{filter:brightness(1.08)}
+.play:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.play[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.songmap{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px}
+.sec{display:flex;flex-direction:column;gap:5px;flex:0 0 auto}
+.sec .nm{font:600 12px/1 var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.sec .nm em{font:400 12px/1 var(--f-body);font-style:normal;letter-spacing:0;text-transform:none;color:var(--fg);margin-left:4px}
+.bars{display:flex;gap:3px}
+.bar{font:500 12.5px/1 var(--f-mono);padding:9px 6px;border-radius:5px;background:var(--chip);text-align:center;white-space:nowrap;box-sizing:border-box;transition:background .12s,color .12s}
+.bar.now{background:var(--accent);color:var(--accent-ink)}
+.caption{margin:0;font-size:16px;line-height:1.45;min-height:2.9em;padding:10px 14px;border-radius:8px;background:var(--chip)}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;counter-reset:st}
+.steps li{counter-increment:st;display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;padding:11px 13px;border-radius:9px;border:1px solid var(--line);font-size:14px;line-height:1.5;transition:background .15s,border-color .15s}
+.steps li::before{content:counter(st);font:700 22px/1 var(--f-display);color:var(--muted)}
+.steps li b{color:var(--fg)}
+.steps .dn{display:block;margin-top:4px;font-size:13px;color:var(--muted)}
+.steps li.now{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 11%,var(--surface))}
+.steps li.now::before{color:var(--accent)}
+.why{display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+.why h3{font:700 20px/1.1 var(--f-display);margin:0}
+.why ul{margin:0;padding-left:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:4px 24px}
+[hidden]{display:none!important}
+.song-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tabs button{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:3px;padding:9px 14px;border-radius:9px;border:1px solid var(--line);font:700 15px/1.2 var(--f-body);color:var(--fg)}
+.tabs button span{font:400 12.5px/1.2 var(--f-body);color:var(--muted)}
+.tabs button:hover{background:var(--chip)}
+.tabs button[aria-selected="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 11%,var(--surface))}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.songpanel{display:flex;flex-direction:column;gap:14px}
+@media (prefers-reduced-motion: reduce){.pad::before,.pad,.bar,.steps li{transition:none}.pad.press{transform:none}.pad.pulse::before{animation:none}.pad.pulse{outline:2px solid #ffffff;outline-offset:-2px}}
+.legend .lh{width:100%;font:600 12px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.legend .lh:first-of-type{margin-top:0}
+.sw.lowsw{filter:brightness(.5)}
+.legend .note{width:100%;font-size:13px;color:var(--muted)}
+.conn{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.conn-state{font-size:14px;color:var(--muted)}
+.conn.on{border-color:var(--accent)}
+.conn.on .conn-state{color:var(--fg)}
+.mirroring #grid,.mirroring #ctl,.mirroring .play{pointer-events:none}
+.mirroring #ctl{opacity:.6}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">LinnStrument 200 · companion</span>
+    <h1>Harmony Board</h1>
+    <p class="lede">The left six columns become a <b>harmony zone</b>: key, mode, alterations, chord focus and memories. The other 19 columns play in the current scale with full MPE. In <b>Perform mode</b>, five of those columns become left-hand chords that latch and keep time. Press or drag on the playing pads to hear them: sideways is pitch, up and down is timbre. <b>Write a song</b>, below the board, has two demo songs that play on the board.</p>
+  </header>
+
+  <div class="conn" id="conn">
+    <button class="btn" id="connBtn" type="button">Connect LinnStrument</button>
+    <span class="conn-state" id="connState">Not connected. The board below is the playable mockup until you connect.</span>
+  </div>
+
+  <div class="board-scroll">
+    <div class="board" id="board">
+      <div class="cheek l"></div>
+      <div class="panel">
+        <div class="silk top" id="silkTop"></div>
+        <div class="grid" id="grid" role="group" aria-label="LinnStrument playing surface, 26 columns by 8 rows"></div>
+        <div class="silk bottom" id="silkBottom"></div>
+      </div>
+      <div class="cheek r"></div>
+    </div>
+  </div>
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <section class="song" aria-labelledby="h-song">
+    <div class="song-top">
+      <h2 id="h-song">Write a song</h2>
+      <div class="tabs" role="tablist" aria-label="Demo songs">
+        <button type="button" role="tab" id="tab1" aria-controls="songpanel1" aria-selected="true">First Light<span>Compose mode · harmony pads</span></button>
+        <button type="button" role="tab" id="tab2" aria-controls="songpanel2" aria-selected="false" tabindex="-1">Night Drive<span>Perform mode · left-hand chords</span></button>
+      </div>
+    </div>
+
+    <div class="songpanel" id="songpanel1" role="tabpanel" aria-labelledby="tab1">
+      <div class="song-head">
+        <div>
+          <p class="song-title">Demo song: First Light</p>
+          <p class="sub">A verse in A minor, a chorus in C, a Lydian lift and a last chorus in D. About 50 seconds at 92 BPM, played on the board above using only the steps below.</p>
+        </div>
+        <button class="play" id="demoBtn1" type="button" aria-pressed="false">▶ Play the demo</button>
+      </div>
+      <div class="songmap" id="songMap1" role="list" aria-label="Song map for First Light"></div>
+      <p class="caption" id="demoCaption1" aria-live="polite">Press play and watch the board. The demo taps the harmony pads and plays the surface the way you would. White pads are sounding.</p>
+      <ol class="steps" id="steps1">
+        <li data-step="1"><div><b>Pick a home and a mood.</b> Tap a Key pad, then a Mode pad. Higher Mode pads sound brighter: Lydian is dreamy, Ionian happy, Mixolydian bluesy, Dorian soulful, Aeolian sad, Phrygian dark. <span class="dn">Demo: A Aeolian.</span></div></li>
+        <li data-step="2"><div><b>Learn one chord shape.</b> With rows a 4th apart, a 7th chord is a diamond: the root, the 3rd up and to the left, the 5th up and to the right, and the 7th two rows above the root. Leave off the top pad for a triad. The shape never changes; the mode decides whether it comes out major or minor.</div></li>
+        <li data-step="3"><div><b>Loop four chords.</b> Tap a Chord pad to light that chord, then put the diamond on a cyan pad. Start with a loop you already know. <span class="dn">Demo: i – ♭VI – ♭III – ♭VII, which is Am7, Fmaj7, Cmaj7, G7.</span></div></li>
+        <li data-step="4"><div><b>Sing over it.</b> Land on lit pads on the strong beats and use unlit pads to get between them. Every pad is in the scale, so no note is wrong, only more or less tense. Slide into notes for a vocal feel. <span class="dn">Demo: bar 4 slides from F down to D.</span></div></li>
+        <li data-step="5"><div><b>Add pull with one alteration.</b> Flip degree 7 to ♮7. The V chord becomes E7, which leans hard back to the home chord. Tap RST once it resolves. <span class="dn">Demo: bars 5–6.</span></div></li>
+        <li data-step="6"><div><b>Change sections while holding.</b> Keep the chord down and tap REL: Am7 glides into Cmaj7 and you are in the relative major. For the chorus, switch to triads, push the rhythm and sing higher. <span class="dn">Demo: I – V – vi – IV.</span></div></li>
+        <li data-step="7"><div><b>Lift with a brighter mode.</b> Tap Lydian. F becomes F♯ and the II chord turns major. Two bars of I – II are enough to lift into the last chorus.</div></li>
+        <li data-step="8"><div><b>End higher.</b> Tap Ionian, then Key D. The chorus moves up a whole step with the same fingering. Finish on a 9th chord and push your fingers up to open the sound.</div></li>
+        <li data-step="9"><div><b>Save and replay.</b> The demo stores each section in Memory 5–8. Recall them with the Memory pads, or with footswitches assigned to PREV and NEXT (the <kbd>←</kbd> <kbd>→</kbd> keys here), and play your own melody over them.</div></li>
+      </ol>
+      <div class="why">
+        <h3>What makes it sound good</h3>
+        <ul>
+          <li><b>Chord tones on the beat.</b> Lit pads on strong beats sound settled; unlit pads in between add motion.</li>
+          <li><b>Small moves between chords.</b> Am7 and Fmaj7 share three notes, so the change sounds smooth.</li>
+          <li><b>One change at a time.</b> Change the chord, the mode, one note or the key, but not all at once.</li>
+          <li><b>Contrast between sections.</b> Low and sustained in the verse, higher with rhythm in the chorus, and a lift before the last chorus.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="songpanel" id="songpanel2" role="tabpanel" aria-labelledby="tab2" hidden>
+      <div class="song-head">
+        <div>
+          <p class="song-title">Demo song: Night Drive</p>
+          <p class="sub">Three sections stored in Memory, then played in Perform mode: latched chords in the left hand, melody in the right, and the footswitch for each change. About 55 seconds at 100 BPM.</p>
+        </div>
+        <button class="play" id="demoBtn2" type="button" aria-pressed="false">▶ Play the demo</button>
+      </div>
+      <div class="songmap" id="songMap2" role="list" aria-label="Song map for Night Drive"></div>
+      <p class="caption" id="demoCaption2" aria-live="polite">Press play. The demo sets up three sections in Compose mode, switches to Perform mode, then plays with both hands.</p>
+      <ol class="steps" id="steps2">
+        <li data-step="1"><div><b>Set up sections in Compose mode.</b> Pick a key and mode, choose a chord pattern on the Harmony page (hold Split), and store it in Memory. <span class="dn">Demo: Memory 5 is D Dorian with Pulse, 6 is B♭ Lydian with Strum, 7 is D Dorian with Arpeggio.</span></div></li>
+        <li data-step="2"><div><b>Switch to Perform mode.</b> Tap Split, the Harmony button. Columns 1–5 become chord pads: rows are I to VII, and the columns are Root, 1st inversion, 2nd inversion, 7th and Smart. Memory and the melody pads don’t move.</div></li>
+        <li data-step="3"><div><b>Latch a chord.</b> Tap Latch in the thumb strip (the bottom row), then a chord. It keeps playing in the section’s pattern, so your left hand is free. Tap another chord to switch, or the same one to stop.</div></li>
+        <li data-step="4"><div><b>Let Smart voice it.</b> The Smart column picks the voicing nearest the last chord, so changes move as few notes as possible. <span class="dn">Demo: Dm7 to G7 moves two notes, one step each.</span></div></li>
+        <li data-step="5"><div><b>Play the melody.</b> The lit pads on the right follow the left-hand chord, so you can always see its tones.</div></li>
+        <li data-step="6"><div><b>Walk the bass with inversions.</b> The inversion columns put the 3rd or 5th in the bass. <span class="dn">Demo: G/B leads down a half step to B♭.</span></div></li>
+        <li data-step="7"><div><b>Change sections with your foot.</b> Each footswitch press recalls the next memory, so key, mode and pattern change together. Tap the new chord right on the change.</div></li>
+        <li data-step="8"><div><b>Add color from the thumb strip.</b> Tap V/x, then a chord, to play the dominant 7th that leads into it. <span class="dn">Demo: V/x + i = A7, which pulls back to Dm.</span></div></li>
+        <li data-step="9"><div><b>End it.</b> On the Harmony page, set Pattern to Sustain, then tap add9 and i for a held Dm9. Drag up on the chord pad to open the sound.</div></li>
+      </ol>
+      <div class="why">
+        <h3>Why Perform mode is easier to play</h3>
+        <ul>
+          <li><b>One job per limb.</b> The left hand picks chords, the right hand plays melody, and your foot changes sections.</li>
+          <li><b>Latch frees your hand.</b> A latched chord keeps time on its own while you reach for a modifier or play melody with both hands.</li>
+          <li><b>Smart voicing does the arranging.</b> Chords move to the nearest notes, which is what makes changes sound smooth.</li>
+          <li><b>Nothing moves under you.</b> Switching modes or sections never moves the melody pads; only the lights change.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="rack">
+    <section class="card" aria-labelledby="h-now">
+      <h2 id="h-now">Now playing</h2>
+      <div>
+        <p class="hname" id="hName"></p>
+        <p class="sub" id="hFam"></p>
+      </div>
+      <div class="chips" id="hChips"></div>
+      <div class="chord">
+        <span class="sub" id="hChordLbl">Lit chord</span>
+        <strong id="hChord"></strong>
+        <span class="sub" id="hChordNotes"></span>
+        <span class="sub" id="hNext"></span>
+      </div>
+      <p class="touch" id="hTouch">Last touch: none yet</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-ctl">
+      <h2 id="h-ctl">Controls</h2>
+      <div class="ctl" id="ctl">
+        <span class="k">Zone side</span>
+        <div class="seg" data-key="side"><button id="c-side-left" data-v="left">Left</button><button id="c-side-right" data-v="right">Right</button></div>
+        <span class="k">Zone width</span>
+        <div class="seg" data-key="width" data-num="1"><button id="c-w-4" data-v="4">4 cols</button><button id="c-w-5" data-v="5">5</button><button id="c-w-6" data-v="6">6</button></div>
+        <span class="k">Harmony<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="harmony" data-bool="1"><button id="c-hm-1" data-v="1">On</button><button id="c-hm-0" data-v="0">Off (stock layout)</button></div>
+        <span class="k">Footswitches<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="foot"><button id="c-ft-m" data-v="memory">PREV / NEXT (memories)</button><button id="c-ft-f" data-v="factory">Factory (Arp / Sustain)</button></div>
+        <span class="k">Board<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="perf" data-bool="1"><button id="c-pf-0" data-v="0">Compose</button><button id="c-pf-1" data-v="1">Perform</button></div>
+        <span class="k">Chord pattern<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="pat"><button id="c-pt-s" data-v="sustain">Sustain</button><button id="c-pt-p" data-v="pulse">Pulse</button><button id="c-pt-st" data-v="strum">Strum</button><button id="c-pt-a" data-v="arp">Arp</button></div>
+        <span class="k">Tempo</span>
+        <div class="seg" data-key="bpm" data-num="1"><button id="c-bpm-80" data-v="80">80</button><button id="c-bpm-100" data-v="100">100</button><button id="c-bpm-120" data-v="120">120 BPM</button></div>
+        <span class="k">Layout</span>
+        <div class="seg" data-key="layout"><button id="c-l-scale" data-v="scale">Scale steps</button><button id="c-l-chr" data-v="chromatic">Chromatic</button><button id="c-l-snap" data-v="snap">Chromatic + snap</button></div>
+        <span class="k">Rows apart<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="rowStep" data-num="1"><button id="c-r-0" data-v="0">3rd</button><button id="c-r-1" data-v="1">4th</button><button id="c-r-2" data-v="2">5th</button><button id="c-r-3" data-v="3">Octave</button></div>
+        <span class="k">Octave<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="octave" data-num="1"><button id="c-o-m2" data-v="-2">−2</button><button id="c-o-m1" data-v="-1">−1</button><button id="c-o-0" data-v="0">0</button><button id="c-o-p1" data-v="1">+1</button><button id="c-o-p2" data-v="2">+2</button></div>
+        <span class="k">Lights<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="lights"><button id="c-li-g" data-v="guide">Guide</button><button id="c-li-f" data-v="function">Chord tones</button><button id="c-li-d" data-v="degrees">Degrees</button><button id="c-li-n" data-v="notes">Notes</button></div>
+        <span class="k">Style<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="style"><button id="c-st-pop" data-v="pop">Pop</button><button id="c-st-rock" data-v="rock">Rock</button><button id="c-st-blues" data-v="blues">Blues</button><button id="c-st-jazz" data-v="jazz">Jazz</button><button id="c-st-soul" data-v="soul">Soul</button><button id="c-st-cin" data-v="cinematic">Cinematic</button><button id="c-st-fla" data-v="flamenco">Flamenco</button><button id="c-st-free" data-v="free">Free</button></div>
+        <span class="k">Template<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="template" id="tplSeg"></div>
+        <span class="k">Hints<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="hints" data-bool="1"><button id="c-hi-1" data-v="1">On</button><button id="c-hi-0" data-v="0">Off</button></div>
+        <span class="k">Held notes<em class="fw" title="Also in the firmware build">FW</em></span>
+        <div class="seg" data-key="retune"><button id="c-rt-m" data-v="morph">Morph</button><button id="c-rt-h" data-v="hold">Hold</button><button id="c-rt-r" data-v="retrig">Retrigger</button></div>
+        <span class="k">Melody latch</span>
+        <div class="seg" data-key="latch" data-bool="1"><button id="c-la-0" data-v="0">Off</button><button id="c-la-1" data-v="1">On</button></div>
+        <span class="k">Pad labels</span>
+        <div class="seg" data-key="names" data-bool="1"><button id="c-n-1" data-v="1">On</button><button id="c-n-0" data-v="0">Off (as on hardware)</button></div>
+        <span class="k">Sound</span>
+        <div class="seg" data-key="sound" data-bool="1"><button id="c-s-1" data-v="1">On</button><button id="c-s-0" data-v="0">Off</button></div>
+      </div>
+      <p class="hint"><b>On the board:</b> every control button keeps its factory job except <b>Split</b>, which becomes the Harmony button. Tap it to switch Compose and Perform; hold it (or right-click it) for the Harmony page, where each column is one setting. Footswitches step memories only when they're assigned to PREV and NEXT in Global Settings.</p>
+      <p class="hint"><em class="fw">FW</em> marks settings the firmware build already has. The others are mockup only for now; see <b>What’s in the firmware</b> in the build plan below.</p>
+      <p class="hint" id="styleTip"></p>
+      <p class="hint"><b>Templates</b> pulse the next chord of a progression: tap the pulsing Chord pad (or chord pad in Perform mode) to move along. <b>Hints</b> color the harmony zone by what would sound good next; <b>Lights</b> picks how the playing surface is colored. To try <b>Held notes</b>, turn Melody latch on, tap a few playing pads, then change key or mode. In <b>Perform mode</b>, tap a chord pad on the left; the bottom row holds the modifiers and Latch. <kbd>←</kbd> <kbd>→</kbd> step through memories as the footswitches would. <kbd>Esc</kbd> releases everything.</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-mon">
+      <h2 id="h-mon">MIDI out (MPE)</h2>
+      <div class="monitor" id="monitor" role="log" aria-live="off"></div>
+      <div class="btnrow"><button class="btn" id="btnRelease" type="button">Release all notes</button><button class="btn" id="btnClear" type="button">Clear log</button></div>
+    </section>
+  </div>
+
+  <section class="legend" aria-labelledby="h-leg">
+    <h2 id="h-leg">What the lights mean</h2>
+    <span class="lh">Playing surface · Guide lights</span>
+    <span class="li"><i class="sw" style="background:var(--led-cyan)"></i>Root of the lit chord</span>
+    <span class="li"><i class="sw" style="background:var(--led-green)"></i>Chord tones: land here</span>
+    <span class="li"><i class="sw" style="background:var(--led-azure)"></i>Color tones (9th, 11th, 13th): good to hold</span>
+    <span class="li"><i class="sw lowsw" style="background:var(--led-red)"></i>Dim red: a half step above a chord tone, pass through it</span>
+    <span class="li"><i class="sw" style="background:var(--led-violet)"></i>The style's flavor notes: blue notes (rock, blues), altered notes on dominants (jazz), the mode's signature note (cinematic), ♭2 (flamenco)</span>
+    <span class="li"><i class="sw" style="background:var(--led-white)"></i>Sounding note · pulsing pads are notes that just changed</span>
+    <span class="lh">Harmony zone · hints</span>
+    <span class="li"><i class="sw" style="background:var(--led-azure)"></i><i class="sw" style="background:var(--led-green)"></i><i class="sw" style="background:var(--led-orange)"></i><i class="sw" style="background:var(--led-red)"></i>Chords: home, away, tension, strongest pull home. Bright is a natural next move for the style, dim is weaker, pulsing is where the style wants to go next (or a template's next chord)</span>
+    <span class="li"><i class="sw" style="background:var(--led-white)"></i><i class="sw" style="background:var(--led-green)"></i><i class="sw" style="background:var(--led-yellow)"></i><i class="sw" style="background:var(--led-orange)"></i>Keys, modes and memories: same notes, then 1, 2, or 3+ notes change. A pulsing memory is the next footswitch press</span>
+    <span class="li"><i class="sw" style="background:var(--led-orange)"></i><i class="sw" style="background:var(--led-magenta)"></i>Alter: lowered degree, raised degree</span>
+    <span class="lh">Everything else</span>
+    <span class="li"><i class="sw" style="background:var(--led-white)"></i>Current selection</span>
+    <span class="li"><i class="sw" style="background:var(--led-blue)"></i>Available choice (hints off)</span>
+    <span class="li"><i class="sw" style="background:var(--led-yellow)"></i>Action pad (hints off)</span>
+    <span class="li"><i class="sw" style="background:var(--led-red)"></i>Reset alterations</span>
+    <span class="li"><i class="sw" style="background:var(--led-lime)"></i><i class="sw" style="background:var(--led-pink)"></i><i class="sw" style="background:var(--led-magenta)"></i><i class="sw" style="background:var(--led-red)"></i><i class="sw" style="background:var(--led-yellow)"></i>Mode family (top Mode pad)</span>
+    <span class="li"><i class="sw" style="background:var(--led-orange)"></i><i class="sw" style="background:var(--led-pink)"></i><i class="sw" style="background:var(--led-yellow)"></i><i class="sw" style="background:var(--led-green)"></i>Thumb strip: V/x, Borrow, sus4 and add9, Latch</span>
+    <span class="note">Teal, azure, violet and the dim versions are in the firmware and checked on a LinnStrument 200: they're built from the same alternating-refresh trick as orange and lime, and dim pads go dark partway through each column's refresh, so they don't flicker.</span>
+  </section>
+
+  <article class="spec" aria-labelledby="h-spec">
+    <h2 id="h-spec">Build plan</h2>
+    <h3>What’s in the firmware</h3>
+    <p>The firmware build on the <code>harmony-board</code> branch has the Compose and Perform cores. This mockup also shows features that aren’t written yet. On the board, <em class="fw">FW</em> in Controls and ✓ on the Harmony page mark what the firmware has.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Feature</th><th>Firmware</th><th>Mockup</th></tr></thead>
+        <tbody>
+          <tr><td>Harmony zone: Key, Mode, Alter, Chord and Memory columns</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Scale-step layout, rows a 3rd, 4th, 5th or octave apart, scale-aware slides</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Held notes on a harmony change: Morph, Hold, Retrigger</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Split: tap for Compose or Perform, hold for the Harmony page</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Harmony page: everything except Layout</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Perform chord split: I–VII in root position, 1st and 2nd inversion, 7th and Smart voicing</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Thumb strip: V/x, Borrow, sus4, add9, Latch (on by default)</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Chords and bass on channel 16, CC74 and pressure from the chord pad, re-strike on harmony changes</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Footswitches step memories when assigned to PREV and NEXT</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Chord patterns: Pulse, Strum, Arpeggio, with a Host (MIDI clock) or Internal clock</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Half and quarter brightness, and the teal, azure and violet blends (LED check on the Harmony page)</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Lights (Guide, Chord, Degrees, Notes) and hints</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Styles and progression templates</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Chromatic and snap layouts, zone side and width</td><td class="st-n">Next</td><td class="st-y">Yes</td></tr>
+          <tr><td>Harmony, memories and page settings kept across power-off</td><td class="st-n">Planned</td><td class="st-n">No</td></tr>
+          <tr><td>Melody latch, pad labels and sound (mockup helpers for playing with a mouse)</td><td class="st-n">—</td><td class="st-y">Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Order for the rest:</p>
+    <ol>
+      <li><b>Perform core:</b> chord split, Latch, channel 16, Split tap and hold. In this build.</li>
+      <li><b>Chord patterns</b> on the arpeggiator’s clock, following Global Settings tempo or MIDI clock, plus the Pattern column on the Harmony page. In this build.</li>
+      <li><b>LED check</b> of half brightness and the three blends on the real board (done: all distinct and steady), then Guide lights and hints. In this build.</li>
+      <li><b>Styles and templates</b>, with their Harmony page columns. In this build.</li>
+      <li><b>Layouts:</b> chromatic, chromatic with snap, zone side and width.</li>
+      <li><b>Saving</b> the harmony, memories and page settings with the factory presets, so they survive power-off. Worth doing alongside the lights, as the page fills up.</li>
+    </ol>
+    <h3>How the board splits</h3>
+    <p>In the <b>scale-step layout</b> each column is the next note of the current scale, so the 19 playing columns span about 2.7 octaves per row. The stock 25-column chromatic layout spans just over two, so you lose no range per row. Rows sit a 4th apart in scale steps. Any chord shape then plays the matching chord of whatever mode is active: the same three fingers give a minor triad in Dorian and a diminished one on the 7th degree of Ionian.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Column</th><th>Module</th><th>Pads, bottom row to top row</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>Hardware buttons</td><td>All factory, except Split, which becomes the Harmony button: tap for Compose or Perform, hold for the Harmony page. Global Settings, Switch 1 and 2, Octave/Transpose, Volume, Preset and Per-Split Settings keep their factory jobs.</td></tr>
+          <tr><td>1</td><td>Key ♯♭</td><td>C♯ · D♯ · REL · F♯ · G♯ · A♯ · PAR · ◀ 5th. Black keys of a vertical piano; REL and PAR sit in the gaps.</td></tr>
+          <tr><td>2</td><td>Key</td><td>C · D · E · F · G · A · B · 5th ▶. Key pads also show the scale: cyan root, green scale tones.</td></tr>
+          <tr><td>3</td><td>Mode</td><td>The 7 modes of the current family, darkest at the bottom and brightest at the top, so neighboring major modes differ by one note. The top pad cycles the family: major, melodic minor, harmonic minor, harmonic major, pentatonic and symmetric.</td></tr>
+          <tr><td>4</td><td>Alter</td><td>RESET · 2 · 3 · 4 · 5 · 6 · 7 · KEEP. Each degree pad flips that note between its major-scale form and its common alteration (♭2, ♭3, ♯4, ♭5, ♭6, ♭7). KEEP holds alterations across mode changes.</td></tr>
+          <tr><td>5</td><td>Chord</td><td>I to VII, labeled with the right quality for the mode. The surface lights the tonic chord by default; tapping a Chord pad lights that chord instead. The top pad picks triad, 7th or 9th.</td></tr>
+          <tr><td>6</td><td>Memory</td><td>8 harmony snapshots. Tap an empty pad to store and a lit one to recall. Footswitches step through them, so a progression can be played hands-free.</td></tr>
+          <tr><td>7–25</td><td>Play</td><td>19 × 8 MPE pads. Zone width (4, 5 or 6) and side (left or right) are settings.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Perform mode</h3>
+    <p>Tapping Split (the Harmony button) swaps columns 1–5 between the harmony controls and a left-hand chord split. Memory and the melody pads never move, so switching mid-song is safe.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Column</th><th>In Perform mode</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>Tapping Split (the Harmony button) switches Compose and Perform. The chord pattern (Sustain, Pulse, Strum or Arpeggio, following the MIDI clock) is set on the Harmony page.</td></tr>
+          <tr><td>1–5</td><td>Chords. Rows 2–8 are I to VII. The columns are root position, 1st inversion, 2nd inversion, 7th chord and Smart (the voicing nearest the last chord). The inversion columns put that note in the bass. Row 1 is a thumb strip: V/x, Borrow, sus4, add9 and Latch.</td></tr>
+          <tr><td>6</td><td>Memory. Each slot also stores the chord pattern, so the footswitch changes key, mode and groove together.</td></tr>
+          <tr><td>7–25</td><td>Melody. The lit pads follow whatever chord the left hand is playing.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>In the firmware, the chord and its bass note go out together on MIDI channel 16, and the melody keeps MPE on channel 1 with member channels 2–8. Put a second instrument on channel 16 for the left hand. The chord pad’s Y goes out as CC74 and its pressure as channel pressure, both on channel 16. Because the chord notes share a channel, they can’t bend one by one, so a sounding chord re-strikes when a harmony change moves its notes (Held notes set to Hold leaves it ringing). One touch starts up to six notes. Patterns will reuse the arpeggiator’s timing and the MIDI clock, so they follow your DAW’s tempo.</p>
+
+    <h3>Color guidance</h3>
+    <p>Color shows where you could go next, not just where you are. The LED driver gains a half-brightness mode and three new blends (teal, azure, violet), made the same way as orange and lime by alternating colors on each refresh, so they don't flicker.</p>
+    <ul>
+      <li><b>Surface:</b> Guide lights mark chord tones, color tones and notes to pass through. Degrees gives each scale degree its own hue; Notes gives each note name its own hue around the circle of fifths. Notes that a harmony change brings in pulse for a moment.</li>
+      <li><b>Chord pads:</b> colored by function (home, away, tension), bright for a natural next move and pulsing when they resolve the current tension.</li>
+      <li><b>Key, Mode and Memory pads:</b> colored by how many notes would change, so smooth and dramatic moves are visible before you make them.</li>
+      <li><b>Styles:</b> Pop, Rock, Blues, Jazz, Soul, Cinematic, Flamenco and Free swap the rules behind the same colors: which moves count as natural, where the music wants to resolve, which notes are flavor rather than clashes, and in Blues and Flamenco the chord qualities themselves (dominant 7ths on I, IV and V; a major I with a ♭9). Each style has progression templates whose next chord pulses. Memory stores the style, so one song can switch styles between sections.</li>
+      <li><b>Harmony page:</b> hold Split and the playing surface becomes a page, the same way LinnStrument's own settings screens work. One column per setting, read from the top pad down: Harmony on/off, Compose/Perform, Style, Template, Lights, Hints, Layout, Rows apart, Held notes and Pattern. Tap Split to go back to playing.</li>
+    </ul>
+
+    <h3>Control buttons and footswitches</h3>
+    <p>Harmony gets exactly one button. Split becomes the Harmony button (splits and the harmony zone both want the left side of the board), and every other control button keeps its factory job, including Per-Split Settings, which is where MPE is set up. Footswitches stay on their factory defaults (Arpeggiator on the left, Sustain on the right). To step memories with your feet, assign them to <b>PREV</b> and <b>NEXT</b> in Global Settings: those are the sequencer's existing assignments, which have nothing else to do in Harmony mode, so the stored settings stay safe if you go back to the stock firmware. Presets will also save the Harmony setup.</p>
+
+    <h3>Where it lands in the firmware</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Concern</th><th>Today</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td>Pad to note</td><td><code>getNoteNumber()</code> in <code>ls_handleTouches.ino</code> computes row offset + column on every touch</td><td>New <code>ls_harmony.ino</code> holds the harmony state and a <code>noteForCell[col][row]</code> table, rebuilt only when the harmony changes. Note lookup becomes a single array read.</td></tr>
+          <tr><td>Zone touches</td><td><code>handleNewTouch()</code> sends column 0 to the control buttons and everything else to the note path</td><td>Route zone columns to <code>handleHarmonyZoneTouch()</code> before the note path. Zone pads never take a MIDI channel.</td></tr>
+          <tr><td>Slides</td><td><code>handleXExpression()</code> → <code>scalePitch()</code> assumes one column is one semitone</td><td>Turn X movement into a fractional column, then interpolate through that row's pitch table. Slides land exactly on scale tones at pad centers, and pitch quantize keeps working.</td></tr>
+          <tr><td>Held notes</td><td>Nothing; pitch is fixed at note-on</td><td>On a harmony change, walk the touched cells and glide each note's channel to its new degree with per-note pitch bend (Morph). MPE's ±48 bend range covers any retune.</td></tr>
+          <tr><td>LEDs</td><td><code>paintNormalDisplayCell()</code> lights the <code>mainNotes</code> / <code>accentNotes</code> bitmasks on a chromatic grid</td><td>A role-based painter for the surface and one painter per zone module, using only the 11 hardware colors.</td></tr>
+          <tr><td>MPE</td><td><code>Split[].mpe</code>, <code>ChannelBucket</code>, MPE configuration messages</td><td>Reused for the melody: main channel 1, members 2–8. Chords and bass go out on channel 16, outside the member channels, with the chord pad’s Y → CC74 and Z → channel pressure.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two">
+      <div>
+        <span class="tag">Keep</span>
+        <ul>
+          <li>Sensor scan and calibration (<code>ls_sensor</code>, <code>ls_calibration</code>, <code>ls_touchInfo</code>)</li>
+          <li>MIDI and MPE output (<code>ls_midi</code>, <code>ls_channelbucket.h</code>), note-to-touch mapping</li>
+          <li>LED driver, Global Settings (calibration, MIDI I/O, firmware update)</li>
+          <li>The current-version settings handoff in <code>ls_extstorage</code>, so calibration survives updates</li>
+          <li>Arpeggiator timing and MIDI clock (<code>ls_arpeggiator</code>, <code>ls_clock</code>), to drive chord patterns</li>
+        </ul>
+      </div>
+      <div>
+        <span class="tag">Cut</span>
+        <ul>
+          <li>Splits (the harmony zone and the chord split both use the left side), sequencer, strum split, low-row modes, CC faders</li>
+          <li>Guitar tuning, playbook, promo and touch animations</li>
+          <li>Old settings-format converters in <code>ls_extstorage</code></li>
+        </ul>
+      </div>
+    </div>
+    <p>Cutting features mainly buys simpler code and free RAM. Each cell read waits on analog settling delays in <code>ls_sensor</code>, so per-note latency improves only a little. The lookup table also makes note lookup cheaper than the current per-touch calculation.</p>
+
+    <h3>Decisions for you</h3>
+    <ol>
+      <li>Default layout: scale steps (this mockup's default) or chromatic with scale lights?</li>
+      <li>What held notes do when the harmony changes: Morph, Hold or Retrigger?</li>
+      <li>Six zone columns, or five without Memory to get 20 playing columns?</li>
+      <li>Should harmony changes also go out over MIDI (NRPN or SysEx) so a DAW or plugin can follow along?</li>
+      <li>Should Memory also store the left-hand chord, so the footswitch can step through a whole progression?</li>
+    </ol>
+  </article>
+</div>
+
+<script>
+(() => {
+"use strict";
+const LED = { RED:'#ff3b30', YELLOW:'#ffd60a', GREEN:'#2fdc55', CYAN:'#2ee6ea', BLUE:'#3d6dff', MAGENTA:'#e144e6', WHITE:'#ffffff', ORANGE:'#ff8a1c', LIME:'#b8ff2e', PINK:'#ff7bbb',
+  TEAL:'#1fe0a8', AZURE:'#3aa8ff', VIOLET:'#9b5cff' };   // the last three are proposed blends
+const dimHex = h => { const n = parseInt(h.slice(1), 16), g = 0x2b2e31; return '#' + [16, 8, 0].map(sh => Math.round(((n >> sh) & 255) * 0.5 + ((g >> sh) & 255) * 0.5).toString(16).padStart(2, '0')).join(''); };
+const LIGHT_INK = new Set(['BLUE','MAGENTA','RED','VIOLET']);
+const MAJ_N = [0,2,4,5,7,9,11];
+const LET = ['C','D','E','F','G','A','B'];
+const ACC = {'-2':'𝄫','-1':'♭','0':'','1':'♯','2':'𝄪'};
+const SHARP = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const FLAT  = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+const INT_LBL = ['1','♭2','2','♭3','3','4','♭5','5','♭6','6','♭7','7'];
+const NUMCOLS = 26, NUMROWS = 8;
+
+const FAMILIES = [
+  { key:'MAJ', name:'Major', color:'LIME', parent:[0,2,4,5,7,9,11],
+    modes:['Ionian','Dorian','Phrygian','Lydian','Mixolydian','Aeolian','Locrian'],
+    short:['Ion','Dor','Phr','Lyd','Mix','Aeo','Loc'] },
+  { key:'MEL', name:'Melodic minor', color:'PINK', parent:[0,2,3,5,7,9,11],
+    modes:['Melodic minor','Dorian ♭2','Lydian augmented','Lydian dominant','Mixolydian ♭6','Locrian ♮2','Altered'],
+    short:['Mel','Dor♭2','Lyd+','LydDom','Mix♭6','Loc♮2','Alt'] },
+  { key:'HMN', name:'Harmonic minor', color:'MAGENTA', parent:[0,2,3,5,7,8,11],
+    modes:['Harmonic minor','Locrian ♮6','Ionian ♯5','Dorian ♯4','Phrygian dominant','Lydian ♯2','Ultralocrian'],
+    short:['HMin','Loc♮6','Ion♯5','Dor♯4','PhrDom','Lyd♯2','UltLoc'] },
+  { key:'HMJ', name:'Harmonic major', color:'RED', parent:[0,2,4,5,7,8,11],
+    modes:['Harmonic major','Dorian ♭5','Phrygian ♭4','Lydian ♭3','Mixolydian ♭2','Lydian augmented ♯2','Locrian 𝄫7'],
+    short:['HMaj','Dor♭5','Phr♭4','Lyd♭3','Mix♭2','Lyd+♯2','Loc𝄫7'] },
+  { key:'PNT', name:'Pentatonic & symmetric', color:'YELLOW',
+    scales:[[0,2,4,7,9],[0,3,5,7,10],[0,3,5,6,7,10],[0,2,4,6,8,10],[0,2,3,5,6,8,9,11],[0,1,3,4,6,7,9,10],[0,1,2,3,4,5,6,7,8,9,10,11]],
+    modes:['Major pentatonic','Minor pentatonic','Blues','Whole tone','Diminished (whole-half)','Diminished (half-whole)','Chromatic'],
+    short:['MajPnt','MinPnt','Blues','Whole','DimWH','DimHW','Chrom'] },
+];
+function modeIntervals(f, m) {
+  const F = FAMILIES[f];
+  if (F.scales) return F.scales[m].slice();
+  const p = F.parent;
+  return p.map((_, i) => (p[(i + m) % 7] - p[m] + 12) % 12);
+}
+// display order, top pad first: brightest (largest interval sum) to darkest
+FAMILIES.forEach((F, fi) => {
+  const idx = [0,1,2,3,4,5,6];
+  if (F.scales) { F.order = idx; return; }
+  const sum = m => modeIntervals(fi, m).reduce((a, b) => a + b, 0);
+  F.order = idx.slice().sort((a, b) => sum(b) - sum(a));
+});
+
+const zero7 = () => [0,0,0,0,0,0,0];
+const S = {
+  root:2, fam:0, mode:1, alter:zero7(), sticky:false,
+  chordDeg:null, chordSize:4,
+  layout:'scale', rowStep:1, octave:0, lights:'guide', hints:true, style:'pop', template:'off', tplIdx:0, page:false, harmony:true, foot:'memory', retune:'morph',
+  latch:false, names:true, sound:true, side:'left', width:6,
+  perf:false, pat:'sustain', chLatch:true, bpm:100,
+  mem:[
+    { root:2, fam:0, mode:1, alter:zero7(), chordDeg:null, chordSize:4, pat:'sustain', style:'pop' },
+    { root:7, fam:0, mode:4, alter:zero7(), chordDeg:0, chordSize:4, pat:'sustain', style:'pop' },
+    { root:0, fam:0, mode:3, alter:zero7(), chordDeg:0, chordSize:4, pat:'sustain', style:'pop' },
+    { root:9, fam:0, mode:5, alter:[0,0,0,0,0,0,1], chordDeg:4, chordSize:4, pat:'sustain', style:'pop' },
+    null, null, null, null
+  ]
+};
+
+/* ---------- theory ---------- */
+const wrap12 = d => { d = ((d % 12) + 12) % 12; return d > 6 ? d - 12 : d; };
+function prefersFlat(root, iv) {
+  const minor = iv.includes(3) && !iv.includes(4);
+  return minor ? [0,2,5,7,10,3,8].includes(root) : [5,10,3,8,1].includes(root);
+}
+function spell(root, iv) {
+  if (iv.length === 7) {
+    let best = null;
+    for (let L = 0; L < 7; L++) {
+      const ra = wrap12(root - MAJ_N[L]);
+      if (Math.abs(ra) > 1) continue;
+      let score = ra ? 0.5 : 0; const out = [];
+      for (let i = 0; i < 7; i++) {
+        const l = (L + i) % 7, pc = (root + iv[i]) % 12, a = wrap12(pc - MAJ_N[l]);
+        score += Math.abs(a) + (Math.abs(a) > 1 ? 3 : 0);
+        out.push({ name: LET[l] + (ACC[a] ?? '?'), acc: a, pc });
+      }
+      if (!best || score < best.score) best = { score, out };
+    }
+    return best.out;
+  }
+  const flat = prefersFlat(root, iv);
+  return iv.map(x => { const pc = (root + x) % 12; const name = (flat ? FLAT : SHARP)[pc]; return { name, acc: name.includes('♭') ? -1 : name.includes('♯') ? 1 : 0, pc }; });
+}
+function degLabel(i, semis, hepta = true) {
+  if (!hepta) return INT_LBL[semis % 12];
+  const a = semis - MAJ_N[i];
+  return (ACC[a] ?? '?') + (i + 1);
+}
+const ROMAN = ['I','II','III','IV','V','VI','VII'];
+const TRI = { M:['',''], m:['m',''], d:['°','°'], a:['+','+'], b5:['(♭5)','♭5'], x:['(?)','?'] };
+const SEV = {
+  M:{11:['maj7','Δ7'],10:['7','7'],9:['6','6']},
+  m:{10:['m7','7'],11:['m(maj7)','mΔ7'],9:['m6','6']},
+  d:{10:['ø7','ø7'],9:['°7','°7'],11:['°(maj7)','°Δ7']},
+  a:{11:['+maj7','+Δ7'],10:['+7','+7']},
+  b5:{10:['7♭5','7♭5'],11:['maj7♭5','Δ7♭5']}
+};
+const NINTH = { 1:'(♭9)', 2:'(9)', 3:'(♯9)' };
+
+let H = {};
+function recompute() {
+  const base = modeIntervals(S.fam, S.mode);
+  const hepta = base.length === 7;
+  const iv = base.map((x, i) => hepta ? x + S.alter[i] : x);
+  const sp = spell(S.root, iv);
+  const pcToDeg = {};
+  iv.forEach((x, i) => { pcToDeg[(S.root + x) % 12] = i; });
+  const flat = sp.some(s => s.acc < 0);
+  const pcInfo = pc => {
+    const d = pcToDeg[pc];
+    if (d !== undefined) return sp[d];
+    const name = (flat ? FLAT : SHARP)[pc];
+    return { name, acc: name.includes('♭') ? -1 : name.includes('♯') ? 1 : 0, pc };
+  };
+  const pcName = pc => pcInfo(pc).name;
+  const noteName = midi => { const m = Math.round(midi); const s = pcInfo(((m % 12) + 12) % 12); return s.name + (Math.floor((m - s.acc) / 12) - 1); };
+  const altered = iv.map((_, i) => hepta && S.alter[i] !== 0);
+
+  let chords = null;
+  if (hepta) {
+    chords = [0,1,2,3,4,5,6].map(d => {
+      let tones = [];
+      for (let j = 0; j < S.chordSize; j++) {
+        const idx = d + 2 * j, deg = idx % 7;
+        tones.push({ deg, rel: iv[deg] + 12 * Math.floor(idx / 7) - iv[d], pc: (S.root + iv[deg]) % 12 });
+      }
+      const styled = styleChordRel(d, S.chordSize);
+      if (styled) tones = styled.map(x => ({ deg: d, rel: x, pc: (S.root + iv[d] + x) % 12 }));
+      const t3 = tones[1].rel, t5 = tones[2].rel, t7 = tones[3] ? tones[3].rel : null, t9 = tones[4] ? tones[4].rel - 12 : null;
+      let kind = 'x';
+      if (t3 === 4 && t5 === 7) kind = 'M'; else if (t3 === 3 && t5 === 7) kind = 'm';
+      else if (t3 === 3 && t5 === 6) kind = 'd'; else if (t3 === 4 && t5 === 8) kind = 'a';
+      else if (t3 === 4 && t5 === 6) kind = 'b5';
+      const lower = kind === 'm' || kind === 'd';
+      const accPrefix = ACC[iv[d] - MAJ_N[d]] ?? '';
+      const sev = t7 !== null && SEV[kind] ? SEV[kind][t7] : null;
+      const symSuffix = sev ? sev[0] : TRI[kind][0];
+      const padSuffix = sev ? sev[1] : TRI[kind][1];
+      const roman = accPrefix + (lower ? ROMAN[d].toLowerCase() : ROMAN[d]);
+      const pcRole = {};
+      tones.forEach((t, j) => { if (pcRole[t.pc] === undefined) pcRole[t.pc] = j; });
+      return {
+        d, roman: roman + padSuffix,
+        sym: sp[d].name + symSuffix + (t9 !== null ? (NINTH[t9] || '') : ''),
+        notes: tones.map(t => pcName(t.pc)), pcRole
+      };
+    });
+  }
+  const chord = chords && S.chordDeg !== null ? chords[S.chordDeg] : null;
+  let lit = chord || (chords ? chords[0] : null);
+  if (!lit) {
+    const pcRole = {};
+    iv.forEach(x => { const pc = (S.root + x) % 12; if (x === 0) pcRole[pc] = 0; else if (x === 3 || x === 4) pcRole[pc] = 1; else if (x === 7) pcRole[pc] = 2; });
+    lit = { pcRole };
+  }
+  const F = FAMILIES[S.fam];
+  const alts = hepta ? iv.map((x, i) => S.alter[i] ? (x === MAJ_N[i] ? '♮' + (i + 1) : degLabel(i, x)) : null).filter(Boolean) : [];
+  const title = `${sp[0].name} ${F.modes[S.mode]}${alts.length ? ' ' + alts.join(' ') : ''}`;
+  H = { base, iv, hepta, sp, pcToDeg, pcName, noteName, altered, chords, chord, lit, title };
+}
+function describe(st) {
+  const base = modeIntervals(st.fam, st.mode);
+  const hepta = base.length === 7;
+  const iv = base.map((x, i) => hepta ? x + st.alter[i] : x);
+  const sp = spell(st.root, iv);
+  const F = FAMILIES[st.fam];
+  const alts = hepta ? iv.map((x, i) => st.alter[i] ? (x === MAJ_N[i] ? '♮' + (i + 1) : degLabel(i, x)) : null).filter(Boolean) : [];
+  return { title: `${sp[0].name} ${F.modes[st.mode]}${alts.length ? ' ' + alts.join(' ') : ''}${hepta && st.chordDeg !== null ? ' · chord ' + ROMAN[st.chordDeg] : ''}${st.pat && st.pat !== 'sustain' ? ' · ' + PAT_NAME[st.pat] : ''}${st.style && st.style !== 'pop' ? ' · ' + STYLES[st.style].name : ''}`, short: sp[0].name + ' ' + F.short[st.mode] };
+}
+
+/* ---------- board geometry ---------- */
+const MODS = ['keyAcc','keyNat','mode','alter','chord','memory'];
+const MOD_LABEL = { keyAcc:'Key ♯♭', keyNat:'Key', mode:'Mode', alter:'Alter', chord:'Chord', memory:'Memory', chRoot:'Root', chInv1:'1st', chInv2:'2nd', ch7:'7th', chSmart:'Smart' };
+let colKind = [], P = 0;
+// mirror mode: the LinnStrument's state arrives over USB MIDI and the board follows it (see the end of this script)
+const MIRROR = { on: false, input: null, output: null, notes: new Map(), last: 0 };
+function layoutCols() {
+  colKind = new Array(NUMCOLS);
+  colKind[0] = { kind:'hw' };
+  if (S.harmony) (S.perf ? [...CH_MODS, 'memory'] : MODS.slice(0, S.width)).forEach((m, i) => { colKind[S.side === 'left' ? 1 + i : 25 - i] = { kind:'zone', m }; });
+  P = 0;
+  for (let c = 1; c < NUMCOLS; c++) if (!colKind[c]) colKind[c] = { kind:'play', k: P++ };
+}
+const ROW_STEPS = [2,3,4,7], ROW_SEMIS = [4,5,7,12];
+function rowStepCount() {
+  const n = H.iv.length;
+  if (n === 7) return ROW_STEPS[S.rowStep];
+  return Math.max(1, Math.round(n * ROW_SEMIS[S.rowStep] / 12));
+}
+function scaleBase() { return 36 + S.root - (S.root >= 7 ? 12 : 0) + 12 * S.octave; }
+function padNote(k, r) {
+  if (!S.harmony) return 30 + 12 * S.octave + k + r * 5;     // the stock layout: F#2 at the bottom left, rows a 4th apart
+  if (S.layout === 'scale') {
+    const n = H.iv.length, s = k + r * rowStepCount();
+    return scaleBase() + 12 * Math.floor(s / n) + H.iv[s % n];
+  }
+  return 36 + 12 * S.octave + k + r * ROW_SEMIS[S.rowStep];
+}
+const inScale = m => H.pcToDeg[((m % 12) + 12) % 12] !== undefined;
+function soundingNote(k, r) {
+  let m = padNote(k, r);
+  if (S.layout === 'snap' && !inScale(m)) {
+    for (let d = 1; d < 7; d++) { if (inScale(m - d)) { m -= d; break; } if (inScale(m + d)) { m += d; break; } }
+  }
+  return (m < 0 || m > 127) ? null : m;
+}
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+function interpPitch(r, pos) {
+  pos = clamp(pos, 0, P - 1);
+  const f = Math.floor(pos), t = pos - f;
+  const a = soundingNote(f, r);
+  if (a === null) return null;
+  const b = f + 1 < P ? soundingNote(f + 1, r) : null;
+  return b === null ? a : a + t * (b - a);
+}
+
+/* ---------- audio + MPE voices ---------- */
+let ac = null, master = null;
+function audio() {
+  if (!S.sound) return null;
+  if (!ac) {
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = 0.14;
+      const comp = ac.createDynamicsCompressor();
+      master.connect(comp); comp.connect(ac.destination);
+    } catch (e) { ac = null; return null; }
+  }
+  if (ac.state === 'suspended') ac.resume();
+  return ac;
+}
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+const cutoff = y => 260 * Math.pow(2, y * 5.6);
+function synthStart(v) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime, fr = mtof(voicePitch(v));
+  const o1 = a.createOscillator(), o2 = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain();
+  o1.type = 'sawtooth'; o2.type = 'triangle'; o2.detune.value = 7;
+  o1.frequency.value = fr; o2.frequency.value = fr;
+  f.type = 'lowpass'; f.Q.value = 2.5; f.frequency.value = cutoff(v.y);
+  const lvl = 0.2 + 0.35 * (v.vel / 127);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(lvl, t + 0.012); g.gain.setTargetAtTime(lvl * 0.7, t + 0.05, 0.4);
+  o1.connect(f); o2.connect(f); f.connect(g); g.connect(master);
+  o1.start(t); o2.start(t);
+  v.syn = { o1, o2, f, g };
+}
+function synthStop(v) {
+  if (!v.syn || !ac) return;
+  const t = ac.currentTime, { o1, o2, g } = v.syn;
+  g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.setTargetAtTime(0, t, 0.08);
+  o1.stop(t + 0.7); o2.stop(t + 0.7);
+  v.syn = null;
+}
+function synthPitch(v, tc) {
+  if (!v.syn || !ac) return;
+  const t = ac.currentTime, fr = mtof(voicePitch(v));
+  v.syn.o1.frequency.setTargetAtTime(fr, t, tc); v.syn.o2.frequency.setTargetAtTime(fr, t, tc);
+}
+function synthY(v) { if (v.syn && ac) v.syn.f.frequency.setTargetAtTime(cutoff(v.y), ac.currentTime, 0.03); }
+
+let voices = [], vid = 0, useClock = 0;
+const lastUsed = {}; for (let ch = 2; ch <= 8; ch++) lastUsed[ch] = 0;
+function takeChannel() {
+  const busy = new Set(voices.map(v => v.ch));
+  let best = null;
+  for (let ch = 2; ch <= 8; ch++) { if (busy.has(ch)) continue; if (best === null || lastUsed[ch] < lastUsed[best]) best = ch; }
+  if (best === null) { const victim = voices[0]; best = victim.ch; stopVoice(victim, true); }
+  lastUsed[best] = ++useClock;
+  return best;
+}
+function voicePitch(v) { const p = interpPitch(v.r, v.pos); return (p === null ? v.noteOn : p) + v.offset; }
+const bend14 = st => clamp(Math.round(8192 + st * 8192 / 48), 0, 16383);
+const fmtSt = st => (st >= 0 ? '+' : '−') + Math.abs(st).toFixed(2) + ' st';
+function startVoice(k, r, vel, y = .5) {
+  const m = soundingNote(k, r);
+  if (m === null) return null;
+  const v = { id: ++vid, k, r, pos: k, y, vel, noteOn: m, offset: 0, pointerId: null, latched: false, lastT: 0, lastBend: 0, lastCC: 64, syn: null };
+  v.ch = takeChannel();
+  voices.push(v);
+  synthStart(v);
+  log(v.ch, `Note On   ${H.noteName(m)} (${m})  vel ${vel}`, 'on');
+  setTouch(v);
+  scheduleRender();
+  return v;
+}
+function stopVoice(v, quiet) {
+  synthStop(v);
+  voices = voices.filter(x => x !== v);
+  lastUsed[v.ch] = ++useClock;
+  log(v.ch, `Note Off  ${H.noteName(v.noteOn)} (${v.noteOn})`, 'off');
+  if (!quiet) scheduleRender();
+}
+function releaseAll() { voices.slice().forEach(v => stopVoice(v, true)); chordStop(); scheduleRender(); }
+function updateVoice(v) {
+  synthPitch(v, 0.012); synthY(v);
+  const now = performance.now();
+  if (now - v.lastT < 90) return;
+  const bend = voicePitch(v) - v.noteOn;
+  if (Math.abs(bend - v.lastBend) > 0.02) { log(v.ch, `Pitch Bend ${fmtSt(bend)}  (${bend14(bend)})`, 'bend'); v.lastBend = bend; v.lastT = now; }
+  const cc = Math.round(v.y * 127);
+  if (Math.abs(cc - v.lastCC) > 2) { log(v.ch, `CC74 ${cc}  (timbre)`, 'cc'); v.lastCC = cc; v.lastT = now; }
+  setTouch(v);
+}
+function setTouch(v) {
+  const p = voicePitch(v), near = Math.round(p);
+  const pc = ((near % 12) + 12) % 12, d = H.pcToDeg[pc];
+  const deg = d === undefined ? 'not in scale' : 'degree ' + degLabel(d, H.iv[d], H.hepta);
+  const off = p - near;
+  touchText = `Last touch: ch ${v.ch} · ${H.noteName(near)}${Math.abs(off) > 0.02 ? ' ' + fmtSt(off) : ''} · ${deg}`;
+}
+let touchText = 'Last touch: none yet';
+
+/* ---------- perform mode: left-hand chords ---------- */
+const PATS = ['sustain','pulse','strum','arp'];
+const PAT_NAME = { sustain:'Sustain', pulse:'Pulse', strum:'Strum', arp:'Arpeggio' };
+const PAT_SHORT = { sustain:'SUS', pulse:'PLS', strum:'STR', arp:'ARP' };
+const PAT_COLOR = { sustain:'GREEN', pulse:'YELLOW', strum:'ORANGE', arp:'PINK' };
+const CH_MODS = ['chRoot','chInv1','chInv2','ch7','chSmart'];
+const CH_LABEL = { chRoot:'Root position', chInv1:'1st inversion', chInv2:'2nd inversion', ch7:'7th chord', chSmart:'Smart voicing' };
+// the bottom row of the chord split, one pad under each voicing column
+const THUMB = [
+  { k:'vx', label:'V/x', color:'ORANGE', title:'V/x: tap it (or hold it with your thumb), then a chord pad, to play the dominant 7th that leads into that chord' },
+  { k:'brw', label:'BRW', color:'PINK', title:'Borrow: tap it, then a chord pad, to play that chord from the parallel major or minor' },
+  { k:'sus', label:'SUS4', color:'YELLOW', title:'sus4: tap it, then a chord pad. The 4th replaces the 3rd.' },
+  { k:'add9', label:'ADD9', color:'YELLOW', title:'add9: tap it, then a chord pad, to add the 9th' },
+  { k:'latch', label:'LATCH', color:'GREEN', title:'Latch: chords keep playing after you let go. Tap the same chord again to stop it.' },
+];
+const CH = { act:null, prev:null, lit:null, mods:{ vx:null, brw:null, sus:null, add9:null }, modPtr:null, pnodes:[], sub:-1, arpI:0, y:0.4, ybase:0.4, cy:0, h:1, lastCC:-1, lastT:0 };
+const TR = { t0:0, running:false };                      // pattern clock; stands in for MIDI clock
+const trBeat = now => (now - TR.t0) / 60000 * S.bpm;
+const beatSec = b => b * 60 / S.bpm;
+function trEnsure() { if (!TR.running) { TR.t0 = performance.now(); TR.running = true; } }
+const sortNum = a => a.slice().sort((x, y) => x - y);
+const below12 = rel => new Set(rel.filter(x => x < 12));
+
+function romanFor(d, sc, rel) {
+  if (sc.length !== 7) return H.pcName((S.root + sc[d]) % 12);
+  const s = below12(rel);
+  const lower = s.has(3) && !s.has(4), dim = lower && s.has(6) && !s.has(7), aug = s.has(4) && s.has(8) && !s.has(7);
+  return (ACC[sc[d] - MAJ_N[d]] ?? '') + (lower ? ROMAN[d].toLowerCase() : ROMAN[d]) + (dim ? '°' : aug ? '+' : '');
+}
+function seventhMark(roman, rel) {
+  const s = below12(rel);
+  if (s.has(11)) return roman + 'Δ7';
+  if (s.has(10)) return roman.endsWith('°') ? roman.slice(0, -1) + 'ø7' : roman + '7';
+  if (s.has(9) && roman.endsWith('°')) return roman + '7';
+  return roman;
+}
+function qual(rel) {
+  const s = below12(rel);
+  const m3 = s.has(3) && !s.has(4), M3 = s.has(4), sus = !s.has(3) && !s.has(4) && s.has(5);
+  const d5 = s.has(6) && !s.has(7), a5 = s.has(8) && !s.has(7);
+  const M7 = s.has(11), m7 = s.has(10), dd7 = s.has(9) && m3 && d5;
+  const nine = rel.includes(14) ? '9' : rel.includes(13) ? '♭9' : rel.includes(15) ? '♯9' : '';
+  let q;
+  if (m3 && d5) q = m7 ? 'm7♭5' : dd7 ? '°7' : '°';
+  else if (M3 && a5) q = M7 ? '+maj7' : m7 ? '+7' : '+';
+  else if (m3) q = M7 ? 'm(maj7)' : m7 ? 'm7' : 'm';
+  else if (sus) q = m7 ? '7sus4' : 'sus4';
+  else if (M3 && d5) q = m7 ? '7♭5' : '(♭5)';
+  else q = M7 ? 'maj7' : m7 ? '7' : '';
+  if (nine === '9') q = /7/.test(q) ? q.replace('7', '9') : q + 'add9';
+  else if (nine) q += '(' + nine + ')';
+  return q;
+}
+// chord tones as semitones above the chord root, for degree d and the modifiers in effect
+function chordTones(m, d, mods) {
+  const iv = H.iv, n = iv.length;
+  if (d >= n) return null;
+  const size = m === 'ch7' ? 4 : m === 'chSmart' ? S.chordSize : 3;
+  const semis = (sc, st) => sc[st % sc.length] + 12 * Math.floor(st / sc.length);
+  let rootPc, rel, roman, ninth = 14;
+  if (mods.brw && S.style === 'jazz') {          // in Jazz, the Borrow pad plays the tritone substitute
+    const target = [0, 2, 4].map(j => semis(iv, d + j) - iv[d]);
+    rootPc = (S.root + iv[d] + 1) % 12;
+    rel = size >= 4 ? [0, 4, 7, 10] : [0, 4, 7];
+    if (size >= 5) rel.push(14);
+    roman = '♭II/' + romanFor(d, iv, target);
+  }
+  else if (mods.vx) {
+    const target = [0, 2, 4].map(j => semis(iv, d + j) - iv[d]);
+    rootPc = (S.root + iv[d] + 7) % 12;
+    rel = size >= 4 ? [0, 4, 7, 10] : [0, 4, 7];
+    if (size >= 5) rel.push(14);
+    roman = 'V/' + romanFor(d, iv, target);
+  } else {
+    let sc = iv;
+    if (mods.brw) { if (n !== 7) return null; sc = iv[2] === 4 ? [0,2,3,5,7,8,10] : [0,2,4,5,7,9,11]; }
+    rootPc = (S.root + sc[d]) % 12;
+    rel = [];
+    for (let j = 0; j < size; j++) rel.push(semis(sc, d + 2 * j) - sc[d]);
+    roman = romanFor(d, sc, rel);
+    if (sc.length === 7) ninth = semis(sc, d + 8) - sc[d];
+    const styled = !mods.brw && n === 7 ? styleChordRel(d, size) : null;
+    if (styled) { rel = styled.slice(); roman = romanFor(d, sc, rel); }
+  }
+  if (mods.sus) rel = rel.map((x, j) => j === 1 ? 5 : x);
+  if (mods.add9 && !rel.some(x => x >= 13 && x <= 15)) rel.push(ninth);
+  rel = [...new Set(rel)].sort((a, b) => a - b);
+  return { rootPc, rel, roman };
+}
+function chordLabel(m, t, mods) {
+  if (mods.vx) return t.roman;
+  if (m === 'chInv1') return t.roman + '⁶';
+  if (m === 'chInv2') return t.roman + '⁶₄';
+  if (m === 'ch7' || (m === 'chSmart' && S.chordSize >= 4)) return seventhMark(t.roman, t.rel);
+  return t.roman;
+}
+// notes for a chord pad; Smart picks the inversion and octave nearest the previous chord
+function buildChord(m, d, mods, ref) {
+  const t = chordTones(m, d, mods);
+  if (!t) return null;
+  const inv = (arr, k) => { const a = sortNum(arr); for (let i = 0; i < k; i++) a[i] += 12; return sortNum(a); };
+  let notes = t.rel.map(x => 48 + t.rootPc + x);
+  if (m === 'chInv1') notes = inv(notes, 1);
+  else if (m === 'chInv2') notes = inv(notes, 2);
+  else if (m === 'chSmart') {
+    const prev = ref || CH.prev;
+    let best = null;
+    for (let k = 0; k < notes.length; k++) for (const o of [-12, 0, 12]) {
+      const c = inv(notes, k).map(x => x + o);
+      if (c[0] < 45 || c[c.length - 1] > 80) continue;
+      const mean = c.reduce((a, b) => a + b, 0) / c.length;
+      let cost = Math.abs(mean - 62) * 0.1;
+      if (prev && prev.length) {
+        if (prev.length === c.length) cost += c.reduce((a, x, i) => a + Math.abs(x - prev[i]), 0);
+        else cost += c.reduce((a, x) => a + Math.min(...prev.map(y => Math.abs(x - y))), 0) + prev.reduce((a, y) => a + Math.min(...c.map(x => Math.abs(x - y))), 0);
+      }
+      if (!best || cost < best.cost) best = { cost, c };
+    }
+    if (best) notes = best.c;
+  }
+  for (let i = 0; i < 3 && notes[notes.length - 1] > 80; i++) notes = notes.map(x => x - 12);
+  for (let i = 0; i < 3 && notes[0] < 45; i++) notes = notes.map(x => x + 12);
+  const bassPc = (m === 'chInv1' || m === 'chInv2') ? notes[0] % 12 : t.rootPc;
+  const sym = H.pcName(t.rootPc) + qual(t.rel) + (bassPc !== t.rootPc ? '/' + H.pcName(bassPc) : '');
+  return { notes, bass: 36 + bassPc, rootPc: t.rootPc, rel: t.rel, sym, short: chordLabel(m, t, mods) };
+}
+function litOf(b) {
+  const pcRole = {};
+  b.rel.forEach((x, j) => { const pc = (b.rootPc + x) % 12; if (pcRole[pc] === undefined) pcRole[pc] = j; });
+  return { pcRole };
+}
+
+/* chord sound: a soft detuned pad and a separate bass voice */
+function cOn(midi, vel, bass, o = {}) {
+  const a = audio(); if (!a) return null;
+  const t = a.currentTime + (o.delay || 0), fr = mtof(midi);
+  const o1 = a.createOscillator(), o2 = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain();
+  o1.type = bass ? 'triangle' : 'sawtooth'; o2.type = 'sawtooth';
+  o1.frequency.value = fr; o2.frequency.value = fr;
+  if (!bass) { o1.detune.value = -8; o2.detune.value = 8; }
+  f.type = 'lowpass'; f.Q.value = bass ? 1.2 : 0.7; f.frequency.value = bass ? 480 : cutoff(CH.y) * 0.75;
+  const lvl = bass ? 0.14 + 0.3 * vel / 127 : 0.05 + 0.14 * vel / 127, atk = o.attack ?? 0.05;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(lvl, t + atk); g.gain.setTargetAtTime(lvl * 0.75, t + atk, 0.6);
+  o1.connect(f); o2.connect(f); f.connect(g); g.connect(master);
+  o1.start(t); o2.start(t);
+  const n = { o1, o2, f, g, midi, bass, end: Infinity };
+  if (o.dur) cOff(n, o.rel ?? 0.06, t + o.dur);
+  return n;
+}
+function cOff(n, rel = 0.12, when) {
+  if (!n || !ac) return;
+  const t = Math.max(when ?? 0, ac.currentTime);
+  try { n.g.gain.cancelScheduledValues(t); n.g.gain.setTargetAtTime(0, t, rel / 3); } catch (_) {}
+  try { n.o1.stop(t + rel * 2 + 0.25); n.o2.stop(t + rel * 2 + 0.25); } catch (_) {}
+  n.end = t + rel;
+}
+function cGlide(n, midi, tc) {
+  if (!n || !ac) return;
+  const fr = mtof(midi), t = ac.currentTime;
+  n.o1.frequency.setTargetAtTime(fr, t, tc); n.o2.frequency.setTargetAtTime(fr, t, tc);
+  n.midi = midi;
+}
+function startHeld() {
+  const a = CH.act; if (!a) return;
+  a.held = { notes: a.notes.map(m => cOn(m, 70, false, { attack: 0.06 })), bass: cOn(a.bass, 86, true, { attack: 0.02 }), on: a.notes.slice() };
+}
+function stopHeld(rel = 0.12) {
+  const a = CH.act; if (!a || !a.held) return;
+  a.held.notes.forEach(n => cOff(n, rel)); cOff(a.held.bass, rel);
+  a.held = null;
+}
+
+/* patterns: hits land on a 16th-note grid from the pattern clock */
+const pushP = n => { if (n) CH.pnodes.push(n); };
+function hitChord(vel, gate) { CH.act.notes.forEach(m => pushP(cOn(m, vel, false, { attack: 0.004, dur: beatSec(gate), rel: 0.05 }))); }
+function hitBass(vel, gate) { pushP(cOn(CH.act.bass, vel, true, { attack: 0.004, dur: beatSec(gate), rel: 0.06 })); }
+function strum(up, vel, ring) {
+  const ns = sortNum(CH.act.notes); if (up) ns.reverse();
+  ns.forEach((m, i) => pushP(cOn(m, vel - 3 * i, false, { attack: 0.003, delay: i * 0.024, dur: beatSec(ring), rel: 0.15 })));
+}
+function arpNote(vel, gate) {
+  const ns = sortNum(CH.act.notes), seq = [...ns, ns[0] + 12];
+  pushP(cOn(seq[CH.arpI++ % seq.length], vel + 10, false, { attack: 0.004, dur: beatSec(gate), rel: 0.1 }));
+}
+function patternHit(sub, first) {
+  if (!CH.act) return;
+  const p = ((sub % 16) + 16) % 16, q = p % 4 === 0, e8 = p % 2 === 0;
+  if (S.pat === 'pulse') {
+    if (e8 || first) hitChord(p === 0 ? 92 : q ? 78 : 64, 0.3);
+    if (q || first) hitBass(90, 0.9);
+  } else if (S.pat === 'strum') {
+    if (q || first) strum(false, p === 0 ? 96 : 84, 1);
+    else if (p === 6 || p === 14) strum(true, 64, 0.5);
+    if (p === 0 || p === 8 || first) hitBass(92, 1.9);
+  } else if (S.pat === 'arp') {
+    if (e8 || first) arpNote(p === 0 ? 90 : 76, 0.45);
+    if (p === 0 || first) hitBass(86, 3.8);
+  }
+}
+function patternTick() {
+  if (!CH.act || S.pat === 'sustain' || !TR.running) return;
+  const now = performance.now(), sub = Math.floor(trBeat(now) * 4);
+  if (sub === CH.sub) return;
+  CH.sub = sub;
+  if (now - CH.act.startAt < 70) return;          // the press already played this hit
+  patternHit(sub, false);
+  if (ac) CH.pnodes = CH.pnodes.filter(n => n.end > ac.currentTime - 0.5);
+}
+setInterval(patternTick, 6);
+function patternChanged(prev) {
+  if (!CH.act) return;
+  if (prev === 'sustain' && S.pat !== 'sustain') stopHeld(0.1);
+  if (S.pat === 'sustain' && !CH.act.held) startHeld();
+  trEnsure();
+  CH.sub = Math.floor(trBeat(performance.now()) * 4);
+  log(16, `Pattern → ${PAT_NAME[S.pat]}${S.pat === 'sustain' ? '' : ' at ' + S.bpm + ' BPM'}`, 'h');
+}
+function setPattern(p) {
+  if (p === S.pat) return;
+  const prev = S.pat;
+  S.pat = p;
+  patternChanged(prev);
+  render();
+  status(`Chord pattern: ${PAT_NAME[p]}.`);
+}
+
+/* chord pads */
+function chordPress(m, d, el, pid) {
+  const mods = { vx: !!CH.mods.vx, brw: !!CH.mods.brw, sus: !!CH.mods.sus, add9: !!CH.mods.add9 };
+  const key = `${m}:${d}:${+mods.vx}${+mods.brw}${+mods.sus}${+mods.add9}`;
+  consumeMods();
+  if (CH.act && CH.act.latched && CH.act.key === key) { chordStop(); status('Chord stopped.'); return; }
+  const b = buildChord(m, d, mods);
+  if (!b) { reject(el); status('Borrow needs a 7-note scale.'); render(); return; }
+  if (CH.act) chordStop(true);
+  if (!mods.vx && !mods.brw) templateAdvance(d);
+  trEnsure();
+  const now = performance.now();
+  CH.act = Object.assign(b, { m, d, mods, key, pid, latched: false, startAt: now, held: null });
+  CH.prev = b.notes; CH.lit = litOf(b); CH.arpI = 0;
+  CH.sub = Math.floor(trBeat(now) * 4);
+  if (S.pat === 'sustain') startHeld(); else patternHit(CH.sub, true);
+  log(16, `Chord ${b.short} = ${b.sym}  ${b.notes.map(H.noteName).join(' ')} · bass ${H.noteName(b.bass)}${S.pat === 'sustain' ? '' : ' · ' + PAT_NAME[S.pat]}`, 'on');
+  render();
+}
+function chordRelease(pid) {
+  if (!CH.act || CH.act.pid !== pid) return;
+  CH.act.pid = null;
+  if (S.chLatch) { CH.act.latched = true; scheduleRender(); }
+  else chordStop();
+}
+function chordStop(switching, rel) {
+  const a = CH.act; if (!a) return;
+  stopHeld(rel ?? (switching ? 0.08 : 0.25));
+  CH.pnodes.forEach(n => cOff(n, rel ?? 0.08));
+  CH.pnodes = [];
+  CH.act = null;
+  if (!switching) {
+    log(16, `Chord off  ${a.sym}`, 'off');
+    if (!demo.on) TR.running = false;
+    scheduleRender();
+  }
+}
+// harmony changed: same degree and column, new key or mode; held chords glide per note (MPE)
+function chordRetune() {
+  const a = CH.act;
+  if (!a) { CH.lit = null; return; }
+  const b = buildChord(a.m, a.d, a.mods, a.notes);
+  if (!b) { chordStop(); return; }
+  const old = a.notes, oldBass = a.bass;
+  Object.assign(a, b);
+  CH.prev = b.notes; CH.lit = litOf(b);
+  // chords share channel 16, so they can't bend per note: re-strike when the notes change (as the firmware does)
+  if (!a.held || S.retune === 'hold') return;
+  if (b.notes.length === old.length && b.notes.every((m, i) => m === old[i]) && b.bass === oldBass) return;
+  stopHeld(0.06); startHeld();
+  log(16, `Chord re-strike  ${b.sym}  ${b.notes.map(H.noteName).join(' ')} · bass ${H.noteName(b.bass)}`, 'on');
+}
+function chordToneAll() {
+  if (ac) {
+    const fr = cutoff(CH.y) * 0.75, t = ac.currentTime;
+    [...(CH.act && CH.act.held ? CH.act.held.notes : []), ...CH.pnodes].forEach(n => { if (n && !n.bass) n.f.frequency.setTargetAtTime(fr, t, 0.04); });
+  }
+  const now = performance.now(), cc = Math.round(CH.y * 127);
+  if (now - CH.lastT > 90 && Math.abs(cc - CH.lastCC) > 2) { CH.lastT = now; CH.lastCC = cc; log(16, `CC74 ${cc}  (chord channel, all chord notes)`, 'cc'); }
+}
+function chordDrag(e) {
+  CH.y = clamp(CH.ybase + (CH.cy - e.clientY) / (CH.h * 1.6), 0, 1);
+  chordToneAll();
+}
+
+/* thumb strip: tap to arm for the next chord, or hold while pressing a chord */
+function modDown(k, pid) {
+  if (CH.mods[k] === 'armed') { CH.mods[k] = null; render(); return; }
+  CH.mods[k] = 'held';
+  CH.modPtr = { pid, k, t: performance.now(), used: false };
+  render();
+}
+function modUp(pid) {
+  const mp = CH.modPtr; if (!mp || mp.pid !== pid) return;
+  CH.modPtr = null;
+  if (CH.mods[mp.k] === 'held') CH.mods[mp.k] = (!mp.used && performance.now() - mp.t < 350) ? 'armed' : null;
+  render();
+}
+function consumeMods() {
+  Object.keys(CH.mods).forEach(k => { if (CH.mods[k] === 'armed') CH.mods[k] = null; });
+  if (CH.modPtr) CH.modPtr.used = true;
+}
+function toggleLatch() {
+  S.chLatch = !S.chLatch;
+  if (!S.chLatch && CH.act && CH.act.pid === null) chordStop();
+  render();
+  status(S.chLatch ? 'Latch on: chords keep playing after you let go.' : 'Latch off: chords play while you hold the pad.');
+}
+function togglePerf() {
+  S.perf = !S.perf;
+  if (S.perf && S.width !== 6) S.width = 6;
+  structural();
+  status(S.perf ? 'Perform mode: columns 1–5 are left-hand chords. Memory and the melody pads stay where they are.' : 'Compose mode: the key, mode, alter and chord columns are back.');
+}
+function chordSplitCell(m, r) {
+  const ci = CH_MODS.indexOf(m);
+  if (r === 0) {
+    const t = THUMB[ci];
+    if (t.k === 'latch') return { color: S.chLatch ? 'GREEN' : null, label: t.label, pressed: S.chLatch, title: t.title };
+    const on = !!CH.mods[t.k], off = t.k === 'brw' && !H.hepta, sub = t.k === 'brw' && S.style === 'jazz';
+    const fav = STYLES[S.style].mods, low = S.hints && !on && !!fav && !fav.includes(t.k);
+    return { color: on ? 'WHITE' : off ? null : t.color, low, label: sub ? 'SUB' : t.label, pressed: on, dim: off,
+      title: sub ? 'SUB: tap it, then a chord pad, to play the tritone substitute, the dominant 7th a half step above that chord' : t.title };
+  }
+  const d = r - 1;
+  const mods = { vx: !!CH.mods.vx, brw: !!CH.mods.brw, sus: !!CH.mods.sus, add9: !!CH.mods.add9 };
+  const t = chordTones(m, d, mods);
+  if (!t) return { color: null, label: '', dim: true, title: d >= H.iv.length ? 'This scale has fewer notes than there are rows' : 'Borrow needs a 7-note scale' };
+  const label = chordLabel(m, t, mods);
+  const active = !!(CH.act && CH.act.m === m && CH.act.d === d);
+  const over = m === 'chInv1' ? ' with its 3rd in the bass' : m === 'chInv2' ? ' with its 5th in the bass' : '';
+  let color = active ? 'WHITE' : m === 'chSmart' ? 'LIME' : 'BLUE', low = false, pulse = false, hint = '';
+  if (S.hints && !active) {
+    const pcs = t.rel.map(x => (t.rootPc + x) % 12);
+    if (H.hepta) {
+      if (mods.vx || (mods.brw && S.style === 'jazz')) { color = 'RED'; hint = mods.vx ? 'a dominant 7th that pulls into this row' : 'a tritone substitute that slides into this row'; }
+      else {
+        const f = chordFunc(d, pcs), cur = CH.act ? CH.act.d : 0;
+        const [move, strong] = d === cur ? ['same root', true] : moveOf(cur, d);
+        const tpl = templateOf();
+        if (tpl) pulse = d === tplStep()[0];
+        else if (CH.act) pulse = (CH.act.mods.vx || (CH.act.mods.brw && S.style === 'jazz')) ? d === CH.act.d : pulseTargets(CH.act.d, CH.act.notes.map(n => n % 12)).includes(d);
+        color = FUNC_COLOR[f]; low = !strong;
+        hint = `${FUNC_NAME[f]}, ${move}${pulse ? (tpl ? ', the template\u2019s next chord' : ', where the style wants to go next') : ''}`;
+      }
+    }
+  }
+  return { color, low, pulse, label, pressed: active,
+    title: `${CH_LABEL[m]}: ${label} = ${H.pcName(t.rootPc)}${qual(t.rel)}${over}${hint ? ` (${hint})` : ''}. ${S.chLatch ? 'Tap to start it; it keeps playing. Tap again to stop.' : 'Hold to play.'}` };
+}
+function perfReadout(hc, hn) {
+  const a = CH.act;
+  if (a) {
+    hc.textContent = `${a.short} = ${a.sym}`;
+    hn.textContent = `${a.notes.map(H.noteName).join(' ')} over ${H.noteName(a.bass)} · ${a.latched ? 'latched' : 'held'} · ${PAT_NAME[S.pat]}${S.pat === 'sustain' ? '' : ' at ' + S.bpm + ' BPM'}`;
+  } else {
+    hc.textContent = 'No chord playing';
+    hn.textContent = S.chLatch ? 'Latch is on: tap a chord pad and it keeps playing.' : 'Hold a chord pad to play it, or turn on Latch in the bottom row.';
+  }
+}
+
+/* ---------- harmony changes ---------- */
+function harmony(fn) {
+  const before = voices.map(v => [v, voicePitch(v)]);
+  const prevTitle = H.title, prevChord = H.chord ? H.chord.sym : '', prevPat = S.pat, prevSet = pitchSet(curState());
+  fn();
+  recompute();
+  const added = [...pitchSet(curState())].filter(pc => !prevSet.has(pc));
+  if (added.length) {
+    changed = { until: performance.now() + 1400, pcs: new Set(added) };
+    clearTimeout(changedTimer);
+    changedTimer = setTimeout(scheduleRender, 1450);
+  }
+  chordRetune();
+  if (S.pat !== prevPat) patternChanged(prevPat);
+  for (const [v, p] of before) {
+    const np = interpPitch(v.r, v.pos);
+    if (np === null) continue;
+    if (S.retune === 'hold') { v.offset = p - np; }
+    else if (S.retune === 'morph') {
+      v.offset = 0;
+      const q = voicePitch(v);
+      synthPitch(v, 0.06);
+      if (Math.abs(q - p) > 0.001) { const b = q - v.noteOn; log(v.ch, `Pitch Bend ${fmtSt(b)}  morph ${H.noteName(p)} → ${H.noteName(q)}`, 'bend'); v.lastBend = b; }
+    } else {
+      const kk = clamp(Math.round(v.pos), 0, P - 1), m = soundingNote(kk, v.r);
+      if (m === null) continue;
+      log(v.ch, `Note Off  ${H.noteName(v.noteOn)} (${v.noteOn})`, 'off');
+      if (v.cx !== undefined) v.cx += (kk - v.k) * v.stride;
+      v.k = kk; v.pos = kk; v.offset = 0; v.noteOn = m; v.lastBend = 0;
+      synthStop(v); synthStart(v);
+      log(v.ch, `Note On   ${H.noteName(m)} (${m})  vel ${v.vel}`, 'on');
+    }
+  }
+  const chordNow = H.chord ? H.chord.sym : '';
+  if (H.title !== prevTitle || chordNow !== prevChord) log(null, `Harmony → ${H.title}${chordNow ? ' · focus ' + chordNow : ''}`, 'h');
+  render();
+}
+function structural() { releaseAll(); CH.lit = null; recompute(); layoutCols(); render(); }
+
+function flipTarget(d) { const N = MAJ_N[d], F = d === 3 ? 6 : N - 1; return H.iv[d] === N ? F : N; }
+function flip(d, el) {
+  const t = flipTarget(d), prev = H.iv[d - 1], next = d < 6 ? H.iv[d + 1] : 12;
+  if (t <= prev || t >= next) { reject(el); status(`${degLabel(d, t)} would land on the same pitch as a neighboring degree, so it was skipped.`); return; }
+  harmony(() => { S.alter[d] = t - H.base[d]; });
+  status(`Degree ${d + 1} is now ${degLabel(d, H.iv[d])}.`);
+}
+function doRel(el) {
+  if (!H.hepta) {
+    if (S.fam === 4 && S.mode <= 1) { harmony(() => { if (S.mode === 0) { S.root = (S.root + 9) % 12; S.mode = 1; } else { S.root = (S.root + 3) % 12; S.mode = 0; } }); return; }
+    reject(el); status('Relative works with 7-note scales and the two pentatonics.'); return;
+  }
+  const base = modeIntervals(S.fam, S.mode);
+  const target = base[2] === 4 ? 5 : 2;
+  harmony(() => { S.root = (S.root + base[target]) % 12; if (!FAMILIES[S.fam].scales) S.mode = (S.mode + target) % 7; S.alter = zero7(); });
+  status(`Relative: same notes, now ${H.title}.`);
+}
+function doPar(el) {
+  if (S.fam === 4 && S.mode <= 1) { harmony(() => { S.mode = 1 - S.mode; }); return; }
+  const major = H.iv.includes(4) && !H.iv.includes(3) ? true : H.iv[2] === 4;
+  harmony(() => { S.fam = 0; S.mode = major ? 5 : 0; S.alter = zero7(); });
+  status(`Parallel: same root, now ${H.title}.`);
+}
+const capture = () => ({ root:S.root, fam:S.fam, mode:S.mode, alter:S.alter.slice(), chordDeg:S.chordDeg, chordSize:S.chordSize, pat:S.pat, style:S.style });
+const snapKey = x => MIRROR.on ? { root:x.root, fam:x.fam, mode:x.mode, alter:x.alter, chordDeg:x.chordDeg, chordSize:x.chordSize } : x;
+const sameSnap = (a, b) => JSON.stringify(snapKey(a)) === JSON.stringify(snapKey(b));
+function recall(i) {
+  const s = S.mem[i]; if (!s) return;
+  harmony(() => { Object.assign(S, JSON.parse(JSON.stringify(s))); });
+  status(`Memory ${i + 1}: ${H.title}${H.chord ? ' · focus ' + H.chord.sym : ''}`);
+}
+function stepMemory(dir) {
+  const idx = nextSlot(dir);
+  if (idx < 0) { status('No memories stored yet. Tap an empty Memory pad to store one.'); return; }
+  recall(idx);
+}
+
+/* ---------- color guidance ---------- */
+const FIFTHS_COLOR = { 0:'RED', 7:'ORANGE', 2:'YELLOW', 9:'LIME', 4:'GREEN', 11:'TEAL', 6:'CYAN', 1:'AZURE', 8:'BLUE', 3:'VIOLET', 10:'MAGENTA', 5:'PINK' };
+const DEG_HUES = ['RED','ORANGE','YELLOW','GREEN','TEAL','BLUE','VIOLET'];
+const FUNC_COLOR = { T:'AZURE', S:'GREEN', D:'ORANGE', H:'RED' };
+const FUNC_NAME = { T:'home', S:'away', D:'tension', H:'strongest pull home' };
+// root motion in scale steps from the current chord: [name, natural move]
+const MOVES = { 3:['resolves', true], 5:['smooth', true], 1:['lift', true], 4:['softer', false], 2:['drift', false], 6:['step back', false] };
+const CHANGE_COLOR = ['WHITE','GREEN','YELLOW','ORANGE'];
+let changed = { until: 0, pcs: new Set() }, changedTimer = 0;
+function pitchSet(st) {
+  const base = modeIntervals(st.fam, st.mode), hepta = base.length === 7;
+  return new Set(base.map((x, i) => (st.root + x + (hepta && st.alter ? st.alter[i] : 0) + 24) % 12));
+}
+const curState = () => ({ root:S.root, fam:S.fam, mode:S.mode, alter:S.alter });
+function changeHint(st) {
+  const now = pitchSet(curState());
+  let n = 0;
+  pitchSet(st).forEach(pc => { if (!now.has(pc)) n++; });
+  return { color: CHANGE_COLOR[Math.min(n, 3)], low: n >= 4, text: n === 0 ? 'same notes' : n === 1 ? '1 note changes' : `${n} notes change` };
+}
+// the job of a chord, judged by its notes: it pulls hardest home when it holds the leading tone and the
+// note a tritone above it (V7, vii°), it's tension with the leading tone alone, away when it holds the
+// 4th degree, and home otherwise. Modes without a leading tone treat v and bVII as their cadence chords.
+function chordFunc(d, pcs) {
+  if (!H.hepta) return 'T';
+  if (S.style === 'free') return 'F';
+  if (d === 0) return 'T';
+  if (!pcs) pcs = Object.keys(H.chords[d].pcRole).map(Number);
+  if (S.style === 'blues') return d === 4 ? 'H' : 'S';
+  if (S.style === 'flamenco') return d === 1 ? 'H' : d === 4 ? 'D' : 'S';
+  if (S.style === 'cinematic') {
+    const home = new Set([0, 2, 4].map(i => (S.root + H.iv[i]) % 12)), n = pcs.filter(pc => home.has(pc)).length;
+    return n >= 2 ? 'T' : n === 1 ? 'S' : 'D';
+  }
+  if (S.style === 'rock' && d !== 4) return [1, 3, 6].includes(d) ? 'S' : 'T';
+  const inScale = pc => H.pcToDeg[pc] !== undefined, lt = (S.root + 11) % 12, fourth = (S.root + H.iv[3]) % 12;
+  if (inScale(lt)) {
+    if (pcs.includes(lt) && inScale((lt + 6) % 12) && pcs.includes((lt + 6) % 12)) return 'H';
+    if (pcs.includes(lt)) return 'D';
+  }
+  else if (d === 4 || d === 6) return 'D';
+  return pcs.includes(fourth) ? 'S' : 'T';
+}
+const isTension = f => f === 'D' || f === 'H';
+const heldPcs = () => new Set(voices.map(v => ((Math.round(voicePitch(v)) % 12) + 12) % 12));
+function relTarget() {
+  if (!H.hepta) return (S.fam === 4 && S.mode <= 1) ? { root: (S.root + (S.mode === 0 ? 9 : 3)) % 12, fam: 4, mode: 1 - S.mode, alter: zero7() } : null;
+  const base = modeIntervals(S.fam, S.mode), target = base[2] === 4 ? 5 : 2;
+  return { root: (S.root + base[target]) % 12, fam: S.fam, mode: (S.mode + target) % 7, alter: zero7() };
+}
+function parTarget() {
+  if (S.fam === 4 && S.mode <= 1) return { root: S.root, fam: 4, mode: 1 - S.mode, alter: zero7() };
+  const major = H.iv.includes(4) && !H.iv.includes(3) ? true : H.iv[2] === 4;
+  return { root: S.root, fam: 0, mode: major ? 5 : 0, alter: zero7() };
+}
+function nextSlot(dir) {
+  const filled = S.mem.map((m, i) => m ? i : -1).filter(i => i >= 0);
+  if (!filled.length) return -1;
+  const at = S.mem.findIndex(m => m && sameSnap(m, capture()));
+  if (at < 0) return dir > 0 ? filled[0] : filled[filled.length - 1];
+  return filled[(filled.indexOf(at) + dir + filled.length) % filled.length];
+}
+function nextMovesText() {
+  if (!S.hints || !H.hepta) return '';
+  const held = [...heldPcs()];
+  if (S.perf && held.length) {
+    const fits = [0,1,2,3,4,5,6].filter(d => { const t = chordTones('chSmart', d, {}); return t && held.every(pc => t.rel.some(x => (t.rootPc + x) % 12 === pc)); });
+    return `Chords under ${held.map(H.pcName).join(' ')}: ${fits.length ? fits.map(d => chordLabel('chSmart', chordTones('chSmart', d, {}), {})).join(', ') : 'none in this scale'}.`;
+  }
+  const tt = templateText();
+  if (tt) return tt;
+  const mv = STYLES[S.style].moves;
+  if (!mv) return '';
+  const cur = S.perf ? (CH.act ? CH.act.d : 0) : (S.chordDeg ?? 0);
+  return 'Natural next: ' + mv.filter(x => x[2]).map(([st, name]) => `${H.chords[(cur + st) % 7].roman} (${name})`).join(', ') + '.';
+}
+
+/* ---------- styles ---------- */
+// moves are [root motion in scale steps, name, natural for this style]
+const STYLES = {
+  pop: { name:'Pop', size:4, avoid:'all', mods:['vx'],
+    moves:[[3,'resolves',1],[5,'smooth',1],[1,'lift',1],[4,'softer',0],[2,'drift',0],[6,'step back',0]],
+    tip:'Pop: classic pull and release. Tension chords lead home, and the brightest pads are the strongest next moves.',
+    templates:[{ id:'pop1', name:'I–V–vi–IV', mode:0, steps:[[0,1],[4,1],[5,1],[3,1]] }, { id:'pop2', name:'vi–IV–I–V', mode:0, steps:[[5,1],[3,1],[0,1],[4,1]] }, { id:'pop3', name:'I–vi–IV–V', mode:0, steps:[[0,1],[5,1],[3,1],[4,1]] }] },
+  rock: { name:'Rock', size:3, avoid:'root', mods:['brw'], flavor:'blue',
+    moves:[[6,'falls a step',1],[3,'up a 4th',1],[4,'up a 5th',1],[1,'climbs a step',1],[5,'down a 3rd',0],[2,'up a 3rd',0]],
+    tip:'Rock: Mixolydian and minor modes, ♭VII and ♭VI, and IV or ♭VII back to I. Blue notes over major chords glow violet in the Chromatic layout: they’re the sound, not mistakes. Triads keep it punchy.',
+    templates:[{ id:'rock1', name:'I–♭VII–IV', mode:4, steps:[[0,1],[6,1],[3,1]] }, { id:'rock2', name:'i–♭VI–♭VII', mode:5, steps:[[0,1],[5,1],[6,1]] }, { id:'rock3', name:'I–IV–V–IV', mode:0, steps:[[0,1],[3,1],[4,1],[3,1]] }] },
+  blues: { name:'Blues', size:4, avoid:'none', mods:['vx'], flavor:'blue',
+    moves:[[3,'up a 4th',1],[4,'up a 5th',1],[6,'falls a step',1],[1,'climbs a step',0],[2,'up a 3rd',0],[5,'down a 3rd',0]],
+    tip:'Blues: I, IV and V all play as dominant 7ths, and the blue notes (♭3, ♭5) glow violet as color. Mixolydian fits best; switch Layout to Chromatic to see the blue notes, which sit outside the scale.',
+    templates:[{ id:'blu1', name:'12-bar', mode:4, steps:[[0,4],[3,2],[0,2],[4,1],[3,1],[0,1],[4,1]] }, { id:'blu2', name:'Quick-change 12-bar', mode:4, steps:[[0,1],[3,1],[0,2],[3,2],[0,2],[4,1],[3,1],[0,1],[4,1]] }, { id:'blu3', name:'8-bar', mode:4, steps:[[0,1],[4,1],[3,2],[0,1],[4,1],[0,1],[4,1]] }] },
+  jazz: { name:'Jazz', size:4, avoid:'all', mods:['vx','brw'], flavor:'altered',
+    moves:[[3,'down a 5th',1],[6,'falls a step',1],[5,'down a 3rd',1],[1,'up a step',0],[4,'up a 5th',0],[2,'up a 3rd',0]],
+    tip:'Jazz: ii–V chains, so the chord a 5th below always pulses. On dominant chords, violet marks the altered notes (♭9, ♯9, ♯11, ♭13). In Perform mode the Borrow pad becomes SUB, the tritone substitute. The Chromatic layout puts all 12 notes under your fingers.',
+    templates:[{ id:'jaz1', name:'ii–V–I', mode:0, steps:[[1,1],[4,1],[0,2]] }, { id:'jaz2', name:'I–vi–ii–V', mode:0, steps:[[0,1],[5,1],[1,1],[4,1]] }, { id:'jaz3', name:'iii–vi–ii–V–I', mode:0, steps:[[2,1],[5,1],[1,1],[4,1],[0,1]] }, { id:'jaz4', name:'Minor ii–V–i', mode:5, alter:[0,0,0,0,0,0,1], steps:[[1,1],[4,1],[0,2]] }] },
+  soul: { name:'Soul', size:5, avoid:'root', mods:['brw','add9'],
+    moves:[[6,'falls a step',1],[5,'down a 3rd',1],[3,'down a 5th',1],[1,'up a step',0],[2,'up a 3rd',0],[4,'up a 5th',0]],
+    tip:'Soul: neo-soul and gospel. Rich 9th chords, bass lines that walk down, and the borrowed minor iv (Borrow, then IV in Perform mode).',
+    templates:[{ id:'sou1', name:'IV–iii–ii–I', mode:0, steps:[[3,1],[2,1],[1,1],[0,1]] }, { id:'sou2', name:'i–iv (Dorian)', mode:1, steps:[[0,2],[3,2]] }, { id:'sou3', name:'ii–V–I', mode:0, steps:[[1,1],[4,1],[0,2]] }] },
+  cinematic: { name:'Cinematic', size:4, avoid:'none', mods:['sus','add9'], flavor:'signature',
+    moves:[[5,'down a 3rd',1],[2,'up a 3rd',1],[1,'up a step',1],[3,'down a 5th',0],[4,'up a 5th',0],[6,'step back',0]],
+    tip:'Cinematic: modal color instead of pull. Chords are judged by how many notes they share with home, and the chords built on the mode’s signature note pulse.',
+    templates:[{ id:'cin1', name:'i–♭VI–♭III–♭VII', mode:5, steps:[[0,1],[5,1],[2,1],[6,1]] }, { id:'cin2', name:'I–II (Lydian)', mode:3, steps:[[0,2],[1,2]] }, { id:'cin3', name:'i–♭VII–♭VI–♭VII', mode:5, steps:[[0,1],[6,1],[5,1],[6,1]] }] },
+  flamenco: { name:'Flamenco', size:3, avoid:'none', mods:[], flavor:'flat2',
+    moves:[[6,'falls a step',1],[1,'climbs a step',1],[3,'down a 5th',0],[4,'up a 5th',0],[2,'up a 3rd',0],[5,'down a 3rd',0]],
+    tip:'Flamenco: Phrygian with a major I (and a ♭9 on 9th chords). ♭II pulls hardest home, and the Andalusian cadence walks down to it.',
+    templates:[{ id:'fla1', name:'Andalusian iv–♭III–♭II–I', mode:2, steps:[[3,1],[2,1],[1,1],[0,1]] }, { id:'fla2', name:'I–♭II', mode:2, steps:[[0,2],[1,2]] }] },
+  free: { name:'Free', size:null, avoid:'none', mods:null, moves:null,
+    tip:'Free: no judgments. Only the chord tones light up and every chord pad looks the same.', templates:[] },
+};
+FUNC_COLOR.F = 'BLUE'; FUNC_NAME.F = 'a chord';
+const ANY_MOVE = ['free move', true];
+function moveOf(from, to) {
+  const mv = STYLES[S.style].moves;
+  if (!mv) return ANY_MOVE;
+  const st = (to - from + 7) % 7, m = mv.find(x => x[0] === st);
+  return m ? [m[1], !!m[2]] : ['same root', true];
+}
+// Blues plays I, IV and V as dominant 7ths, Flamenco plays the tonic as a major chord with a b9
+function styleChordRel(d, size) {
+  if (S.style === 'blues' && [0, 3, 4].includes(d)) return [0, 4, 7, 10, 14].slice(0, Math.max(3, size));
+  if (S.style === 'flamenco' && d === 0) return [0, 4, 7, 10, 13].slice(0, Math.max(3, size));
+  return null;
+}
+// the mode's signature notes: where it differs from plain major or minor
+function charPcs() {
+  if (!H.hepta) return [];
+  const ref = H.iv[2] === 4 ? [0,2,4,5,7,9,11] : [0,2,3,5,7,8,10];
+  return H.iv.map((x, i) => x !== ref[i] ? (S.root + x) % 12 : -1).filter(pc => pc >= 0);
+}
+// degrees the style wants to go to next from the current chord
+function pulseTargets(cur, curPcs) {
+  const f = chordFunc(cur, curPcs);
+  switch (S.style) {
+    case 'free': return [];
+    case 'jazz': case 'soul': return [(cur + 3) % 7];
+    case 'rock': return [3, 4, 6].includes(cur) ? [0] : [];
+    case 'blues': return cur === 4 ? [3, 0] : cur === 3 ? [0] : [];
+    case 'flamenco': return [1, 2, 3].includes(cur) ? [(cur + 6) % 7] : [];
+    case 'cinematic': {
+      const cp = charPcs();
+      return [0,1,2,3,4,5,6].filter(d => d !== cur && (cp.includes((S.root + H.iv[d]) % 12) || cp.includes((S.root + H.iv[(d + 2) % 7]) % 12)));
+    }
+    default: return isTension(f) ? [0] : [];
+  }
+}
+function flavorPc(pc, litPcs, litRoot) {
+  const rk = (pc - S.root + 12) % 12, rc = (pc - litRoot + 12) % 12, major = litPcs.includes((litRoot + 4) % 12);
+  switch (STYLES[S.style].flavor) {
+    case 'blue': return major && (rk === 3 || rk === 6);
+    case 'altered': return major && litPcs.includes((litRoot + 10) % 12) && [1, 3, 6, 8].includes(rc);
+    case 'signature': return charPcs().includes(pc);
+    case 'flat2': return rk === 1;
+  }
+  return false;
+}
+function templateOf() {
+  if (S.template === 'off') return null;
+  return STYLES[S.style].templates.find(t => t.id === S.template) || null;
+}
+const tplStep = (i = S.tplIdx) => { const t = templateOf(); return t ? t.steps[((i % t.steps.length) + t.steps.length) % t.steps.length] : null; };
+function templateAdvance(d) {
+  const t = templateOf();
+  if (t && d === tplStep()[0]) S.tplIdx = (S.tplIdx + 1) % t.steps.length;
+}
+function applyTemplate(id) {
+  if (id === 'off') { S.template = 'off'; render(); status('Template off.'); return; }
+  const t = STYLES[S.style].templates.find(x => x.id === id);
+  if (!t) return;
+  harmony(() => { S.template = id; S.tplIdx = 0; S.fam = 0; S.mode = t.mode; S.alter = t.alter ? t.alter.slice() : zero7(); S.chordDeg = null; });
+  status(`Template ${t.name} in ${H.title}: tap the pulsing chord to start.`);
+}
+function setStyle(st) {
+  harmony(() => { S.style = st; S.template = 'off'; S.tplIdx = 0; if (STYLES[st].size) S.chordSize = STYLES[st].size; });
+  status(STYLES[st].tip);
+}
+function templateText() {
+  const t = templateOf();
+  if (!t || !H.hepta) return '';
+  const label = d => H.chords[d].roman;
+  const now = tplStep(S.tplIdx - 1), next = tplStep();
+  const bars = n => n > 1 ? ` for ${n} bars` : '';
+  return `${t.name}: next ${label(next[0])}${bars(next[1])} (pulsing), step ${S.tplIdx + 1} of ${t.steps.length}. Then ${label(tplStep(S.tplIdx + 1)[0])}.`;
+}
+
+/* ---------- settings page ---------- */
+// holding Split turns the playing surface into the Harmony page, like LinnStrument's own settings screens
+const PAGE_STYLES = [
+  ['pop','POP','CYAN'], ['rock','ROCK','RED'], ['blues','BLUES','BLUE'], ['jazz','JAZZ','MAGENTA'],
+  ['soul','SOUL','ORANGE'], ['cinematic','CINE','GREEN'], ['flamenco','FLAM','PINK'], ['free','FREE','YELLOW']
+];
+const PAGE_LIGHTS = [['guide','GUIDE','Guide: chord tones, color tones and notes to pass through'], ['function','CHORD','Chord tones only'], ['degrees','DEG','One color per scale degree'], ['notes','NOTES','One color per note name']];
+const PAGE_COLS = [[0, 'Harmony'], [2, 'Mode'], [4, 'Style'], [6, 'Template'], [8, 'Lights'], [10, 'Hints'], [12, 'Layout'], [14, 'Rows'], [16, 'Held'], [18, 'Pattern']];
+const PAGE_FW = new Set([0, 2, 4, 6, 8, 10, 14, 16, 18]);          // page columns the firmware build has; the rest are mockup only
+function togglePage() {
+  S.page = !S.page;
+  voices.slice().forEach(v => stopVoice(v, true));
+  render();
+  status(S.page ? 'Harmony page: each column is one setting, read from the top pad down. Columns marked ✓ are in the firmware; dashed ones are mockup only. Tap Split to go back to playing.' : 'Back to playing.');
+}
+// Split is the Harmony button: tap switches Compose and Perform, hold (or shift-click, or right-click) opens the Harmony page
+function splitTap(e) {
+  if (e && e.shiftKey) { togglePage(); return; }
+  if (S.page) { togglePage(); return; }
+  if (!S.harmony) { setHarmony(true); return; }
+  togglePerf();
+}
+function setHarmony(on) {
+  if (S.harmony === on) return;
+  S.harmony = on;
+  if (!on) S.perf = false;
+  structural();
+  status(on ? 'Harmony mode on.' : 'Harmony mode off: the stock chromatic layout on all 25 columns. Hold Split to turn it back on.');
+}
+const pageOpt = (sel, color, label, title, act) => ({ color: sel ? 'WHITE' : color, label, pressed: sel, title, act });
+function pageCell(k, r) {
+  const row = 7 - r;                              // options read from the top row down
+  const none = { color:null, label:'', title:'' };
+  switch (k) {
+    case 0: return row < 2 ? pageOpt(S.harmony === (row === 0), 'CYAN', row === 0 ? 'ON' : 'OFF', `Harmony mode ${row === 0 ? 'on' : 'off (stock layout)'}`, () => { setHarmony(row === 0); }) : none;
+    case 2: return row < 2 ? pageOpt(S.perf === (row === 1), 'MAGENTA', row === 0 ? 'COMP' : 'PERF', row === 0 ? 'Compose mode' : 'Perform mode', () => { if (S.perf !== (row === 1)) togglePerf(); else render(); }) : none;
+    case 4: { const [key, label, color] = PAGE_STYLES[row]; return pageOpt(S.style === key, color, label, `Style: ${STYLES[key].tip}`, () => { setStyle(key); render(); }); }
+    case 6: {
+      const ts = STYLES[S.style].templates;
+      if (row === 0) return pageOpt(S.template === 'off', 'RED', 'OFF', 'Template off', () => applyTemplate('off'));
+      const t = ts[row - 1];
+      return t ? pageOpt(S.template === t.id, 'BLUE', t.name, `Template: ${t.name}`, () => applyTemplate(t.id)) : none;
+    }
+    case 8: {
+      if (row >= PAGE_LIGHTS.length) return none;
+      const [key, label, desc] = PAGE_LIGHTS[row];
+      return pageOpt(S.lights === key, 'GREEN', label, `Lights: ${desc}`, () => { S.lights = key; render(); status(`Lights: ${desc}.`); });
+    }
+    case 10: return row < 2 ? pageOpt(S.hints === (row === 0), 'YELLOW', row === 0 ? 'ON' : 'OFF', `Hints ${row === 0 ? 'on' : 'off'}`, () => { S.hints = row === 0; render(); }) : none;
+    case 12: {
+      const opts = [['scale','SCALE'], ['chromatic','CHROM'], ['snap','SNAP']];
+      if (row >= opts.length) return none;
+      return pageOpt(S.layout === opts[row][0], 'GREEN', opts[row][1], `Layout: ${LAYOUT_NAME[opts[row][0]]}`, () => { S.layout = opts[row][0]; structural(); });
+    }
+    case 14: return row < 4 ? pageOpt(S.rowStep === row, 'YELLOW', ['3RD','4TH','5TH','8VA'][row], `Rows a ${['3rd','4th','5th','octave'][row]} apart`, () => { S.rowStep = row; structural(); }) : none;
+    case 16: {
+      const opts = [['morph','MORPH','glide to the new scale'], ['hold','HOLD','keep their pitch'], ['retrig','RETRIG','retrigger in the new scale']];
+      if (row >= opts.length) return none;
+      return pageOpt(S.retune === opts[row][0], 'PINK', opts[row][1], `Held notes ${opts[row][2]}`, () => { S.retune = opts[row][0]; render(); });
+    }
+    case 18:
+      if (row < 4) return pageOpt(S.pat === PATS[row], PAT_COLOR[PATS[row]], PAT_SHORT[PATS[row]], `Chord pattern: ${PAT_NAME[PATS[row]]}`, () => setPattern(PATS[row]));
+      if (row >= 6) {
+        const host = row === 6, cur = (S.clock || 'host') === (host ? 'host' : 'int');
+        return pageOpt(cur, host ? 'BLUE' : 'CYAN', host ? 'HOST' : 'INT',
+          host ? 'Pattern clock: Host, the DAW’s MIDI clock while it plays (the mockup has no DAW, so it uses its own tempo)' : 'Pattern clock: Internal, always the LinnStrument’s own tempo',
+          () => { S.clock = host ? 'host' : 'int'; render(); status(host ? 'Pattern clock: Host. Patterns follow the DAW’s MIDI clock while it plays.' : 'Pattern clock: Internal. Patterns ignore incoming MIDI clock.'); });
+      }
+      return none;
+  }
+  return none;
+}
+
+/* ---------- cell definitions ---------- */
+const NAT_PC = [0,2,4,5,7,9,11];
+const ACC_ROW_PC = { 0:1, 1:3, 3:6, 4:8, 5:10 };
+function pcCell(pc) {
+  const isRoot = pc === S.root, inS = H.pcToDeg[pc] !== undefined, nm = H.pcName(pc);
+  const h = S.hints && !isRoot ? changeHint(Object.assign(curState(), { root: pc })) : null;
+  return { color: isRoot ? 'CYAN' : h ? h.color : inS ? 'GREEN' : null, low: h && h.low, label: nm, pressed: isRoot,
+    title: `Key ${nm}${isRoot ? ' (current root)' : h ? ` (${h.text})` : inS ? ' (in the current scale)' : ''}`,
+    act: () => { harmony(() => { S.root = pc; }); status(`Key: ${H.title}`); } };
+}
+function fifthCell(dir) {
+  const h = S.hints ? changeHint(Object.assign(curState(), { root: (S.root + (dir > 0 ? 7 : 5)) % 12 })) : null;
+  return { color: h ? h.color : 'YELLOW', label: dir > 0 ? '5th▶' : '◀5th',
+    title: (dir > 0 ? 'Up a fifth: adds a sharp (or removes a flat)' : 'Down a fifth: adds a flat (or removes a sharp)') + (h ? `. ${h.text}` : ''),
+    act: () => { harmony(() => { S.root = (S.root + (dir > 0 ? 7 : 5)) % 12; }); status(`${dir > 0 ? 'Up' : 'Down'} a fifth: ${H.title}`); } };
+}
+function keyCell(m, r) {
+  const leftOuter = S.side === 'left';
+  if (m === 'keyNat') return r < 7 ? pcCell(NAT_PC[r]) : fifthCell(leftOuter ? 1 : -1);
+  if (r in ACC_ROW_PC) return pcCell(ACC_ROW_PC[r]);
+  if (r === 2) { const t = S.hints ? relTarget() : null, h = t ? changeHint(t) : null;
+    return { color: h ? h.color : 'YELLOW', label:'REL', title:'Relative: keep the notes, move the root to the relative major or minor' + (h ? `. ${h.text}` : ''), act: el => doRel(el) }; }
+  if (r === 6) { const h = S.hints ? changeHint(parTarget()) : null;
+    return { color: h ? h.color : 'YELLOW', label:'PAR', title:'Parallel: keep the root, switch between major (Ionian) and minor (Aeolian)' + (h ? `. ${h.text}` : ''), act: el => doPar(el) }; }
+  return fifthCell(leftOuter ? -1 : 1);
+}
+function modeCell(r) {
+  const F = FAMILIES[S.fam];
+  if (r === 7) return { color: F.color, label: F.key, title: `Family: ${F.name}. Tap for the next family.`,
+    act: () => {
+      const rank = F.order.indexOf(S.mode);
+      harmony(() => { S.fam = (S.fam + 1) % FAMILIES.length; S.mode = FAMILIES[S.fam].order[rank]; if (!S.sticky) S.alter = zero7(); });
+      status(`Family: ${FAMILIES[S.fam].name} · ${H.title}`);
+    } };
+  const m = F.order[6 - r], sel = m === S.mode;
+  const iv = modeIntervals(S.fam, m), hep = iv.length === 7;
+  const h = S.hints && !sel ? changeHint({ root: S.root, fam: S.fam, mode: m, alter: S.sticky ? S.alter : zero7() }) : null;
+  return { color: sel ? 'WHITE' : h ? h.color : F.color, low: h && h.low, label: F.short[m], pressed: sel,
+    title: `${F.modes[m]}: ${iv.map((x, i) => degLabel(i, x, hep)).join(' ')}${h ? ` (${h.text})` : ''}`,
+    act: () => { harmony(() => { S.mode = m; if (!S.sticky) S.alter = zero7(); }); status(`Mode: ${H.title}`); } };
+}
+function alterCell(r) {
+  if (!H.hepta) return { color:null, label: '–', dim:true, title:'Alterations work with 7-note scales',
+    act: el => { reject(el); status('Alterations work with 7-note scales. Pick a mode from another family first.'); } };
+  if (r === 0) { const any = S.alter.some(a => a); return { color: any ? 'RED' : null, label:'RST', title:'Reset all alterations', act: () => { harmony(() => { S.alter = zero7(); }); status('Alterations cleared.'); } }; }
+  if (r === 7) return { color: S.sticky ? 'YELLOW' : null, label:'KEEP', pressed:S.sticky, title:'Keep alterations when the mode or family changes',
+    act: () => { S.sticky = !S.sticky; render(); status(S.sticky ? 'Alterations now stay when you change mode.' : 'Alterations now reset when you change mode.'); } };
+  const d = r, cur = H.iv[d];
+  return { color: H.altered[d] ? (S.hints && S.alter[d] > 0 ? 'MAGENTA' : 'ORANGE') : 'BLUE', label: degLabel(d, cur), pressed: H.altered[d],
+    title: `Degree ${d + 1} is ${degLabel(d, cur)}. Tap to flip it to ${degLabel(d, flipTarget(d))}.`, act: el => flip(d, el) };
+}
+function chordCell(r) {
+  if (!H.hepta) return { color:null, label:'–', dim:true, title:'Chord focus works with 7-note scales',
+    act: el => { reject(el); status('Chord focus works with 7-note scales.'); } };
+  if (r === 7) return { color:'YELLOW', label: { 3:'TRI', 4:'7TH', 5:'9TH' }[S.chordSize], title:'Chord size: triad, 7th or 9th. Tap to cycle.',
+    act: () => { harmony(() => { S.chordSize = S.chordSize === 5 ? 3 : S.chordSize + 1; }); status(`Chord size: ${{ 3:'triads', 4:'7th chords', 5:'9th chords' }[S.chordSize]}.`); } };
+  const c = H.chords[r], sel = S.chordDeg === r;
+  const act = () => {
+    const tpl = templateOf();
+    harmony(() => { S.chordDeg = sel && !tpl ? null : r; if (tpl) templateAdvance(r); });
+    status(sel && !tpl ? 'Back to the tonic chord.' : `Lit chord: ${H.chord.roman} = ${H.chord.sym}${tpl ? '. ' + templateText() : ''}`);
+  };
+  const title0 = `${c.roman}: ${c.sym} (${c.notes.join(' ')})`;
+  const tpl = templateOf(), tplNext = tpl && r === tplStep()[0];
+  if (!S.hints) return { color: sel ? 'WHITE' : 'BLUE', pulse: tplNext, label: c.roman, pressed: sel, title: title0 + (sel ? '. Tap again to clear.' : ''), act };
+  const cur = S.chordDeg ?? 0, f = chordFunc(r);
+  if (r === cur) return { color:'WHITE', pulse: tplNext, label: c.roman, pressed: sel, title: `${title0}. The current chord: ${FUNC_NAME[f]}.`, act };
+  const [move, strong] = moveOf(cur, r);
+  const pulse = tpl ? tplNext : pulseTargets(cur).includes(r);
+  return { color: FUNC_COLOR[f], low: !strong, pulse, label: c.roman, pressed: sel,
+    title: `${title0}. ${FUNC_NAME[f]}, ${move} from here${pulse ? ', and releases the tension' : ''}.`, act };
+}
+function memCell(r) {
+  const s = S.mem[r];
+  if (!s) return { color:null, label:'+', dim:true, title:`Memory ${r + 1} is empty. Tap to store the current harmony.`,
+    act: () => { S.mem[r] = capture(); render(); status(`Stored ${H.title} in memory ${r + 1}.`); } };
+  const d = describe(s), active = sameSnap(s, capture());
+  const h = S.hints && !active ? changeHint(s) : null, next = S.hints && !active && nextSlot(1) === r;
+  return { color: active ? 'WHITE' : h ? h.color : 'BLUE', low: h && h.low, pulse: next, label: d.short, pressed: active,
+    title: `Memory ${r + 1}: ${d.title}${h ? ` (${h.text})` : ''}${next ? '. Next footswitch press' : ''}. Tap to recall; right-click or long-press to clear.`,
+    act: () => recall(r), clear: () => { S.mem[r] = null; render(); status(`Memory ${r + 1} cleared.`); } };
+}
+function zoneCell(m, r) {
+  if (CH_MODS.includes(m)) return chordSplitCell(m, r);
+  if (m === 'keyAcc' || m === 'keyNat') return keyCell(m, r);
+  if (m === 'mode') return modeCell(r);
+  if (m === 'alter') return alterCell(r);
+  if (m === 'chord') return chordCell(r);
+  return memCell(r);
+}
+const cycle = (arr, v, dir = 1) => arr[(arr.indexOf(v) + dir + arr.length) % arr.length];
+const LAYOUT_NAME = { scale:'scale steps', chromatic:'chromatic', snap:'chromatic + snap' };
+const HW = [
+  { name:'Global', was:'factory', cell: () => ({ color:null }), act: () => status('Global Settings (factory): calibration, MIDI I/O, OS update and switch assignments. Assign a footswitch or switch to PREV or NEXT there, and in Harmony mode it steps through memories.') },
+  { name:'Harmony', was:'Split', cell: () => ({ color: S.page ? 'WHITE' : !S.harmony ? null : S.perf ? 'MAGENTA' : 'CYAN', label: S.page ? 'PAGE' : !S.harmony ? '' : S.perf ? 'PRF' : 'CMP' }), act: (el, e) => splitTap(e) },
+  { name:'Switch 2', was:'factory', cell: () => ({ color:null }), act: () => status('Switch 2 (factory, assignable, default Arpeggiator). Assign it to PREV or NEXT in Global Settings to step memories in Harmony mode.') },
+  { name:'Switch 1', was:'factory', cell: () => ({ color:null }), act: () => status('Switch 1 (factory, assignable, default Sustain).') },
+  { name:'Octave', was:'factory', cell: () => ({ color: S.octave > 0 ? 'GREEN' : S.octave < 0 ? 'RED' : null, label: S.octave ? (S.octave > 0 ? '+' : '−') + Math.abs(S.octave) : '' }), act: (el, e) => { S.octave = cycle([-2,-1,0,1,2], S.octave, e && e.shiftKey ? -1 : 1); structural(); status(`Octave/Transpose (factory page; here it cycles the octave): ${S.octave > 0 ? '+' : ''}${S.octave}. Shift-click goes down.`); } },
+  { name:'Volume', was:'factory', cell: () => ({ color:null }), act: () => status('Volume (factory page, not simulated here).') },
+  { name:'Preset', was:'factory', cell: () => ({ color:null }), act: () => status('Preset (factory): load and save presets. In the plan, presets also save the Harmony setup.') },
+  { name:'Per-Split', was:'factory', cell: () => ({ color:null }), act: () => status('Per-Split Settings (factory page): MIDI mode, MPE, bend range, Y and Z. Hold Channel Per Note there to turn on MPE.') },
+];
+function playCell(k, r, touched) {
+  const m = padNote(k, r);
+  if (m < 0 || m > 127) return { color:null, label:'', dead:true, title:'Outside the MIDI note range' };
+  if (!S.harmony) {
+    const pc = ((m % 12) + 12) % 12, white = [0,2,4,5,7,9,11].includes(pc);
+    return { color: touched ? 'WHITE' : pc === 0 ? 'CYAN' : white ? 'GREEN' : null, label: S.names ? SHARP[pc] : '', dim: !white, title: `${SHARP[pc]}${Math.floor(m / 12) - 1} (MIDI ${m}) · stock layout` };
+  }
+  const pc = ((m % 12) + 12) % 12, deg = H.pcToDeg[pc];
+  const lit = (S.perf && CH.lit) ? CH.lit : H.lit;
+  const chordPcs = Object.keys(lit.pcRole).map(Number);
+  const litRoot = chordPcs.find(c => lit.pcRole[c] === 0) ?? S.root, sty = STYLES[S.style];
+  let color = null, low = false, role = '';
+  if (deg !== undefined) {
+    const cr = lit.pcRole[pc], inChord = cr !== undefined;
+    const avoid = !inChord && (sty.avoid === 'all' ? chordPcs.some(c => (pc - c + 12) % 12 === 1) : sty.avoid === 'root' ? (pc - litRoot + 12) % 12 === 1 : false);
+    const flav = !inChord && flavorPc(pc, chordPcs, litRoot);
+    role = cr === 0 ? 'chord root' : inChord ? 'chord tone' : flav ? 'flavor note for this style' : avoid ? 'passing note, tense if held' : 'color tone';
+    if (S.lights === 'guide' && S.style === 'free') color = cr === 0 ? 'CYAN' : inChord ? 'GREEN' : S.layout === 'scale' ? null : 'BLUE';
+    else if (S.lights === 'guide') { color = cr === 0 ? 'CYAN' : inChord ? 'GREEN' : flav ? 'VIOLET' : avoid ? 'RED' : 'AZURE'; low = avoid; }
+    else if (S.lights === 'degrees') { color = DEG_HUES[deg % 7]; low = !inChord; }
+    else if (S.lights === 'notes') { color = FIFTHS_COLOR[pc]; low = !inChord; }
+    else {
+      if (cr === 0) color = 'CYAN';
+      else if (inChord || H.altered[deg]) color = H.altered[deg] ? 'ORANGE' : 'GREEN';
+      else color = S.layout === 'scale' ? null : 'BLUE';   // every pad is a scale tone in the scale layout, so only chord tones light
+    }
+  }
+  if (deg === undefined && S.lights === 'guide' && flavorPc(pc, chordPcs, litRoot)) { color = 'VIOLET'; low = true; role = 'flavor note outside the scale'; }
+  const pulse = deg !== undefined && changed.pcs.has(pc) && performance.now() < changed.until;
+  if (touched) { color = 'WHITE'; low = false; }
+  const snd = soundingNote(k, r);
+  let title = `${H.noteName(m)} (MIDI ${m})`;
+  title += deg !== undefined ? ` · degree ${degLabel(deg, H.iv[deg], H.hepta)} · ${role}` : ` · not in scale${role ? ' · ' + role : ''}`;
+  if (S.layout === 'snap' && snd !== null && snd !== m) title += ` · plays ${H.noteName(snd)}`;
+  return { color, low, pulse, label: S.names ? H.pcName(pc) : '', dim: deg === undefined, title };
+}
+
+/* ---------- DOM ---------- */
+const grid = document.getElementById('grid');
+const silkTop = document.getElementById('silkTop');
+const silkBottom = document.getElementById('silkBottom');
+const statusEl = document.getElementById('status');
+const pads = [], defs = [];
+function build() {
+  for (let c = 0; c < NUMCOLS; c++) { pads[c] = []; defs[c] = []; }
+  for (let r = NUMROWS - 1; r >= 0; r--) {
+    const gr = NUMROWS - r;
+    const lbl = document.createElement('div');
+    lbl.className = 'hwlbl';
+    lbl.style.gridRow = gr; lbl.style.gridColumn = 1;
+    lbl.innerHTML = `<b>${HW[r].name}</b><i>${HW[r].was === 'factory' ? 'factory' : 'was ' + HW[r].was}</i>`;
+    grid.appendChild(lbl);
+    for (let c = 0; c < NUMCOLS; c++) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'pad';
+      b.dataset.c = c; b.dataset.r = r;
+      b.style.gridRow = gr; b.style.gridColumn = c + 2;
+      const s = document.createElement('span'); s.className = 'lbl';
+      b.appendChild(s);
+      grid.appendChild(b);
+      pads[c][r] = b;
+    }
+  }
+}
+function paintPad(c, r, def) {
+  const el = pads[c][r];
+  defs[c][r] = def;
+  const col = def.color || null;
+  el.classList.toggle('lit', !!col);
+  if (col) { el.style.setProperty('--led', def.low ? dimHex(LED[col]) : LED[col]); el.style.setProperty('--ink', LIGHT_INK.has(col) || def.low ? '#ffffff' : '#121619'); }
+  else { el.style.removeProperty('--led'); el.style.setProperty('--ink', '#202428'); }
+  const s = el.firstChild, text = def.label || '';
+  if (s.textContent !== text) s.textContent = text;
+  const len = [...text].length;
+  s.className = 'lbl' + (len >= 6 ? ' xs' : len >= 4 ? ' sm' : '');
+  el.classList.toggle('dim', !!def.dim);
+  el.classList.toggle('dead', !!def.dead);
+  el.classList.toggle('notfw', !!def.notfw);
+  el.classList.toggle('low', !!(col && def.low));
+  el.classList.toggle('pulse', !!(col && def.pulse));
+  if (el.title !== (def.title || '')) { el.title = def.title || ''; el.setAttribute('aria-label', def.title || def.label || 'pad'); }
+  if (def.pressed !== undefined) el.setAttribute('aria-pressed', def.pressed ? 'true' : 'false'); else el.removeAttribute('aria-pressed');
+}
+function renderPads() {
+  const touched = MIRROR.on ? mirrorTouched() : new Set(voices.map(v => Math.round(clamp(v.pos, 0, P - 1)) + ',' + v.r));
+  for (let r = 0; r < NUMROWS; r++) {
+    for (let c = 0; c < NUMCOLS; c++) {
+      const info = colKind[c];
+      let def;
+      if (info.kind === 'hw') { const h = HW[r]; def = Object.assign({ title: `${h.name}${h.was === 'kept' ? '' : ' (was ' + h.was + ')'}`, act: h.act }, h.cell()); }
+      else if (info.kind === 'zone') def = zoneCell(info.m, r);
+      else if (S.page) { def = pageCell(info.k, r); if (def.color && !PAGE_FW.has(info.k)) { def.notfw = true; def.title += ' · mockup only, not in the firmware yet'; } }
+      else def = playCell(info.k, r, touched.has(info.k + ',' + r));
+      paintPad(c, r, def);
+    }
+  }
+}
+function renderSilk() {
+  const zoneCols = [];
+  for (let c = 1; c < NUMCOLS; c++) if (colKind[c].kind === 'zone') zoneCols.push(c);
+  const firstPlay = colKind.findIndex(ck => ck && ck.kind === 'play' && ck.k === 0);
+  let top = '<span></span>';
+  let bottom = '<span></span>';
+  zoneCols.forEach(c => { top += `<span class="mod" style="grid-column:${c + 2}">${MOD_LABEL[colKind[c].m]}</span>`; });
+  if (S.page) PAGE_COLS.forEach(([k, label]) => { top += `<span class="mod${PAGE_FW.has(k) ? ' fwk' : ''}" style="grid-column:${firstPlay + k + 2} / span ${k + 2 <= P ? 2 : 1};text-align:left">${label}${PAGE_FW.has(k) ? ' ✓' : ''}</span>`; });
+  else top += `<span class="span" style="grid-column:${firstPlay + 2} / span ${P}">Playing surface · ${P} columns · ${S.harmony && S.layout === 'scale' ? 'scale steps' : 'semitones'}</span>`;
+  if (zoneCols.length) bottom += `<span class="span zone-br" style="grid-column:${Math.min(...zoneCols) + 2} / span ${zoneCols.length}">${S.perf ? 'Left-hand chords · memory' : 'Harmony zone'}</span>`;
+  let lo = 999, hi = -1;
+  for (let k = 0; k < P; k++) for (let r = 0; r < NUMROWS; r++) { const m = soundingNote(k, r); if (m !== null) { lo = Math.min(lo, m); hi = Math.max(hi, m); } }
+  const steps = S.harmony && S.layout === 'scale' ? `${(P / H.iv.length).toFixed(1)} octaves per row` : `${P} semitones per row`;
+  bottom += `<span class="span" style="grid-column:${firstPlay + 2} / span ${P}">${S.page ? 'Harmony page · ✓ in the firmware, dashed = mockup only · tap Split to play' : (lo <= hi ? H.noteName(lo) + ' to ' + H.noteName(hi) : '') + ' · ' + steps}</span>`;
+  silkTop.innerHTML = top;
+  silkBottom.innerHTML = bottom;
+}
+function renderReadout() {
+  const F = FAMILIES[S.fam];
+  document.getElementById('hName').textContent = H.title;
+  const rank = F.order.indexOf(S.mode) + 1;
+  const famText = F.scales ? F.name : `${F.name} family · ${rank}${['st','nd','rd'][rank - 1] || 'th'} brightest of 7`;
+  document.getElementById('hFam').textContent = `${famText} · ${H.iv.length} notes`;
+  const chips = H.iv.map((x, i) => {
+    const pc = (S.root + x) % 12;
+    const cls = ['chip'];
+    if (i === 0) cls.push('root');
+    if (H.altered[i]) cls.push('alt');
+    if (H.chord && H.chord.pcRole[pc] === undefined) cls.push('out');
+    return `<div class="${cls.join(' ')}"><b>${H.sp[i].name}</b><span>${degLabel(i, x, H.hepta)}</span></div>`;
+  });
+  document.getElementById('hChips').innerHTML = chips.join('');
+  const hc = document.getElementById('hChord'), hn = document.getElementById('hChordNotes');
+  document.getElementById('hChordLbl').textContent = S.perf ? 'Left hand' : 'Lit chord';
+  if (S.perf) perfReadout(hc, hn);
+  else if (H.chord) { hc.textContent = `${H.chord.roman} = ${H.chord.sym}`; hn.textContent = `${H.chord.notes.join(' · ')}. Tap the same Chord pad again to go back to the tonic.`; }
+  else if (H.hepta) { const t = H.chords[0]; hc.textContent = `${t.roman} = ${t.sym} (tonic)`; hn.textContent = `${t.notes.join(' · ')}. Tap a Chord pad to light a different chord.`; }
+  else { hc.textContent = 'Root, 3rd and 5th'; hn.textContent = 'Chord pads need a 7-note scale.'; }
+  document.getElementById('hNext').textContent = nextMovesText();
+  document.getElementById('styleTip').textContent = STYLES[S.style].tip;
+  document.getElementById('hTouch').textContent = touchText;
+}
+let tplSegStyle = null;
+function renderTemplates() {
+  if (tplSegStyle === S.style) return;
+  tplSegStyle = S.style;
+  const ts = STYLES[S.style].templates;
+  document.getElementById('tplSeg').innerHTML = `<button id="c-tp-off" data-v="off">Off</button>` + ts.map(t => `<button id="c-tp-${t.id}" data-v="${t.id}">${t.name}</button>`).join('');
+}
+function renderControls() {
+  renderTemplates();
+  document.querySelectorAll('#ctl .seg').forEach(seg => {
+    const key = seg.dataset.key;
+    let val = S[key];
+    if (seg.dataset.bool) val = val ? '1' : '0';
+    seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(val))));
+  });
+}
+function render() { renderPads(); renderSilk(); renderReadout(); renderControls(); }
+let rafPending = false;
+function scheduleRender() { if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; renderPads(); renderReadout(); }); }
+
+let statusTimer = 0;
+function status(msg) { statusEl.textContent = msg; clearTimeout(statusTimer); statusTimer = setTimeout(() => { statusEl.textContent = ''; }, 6000); }
+function reject(el) { if (!el) return; el.classList.add('reject'); setTimeout(() => el.classList.remove('reject'), 260); }
+
+/* ---------- MIDI monitor ---------- */
+const monitor = document.getElementById('monitor');
+let logRows = [];
+function log(ch, msg, kind) {
+  logRows.unshift({ ch, msg, kind });
+  if (logRows.length > 40) logRows.length = 40;
+  monitor.innerHTML = logRows.map(e => `<div class="mrow ${e.kind}"><span class="ch">${e.ch ? 'ch ' + e.ch : '—'}</span><span class="msg">${e.msg}</span></div>`).join('');
+}
+
+/* ---------- input ---------- */
+function stride() { const a = pads[1][0].getBoundingClientRect(), b = pads[2][0].getBoundingClientRect(); return (b.left - a.left) || 1; }
+let pressTimer = 0, longPressed = false;
+grid.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.pad'); if (!el) return;
+  const c = +el.dataset.c, r = +el.dataset.r, info = colKind[c];
+  if (info.kind === 'hw' && r === 1) {
+    longPressed = false; clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => { longPressed = true; togglePage(); }, 500);
+    return;
+  }
+  if (info.kind === 'zone' && CH_MODS.includes(info.m)) {
+    const ci = CH_MODS.indexOf(info.m);
+    if (r === 0) { if (THUMB[ci].k !== 'latch') modDown(THUMB[ci].k, e.pointerId); return; }
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    const rect = el.getBoundingClientRect();
+    CH.cy = rect.top + rect.height / 2; CH.h = rect.height; CH.ybase = CH.y;
+    chordPress(info.m, r - 1, el, e.pointerId);
+    return;
+  }
+  if (info.kind === 'zone' && info.m === 'memory') {
+    longPressed = false; clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => { const d = defs[c][r]; if (d && d.clear) { longPressed = true; d.clear(); } }, 600);
+    return;
+  }
+  if (info.kind !== 'play' || S.page) return;
+  e.preventDefault();
+  if (S.latch) {
+    const lv = voices.find(v => v.latched && v.k === info.k && v.r === r);
+    if (lv) { stopVoice(lv); return; }
+  }
+  const vel = e.pointerType === 'mouse' || !e.pressure || e.pressure === 0.5 ? 96 : clamp(Math.round(30 + e.pressure * 97), 1, 127);
+  const v = startVoice(info.k, r, vel);
+  if (!v) return;
+  try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  const rect = el.getBoundingClientRect();
+  v.pointerId = e.pointerId; v.cx = rect.left + rect.width / 2; v.cy = rect.top + rect.height / 2; v.h = rect.height; v.stride = stride();
+});
+grid.addEventListener('pointermove', e => {
+  if (CH.act && CH.act.pid === e.pointerId) { chordDrag(e); return; }
+  const v = voices.find(x => x.pointerId === e.pointerId); if (!v) return;
+  v.pos = clamp(v.k + (e.clientX - v.cx) / v.stride, 0, P - 1);
+  v.y = clamp(0.5 - (e.clientY - v.cy) / (v.h * 1.6), 0, 1);
+  updateVoice(v);
+  scheduleRender();
+});
+function endPointer(e) {
+  clearTimeout(pressTimer);
+  chordRelease(e.pointerId);
+  modUp(e.pointerId);
+  const v = voices.find(x => x.pointerId === e.pointerId); if (!v) return;
+  v.pointerId = null;
+  if (S.latch) { v.latched = true; scheduleRender(); return; }
+  stopVoice(v);
+}
+grid.addEventListener('pointerup', endPointer);
+grid.addEventListener('pointercancel', endPointer);
+grid.addEventListener('click', e => {
+  const el = e.target.closest('.pad'); if (!el) return;
+  const c = +el.dataset.c, r = +el.dataset.r, info = colKind[c];
+  if (info.kind === 'play' && S.page) {
+    const d = defs[c][r];
+    if (d && d.act) d.act(el, e);
+    return;
+  }
+  if (info.kind === 'play') {
+    if (e.detail === 0) { const v = startVoice(info.k, r, 96); if (v && !S.latch) setTimeout(() => stopVoice(v), 380); else if (v) v.latched = true; }
+    return;
+  }
+  if (info.kind === 'zone' && CH_MODS.includes(info.m)) {
+    if (r === 0) {
+      const t = THUMB[CH_MODS.indexOf(info.m)];
+      if (t.k === 'latch') toggleLatch();
+      else if (e.detail === 0) { CH.mods[t.k] = CH.mods[t.k] ? null : 'armed'; render(); }
+      return;
+    }
+    if (e.detail === 0) { chordPress(info.m, r - 1, el, 'key'); if (S.chLatch) chordRelease('key'); else setTimeout(() => chordRelease('key'), 450); }
+    return;
+  }
+  if (longPressed) { longPressed = false; return; }
+  const d = defs[c][r];
+  if (d && d.act) d.act(el, e);
+});
+grid.addEventListener('contextmenu', e => {
+  const el = e.target.closest('.pad'); if (!el) return;
+  const c = +el.dataset.c, r = +el.dataset.r, info = colKind[c];
+  if (info.kind === 'hw' && r === 1) { e.preventDefault(); clearTimeout(pressTimer); togglePage(); return; }
+  if (info.kind === 'play' || CH_MODS.includes(info.m)) { e.preventDefault(); return; }
+  if (info.kind === 'zone' && info.m === 'memory') { e.preventDefault(); clearTimeout(pressTimer); const d = defs[c][r]; if (d && d.clear) d.clear(); }
+});
+document.getElementById('ctl').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const seg = b.closest('.seg'), key = seg.dataset.key;
+  let val = b.dataset.v;
+  if (seg.dataset.num) val = Number(val);
+  if (seg.dataset.bool) val = val === '1';
+  if (S[key] === val) return;
+  if (demo.on) demoStop('Demo stopped because a control changed.');
+  if (key === 'perf') { togglePerf(); return; }
+  if (key === 'harmony') { setHarmony(val); return; }
+  if (key === 'width' && S.perf) { status('Perform mode always uses all 6 zone columns.'); return; }
+  if (key === 'pat') { setPattern(val); return; }
+  if (key === 'style') { setStyle(val); return; }
+  if (key === 'template') { applyTemplate(val); return; }
+  if (key === 'bpm') {
+    const b = trBeat(performance.now());
+    S.bpm = val;
+    if (TR.running) TR.t0 = performance.now() - beatSec(b) * 1000;
+    render(); return;
+  }
+  S[key] = val;
+  if (['side','width','layout','rowStep','octave'].includes(key)) structural();
+  else {
+    if (key === 'latch' && !val) voices.filter(v => v.latched).forEach(v => stopVoice(v, true));
+    if (key === 'sound' && !val) { voices.forEach(v => synthStop(v)); stopHeld(0.05); CH.pnodes.forEach(n => cOff(n, 0.05)); CH.pnodes = []; }
+    render();
+  }
+});
+document.getElementById('btnRelease').addEventListener('click', () => { releaseAll(); status('All notes released.'); });
+document.getElementById('btnClear').addEventListener('click', () => { logRows = []; monitor.innerHTML = ''; });
+document.addEventListener('keydown', e => {
+  if (MIRROR.on) return;
+  if (e.target.closest && e.target.closest('[role="tab"]')) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const i = tabs.indexOf(e.target), nx = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+      nx.focus(); selectTab(nx);
+    }
+    return;
+  }
+  if (e.target.closest && e.target.closest('.seg')) return;
+  if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && S.foot !== 'memory') { status('The footswitches are on their factory jobs (Arpeggiator and Sustain). Set Footswitches to PREV / NEXT to step memories.'); return; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); stepMemory(1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); stepMemory(-1); }
+  else if (e.key === 'Escape') { if (demo.on) demoStop('Demo stopped.'); if (S.page) togglePage(); releaseAll(); }
+});
+
+/* ---------- song demos ---------- */
+const demo = { on:false, song:null, ev:[], i:0, t0:0, BEAT:0.6, timer:0, anims:[], bar:-2 };
+const ease = f => f < .5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+function zonePad(module, row) {
+  for (let c = 1; c < NUMCOLS; c++) if (colKind[c].kind === 'zone' && colKind[c].m === module) return pads[c][row];
+  return null;
+}
+function tapPad(el) { if (!el) return; el.classList.add('press'); setTimeout(() => el.classList.remove('press'), 300); }
+const modeRow = (fam, mode) => 6 - FAMILIES[fam].order.indexOf(mode);
+// root, 3rd up-left, 5th up-right, 7th two rows above the root, 9th two rows up and two right
+function diamond(k, r, size) {
+  const p = [[k, r], [k - 1, r + 1], [k + 1, r + 1]];
+  if (size >= 4) p.push([k, r + 2]);
+  if (size >= 5) p.push([k + 2, r + 2]);
+  return p;
+}
+// melody pads: scale steps 18–20 on row index 6, steps 21 and up on the top row (index 7)
+const mel = step => step >= 21 ? [step - 21, 7] : [step - 18, 6];
+
+// everything a demo can do, scheduled in beats
+function makeKit(song) {
+  const BEAT = 60 / song.bpm, M = song.M, ev = [];
+  const kit = { ev, BEAT, bar: n => M + 4 * (n - 1), at: (t, fn) => ev.push({ t, fn }) };
+  const at = kit.at;
+  kit.note = (t, dur, pad, vel, y) => {
+    let v = null;
+    at(t, () => { v = startVoice(pad[0], pad[1], vel, y); });
+    at(t + dur, () => { if (v && voices.includes(v)) stopVoice(v); });
+    return () => v;
+  };
+  kit.chord = (t, dur, pts, vel = 58, y = 0.32) => pts.map(p => kit.note(t, dur, p, vel, y));
+  kit.bass = (t, dur, k) => kit.note(t, dur, [k, 0], 84, 0.24);
+  kit.line = (b0, notes) => notes.forEach(([step, off, dur]) => kit.note(b0 + off, dur - 0.12, mel(step), 100, 0.62));
+  kit.tap = (t, module, row, fn) => at(t, () => { tapPad(zonePad(module, row)); if (fn) harmony(fn); });
+  kit.hw = (t, row, fn) => at(t, () => { tapPad(pads[0][row]); fn(); render(); });
+  kit.page = (t, fn) => at(t, () => { tapPad(pads[0][1]); fn(); render(); });      // a quick visit to the Harmony page (hold Split)
+  kit.store = (t, slot) => at(t, () => { S.mem[slot] = capture(); render(); tapPad(zonePad('memory', slot)); });
+  kit.recall = (t, slot) => at(t, () => { tapPad(zonePad('memory', slot)); recall(slot); });
+  kit.say = (t, step, text) => at(t, () => setStep(step, text));
+  kit.anim = (t, make) => at(t, () => { const f = make(); if (f) demo.anims.push(f); });
+  kit.glide = (t, getV, prop, to, beats) => kit.anim(t, () => {
+    const v = getV(); if (!v) return null;
+    const from = v[prop];
+    return beat => {
+      if (!voices.includes(v)) return false;
+      const f = clamp((beat - t) / beats, 0, 1);
+      v[prop] = from + (to - from) * ease(f);
+      updateVoice(v); scheduleRender();
+      return f < 1;
+    };
+  });
+  kit.vibrato = (t, getV, beats) => kit.anim(t, () => {
+    const v = getV(); if (!v) return null;
+    const base = v.pos;
+    return beat => {
+      if (!voices.includes(v)) return false;
+      if (beat - t > beats) { v.pos = base; updateVoice(v); return false; }
+      const sec = (beat - t) * BEAT;
+      v.pos = base + 0.13 * Math.min(1, sec / 0.8) * Math.sin(2 * Math.PI * 5.2 * sec);
+      updateVoice(v);
+      return true;
+    };
+  });
+  kit.chordAt = (t, m, d) => at(t, () => { const el = zonePad(m, d + 1); tapPad(el); chordPress(m, d, el, 'demo'); chordRelease('demo'); });
+  kit.arm = (t, k) => at(t, () => { CH.mods[k] = 'armed'; tapPad(zonePad(CH_MODS[THUMB.findIndex(x => x.k === k)], 0)); render(); });
+  kit.latchTap = t => at(t, () => { tapPad(zonePad('chSmart', 0)); toggleLatch(); });
+  kit.chordY = (t, to, beats) => kit.anim(t, () => {
+    const from = CH.y;
+    return beat => { const f = clamp((beat - t) / beats, 0, 1); CH.y = from + (to - from) * ease(f); chordToneAll(); return f < 1; };
+  });
+  return kit;
+}
+
+/* Song 1 · First Light · Compose mode, played on the surface with the diamond shape */
+function buildSong1(kit) {
+  const { at, note, chord, bass, line, tap, store, say, glide, vibrato, bar } = kit;
+
+  // Step 1: home key and mood
+  say(0, 1, 'Step 1 · Pick a home and a mood: Key A, then Aeolian for a sad, singable minor.');
+  tap(0.3, 'keyNat', 5, () => { S.root = 9; });
+  tap(1.0, 'mode', modeRow(0, 5), () => { S.fam = 0; S.mode = 5; S.alter = zero7(); });
+  store(1.6, 4);
+
+  // Steps 2–4: verse loop with one diamond shape
+  say(bar(1) - 0.3, [2, 3], 'Steps 2–3 · One diamond shape moved onto each lit chord: i – ♭VI – ♭III – ♭VII.');
+  [[0, [5, 3], 7], [5, [3, 3], 5], [2, [4, 4], 9], [6, [1, 4], 6]].forEach(([deg, [k, r], bk], i) => {
+    const t = bar(1 + i);
+    tap(t - 0.05, 'chord', deg, () => { S.chordDeg = deg; });
+    chord(t, 3.9, diamond(k, r, 4));
+    bass(t, 3.9, bk);
+  });
+  line(bar(1), [[25, 0, 1.5], [24, 1.5, 0.5], [23, 2, 1], [24, 3, 1]]);
+  line(bar(2), [[25, 0, 1.5], [23, 1.5, 0.5], [21, 2, 2]]);
+  say(bar(3) - 0.2, 4, 'Step 4 · The melody lands on lit pads on the strong beats and walks over the unlit ones.');
+  line(bar(3), [[22, 0, 1], [23, 1, 1], [25, 2, 1], [27, 3, 1]]);
+  const f5 = note(bar(4), 3.85, mel(26), 100, 0.62);
+  say(bar(4) + 0.8, 4, 'Step 4 · Slide: F glides down to D, passing through E, and lands in tune.');
+  glide(bar(4) + 1, f5, 'pos', 3, 1.2);
+
+  // Step 5: one alteration for pull
+  say(bar(5) - 0.4, 5, 'Step 5 · Flip 7 to ♮7: G becomes G♯ (orange), and V turns into E7, which pulls back home.');
+  tap(bar(5) - 0.08, 'alter', 6, () => { S.alter[6] = 1; });
+  tap(bar(5) - 0.04, 'chord', 4, () => { S.chordDeg = 4; });
+  chord(bar(5), 3.9, diamond(2, 3, 4));
+  bass(bar(5), 3.9, 4);
+  line(bar(5), [[25, 0, 1], [24, 1, 1], [22, 2, 1], [20, 3, 1]]);
+
+  // Step 6: resolve, then hold and tap REL
+  tap(bar(6) - 0.08, 'alter', 0, () => { S.alter = zero7(); });
+  tap(bar(6) - 0.04, 'chord', 0, () => { S.chordDeg = 0; });
+  chord(bar(6), 5.9, diamond(5, 3, 4));
+  bass(bar(6), 5.9, 7);
+  note(bar(6), 5.9, mel(21), 100, 0.62);
+  say(bar(6) + 1.2, 6, 'Step 6 · Hold the chord and tap REL: Am7 glides into Cmaj7, the relative major.');
+  tap(bar(6) + 2, 'keyAcc', 2, () => { S.root = 0; S.mode = 0; S.alter = zero7(); S.chordDeg = 0; });
+
+  // Chorus in C: triads, pushed rhythm, higher melody
+  const chorus = b0 => {
+    [[0, [5, 3], 0], [4, [2, 3], 4], [5, [3, 3], 5], [3, [1, 3], 3]].forEach(([deg, [k, r], bk], i) => {
+      const t = bar(b0 + i);
+      if (i) tap(t - 0.04, 'chord', deg, () => { S.chordDeg = deg; });
+      chord(t, 1.4, diamond(k, r, 3), 62, 0.36);
+      chord(t + 1.5, 2.4, diamond(k, r, 3), 56, 0.34);
+      bass(t, 1.4, bk);
+      bass(t + 2, 1.9, bk);
+    });
+    line(bar(b0),     [[23, 0, 1], [23, 1, 0.5], [22, 1.5, 0.5], [21, 2, 1], [22, 3, 1]]);
+    line(bar(b0 + 1), [[22, 0, 1.5], [20, 1.5, 0.5], [18, 2, 2]]);
+    line(bar(b0 + 2), [[21, 0, 1], [22, 1, 1], [23, 2, 1], [25, 3, 1]]);
+    line(bar(b0 + 3), [[26, 0, 1.5], [25, 1.5, 0.5], [23, 2, 1], [22, 3, 1]]);
+  };
+  say(bar(7) - 0.3, 6, 'Chorus · Triads, a pushed rhythm and a higher melody: I – V – vi – IV in C.');
+  tap(bar(7) - 0.06, 'chord', 7, () => { S.chordSize = 3; });
+  store(bar(7) + 0.5, 5);
+  chorus(7);
+
+  // Step 7: Lydian lift
+  say(bar(11) - 0.4, 7, 'Step 7 · Tap Lydian: F becomes F♯ and the II chord turns major. C, D, C, D.');
+  tap(bar(11) - 0.06, 'mode', modeRow(0, 3), () => { S.mode = 3; S.chordDeg = 0; });
+  store(bar(11) + 0.5, 6);
+  [11, 12].forEach(b => {
+    const t = bar(b), last = b === 12;
+    if (last) tap(t - 0.04, 'chord', 0, () => { S.chordDeg = 0; });
+    chord(t, 1.9, diamond(5, 3, 3), 60, 0.4);
+    bass(t, 1.9, 0);
+    tap(t + 1.96, 'chord', 1, () => { S.chordDeg = 1; });
+    chord(t + 2, last ? 1.6 : 1.9, diamond(6, 3, 3), 60, 0.4);
+    bass(t + 2, last ? 1.6 : 1.9, 1);
+  });
+  line(bar(11), [[25, 0, 1], [24, 1, 1], [26, 2, 1], [24, 3, 1]]);
+  const e5 = note(bar(12), 1.88, mel(23), 100, 0.62);
+  glide(bar(12) + 0.7, e5, 'pos', 4, 0.9);
+  line(bar(12), [[26, 2, 1], [22, 3, 0.7]]);
+
+  // Step 8: key change and ending
+  say(bar(13) - 0.6, 8, 'Step 8 · Tap Ionian, then Key D: the same chorus and the same fingers, a whole step higher.');
+  tap(bar(13) - 0.3, 'mode', modeRow(0, 0), () => { S.mode = 0; });
+  tap(bar(13) - 0.12, 'keyNat', 1, () => { S.root = 2; S.chordDeg = 0; });
+  store(bar(13) + 0.5, 7);
+  chorus(13);
+  say(bar(17) - 0.3, 8, 'Step 8 · End on a 9th chord and push up: every note opens up (CC74), and the melody gets its own vibrato.');
+  tap(bar(17) - 0.08, 'chord', 7, () => { S.chordSize = 5; });
+  tap(bar(17) - 0.04, 'chord', 0, () => { S.chordDeg = 0; });
+  const fin = chord(bar(17), 7.5, diamond(4, 1, 5), 58, 0.22);
+  bass(bar(17), 7.5, 0);
+  const top = note(bar(17), 7.5, mel(23), 96, 0.55);
+  fin.forEach(g => glide(bar(17) + 0.5, g, 'y', 0.85, 4));
+  vibrato(bar(17) + 1, top, 5.5);
+
+  // Step 9
+  say(bar(17) + 7.7, 9, 'Step 9 · Done. The four sections are saved in Memory 5–8: recall them with the Memory pads or ← → and play your own melody over them.');
+  at(bar(17) + 7.8, () => demoHalt());
+}
+
+/* Song 2 · Night Drive · Perform mode: latched left-hand chords, right-hand melody, footswitch changes */
+function buildSong2(kit) {
+  const { at, note, line, tap, hw, store, say, vibrato, bar, chordAt, arm, chordY, latchTap, page } = kit;
+  const recallAt = kit.recall;
+
+  // Step 1: set up three sections in Compose mode and store them
+  say(0, 1, 'Step 1 · In Compose mode, set up each section and store it. Memory 5: D Dorian, with Pulse picked on the Harmony page (hold Split).');
+  tap(0.3, 'keyNat', 1, () => { S.root = 2; });
+  tap(0.7, 'mode', modeRow(0, 1), () => { S.fam = 0; S.mode = 1; S.alter = zero7(); });
+  page(1.1, () => setPattern('pulse'));
+  store(1.5, 4);
+  say(2.0, 1, 'Step 1 · Memory 6: B♭ Lydian with a Strum pattern.');
+  tap(2.2, 'keyAcc', 5, () => { S.root = 10; });
+  tap(2.6, 'mode', modeRow(0, 3), () => { S.mode = 3; });
+  page(3.0, () => setPattern('strum'));
+  store(3.4, 5);
+  say(3.9, 1, 'Step 1 · Memory 7: D Dorian again, with an Arpeggio.');
+  tap(4.1, 'keyNat', 1, () => { S.root = 2; });
+  tap(4.5, 'mode', modeRow(0, 1), () => { S.mode = 1; });
+  page(4.9, () => setPattern('arp'));
+  store(5.3, 6);
+  recallAt(5.9, 4);
+
+  // Steps 2–3: Perform mode, then Latch
+  say(6.2, 2, 'Step 2 · Tap Split, the Harmony button: columns 1–5 turn into left-hand chords. Memory and the melody pads stay put.');
+  hw(6.6, 1, () => togglePerf());
+  say(7.1, 3, 'Step 3 · Tap Latch, then a chord. It keeps playing in Pulse, so your left hand is free.');
+  latchTap(7.5);
+
+  // Section A · Memory 5 · D Dorian · Pulse
+  chordAt(bar(1) - 0.03, 'chSmart', 0);
+  chordAt(bar(3) - 0.03, 'chSmart', 3);
+  chordAt(bar(5) - 0.03, 'chSmart', 0);
+  chordAt(bar(7) - 0.03, 'chSmart', 1);
+  chordAt(bar(8) - 0.03, 'chInv1', 3);
+  say(bar(3) - 0.4, 4, 'Step 4 · Smart picks the voicing nearest the last chord: Dm7 to G7 moves two notes, one step each.');
+  say(bar(5) - 0.2, 5, 'Step 5 · The lit pads on the right follow the left-hand chord, so the melody can land on its tones.');
+  say(bar(8) - 0.5, 6, 'Step 6 · 1st inversion: G/B puts B in the bass, a half step above the next chord’s B♭.');
+  line(bar(1), [[21, 1, 0.5], [23, 1.5, 0.5], [25, 2, 1], [23, 3, 1]]);
+  line(bar(2), [[24, 0, 1.5], [23, 1.5, 0.5], [21, 2, 2]]);
+  line(bar(3), [[26, 0, 1], [25, 1, 0.5], [24, 1.5, 0.5], [23, 2, 1], [22, 3, 1]]);
+  line(bar(4), [[21, 0, 2], [19, 2, 2]]);
+  line(bar(5), [[21, 1, 0.5], [23, 1.5, 0.5], [25, 2, 1], [23, 3, 1]]);
+  line(bar(6), [[24, 0, 1], [25, 1, 1], [27, 2, 2]]);
+  line(bar(7), [[26, 0, 1.5], [24, 1.5, 0.5], [22, 2, 2]]);
+  line(bar(8), [[23, 0, 1], [22, 1, 1], [21, 2, 1], [19, 3, 1]]);
+
+  // Section B · footswitch to Memory 6 · B♭ Lydian · Strum
+  say(bar(9) - 0.7, 7, 'Step 7 · Footswitch → Memory 6: B♭ Lydian with Strum. Key, mode and pattern change together; tap the new chord on the change.');
+  recallAt(bar(9) - 0.12, 5);
+  chordAt(bar(9) - 0.03, 'chSmart', 0);
+  chordAt(bar(11) - 0.03, 'chSmart', 1);
+  chordAt(bar(13) - 0.03, 'chSmart', 2);
+  chordAt(bar(14) - 0.03, 'chSmart', 1);
+  line(bar(9), [[25, 0, 1], [27, 1, 1], [28, 2, 1.5], [27, 3.5, 0.5]]);
+  line(bar(10), [[24, 0, 2], [25, 2, 2]]);
+  line(bar(11), [[26, 0, 1], [24, 1, 1], [22, 2, 1], [24, 3, 1]]);
+  const g5 = note(bar(12), 2.9, mel(26), 100, 0.62);
+  vibrato(bar(12) + 0.6, g5, 2.2);
+  line(bar(13), [[25, 0, 1], [23, 1, 1], [27, 2, 2]]);
+  line(bar(14), [[26, 0, 1], [25, 1, 1], [24, 2, 1], [22, 3, 1]]);
+
+  // Section C · footswitch to Memory 7 · D Dorian · Arpeggio
+  say(bar(15) - 0.7, 7, 'Step 7 · Footswitch → Memory 7: back to D Dorian, now arpeggiated.');
+  recallAt(bar(15) - 0.12, 6);
+  chordAt(bar(15) - 0.03, 'chSmart', 0);
+  chordAt(bar(17) - 0.03, 'chSmart', 3);
+  line(bar(15), [[21, 0, 1], [25, 1, 1], [24, 2, 1], [23, 3, 1]]);
+  line(bar(16), [[22, 0, 1.5], [21, 1.5, 0.5], [19, 2, 2]]);
+  line(bar(17), [[26, 0, 2], [24, 2, 1], [23, 3, 1]]);
+  say(bar(18) - 0.8, 8, 'Step 8 · Tap V/x, then i: you get A7, the chord that pulls hardest back to Dm.');
+  arm(bar(18) - 0.3, 'vx');
+  chordAt(bar(18) - 0.03, 'chSmart', 0);
+  line(bar(18), [[25, 0, 1], [24, 1, 1], [22, 2, 2]]);
+
+  // Step 9: ending on a held Dm9
+  say(bar(19) - 0.8, 9, 'Step 9 · Pattern → Sustain on the Harmony page, then add9 and i: a held Dm9. Dragging up on the chord pad opens the sound.');
+  page(bar(19) - 0.45, () => setPattern('sustain'));
+  arm(bar(19) - 0.25, 'add9');
+  chordAt(bar(19) - 0.03, 'chSmart', 0);
+  chordY(bar(19) + 0.5, 0.9, 4);
+  const f5 = note(bar(19), 7.4, mel(23), 96, 0.55);
+  vibrato(bar(19) + 1, f5, 6);
+  at(bar(21) - 0.4, () => chordStop(false, 1.2));
+  say(bar(21), 9, 'Done. You’re still in Perform mode: tap a chord with your left hand, play a melody on the right, and press ← → to step through Memory 5–7.');
+  at(bar(21) + 0.3, () => demoHalt());
+}
+
+const SONGS = {
+  1: { title:'First Light', bpm:92, M:2, build: buildSong1, ids:['demoBtn1','songMap1','demoCaption1','steps1'],
+       map:[
+         { name:'Verse', key:'A Aeolian', bars:[['Am7',1],['Fmaj7',1],['Cmaj7',1],['G7',1],['E7',1],['Am7 → C',1]] },
+         { name:'Chorus', key:'C Ionian', bars:[['C',1],['G',1],['Am',1],['F',1]] },
+         { name:'Lift', key:'C Lydian', bars:[['C · D',1],['C · D',1]] },
+         { name:'Last chorus', key:'D Ionian', bars:[['D',1],['A',1],['Bm',1],['G',1]] },
+         { name:'End', key:'', bars:[['Dmaj9',2]] },
+       ] },
+  2: { title:'Night Drive', bpm:100, M:8, build: buildSong2, ids:['demoBtn2','songMap2','demoCaption2','steps2'],
+       map:[
+         { name:'Section A', key:'Memory 5 · D Dorian · Pulse', bars:[['Dm7',2],['G7',2],['Dm7',2],['Em7',1],['G/B',1]] },
+         { name:'Section B', key:'Memory 6 · B♭ Lydian · Strum', bars:[['B♭maj7',2],['C7',2],['Dm7',1],['C7',1]] },
+         { name:'Section C', key:'Memory 7 · D Dorian · Arp', bars:[['Dm7',2],['G7',1],['A7',1],['Dm9',2]] },
+       ] },
+};
+function renderSongMap(song) {
+  let b = 0;
+  song.el.map.innerHTML = song.map.map(sec => `<div class="sec" role="listitem"><span class="nm">${sec.name}${sec.key ? `<em>${sec.key}</em>` : ''}</span><div class="bars">${sec.bars.map(([label, span]) => {
+    const from = b; b += span;
+    return `<span class="bar" data-from="${from}" data-to="${b}" style="width:${50 * span + 3 * (span - 1)}px">${label}</span>`;
+  }).join('')}</div></div>`).join('');
+}
+function setPlayhead(beat) {
+  const s = demo.song; if (!s) return;
+  const b = beat < s.M ? -1 : Math.floor((beat - s.M) / 4);
+  if (b === demo.bar) return;
+  demo.bar = b;
+  s.el.map.querySelectorAll('.bar').forEach(el => el.classList.toggle('now', b >= +el.dataset.from && b < +el.dataset.to));
+}
+function setStep(n, text) {
+  const s = demo.song; if (!s) return;
+  const on = new Set([].concat(n));
+  s.el.steps.querySelectorAll('li').forEach(li => {
+    const hit = on.has(+li.dataset.step);
+    li.classList.toggle('now', hit);
+    if (hit) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+  });
+  if (text) s.el.cap.textContent = text;
+}
+function demoTick() {
+  const beat = (performance.now() - demo.t0) / 1000 / demo.BEAT;
+  while (demo.on && demo.i < demo.ev.length && demo.ev[demo.i].t <= beat) demo.ev[demo.i++].fn();
+  if (!demo.on) return;
+  demo.anims = demo.anims.filter(a => a(beat));
+  setPlayhead(beat);
+}
+function demoStart(id) {
+  if (demo.on) demoStop('');
+  const song = SONGS[id];
+  audio();
+  Object.assign(S, { side:'left', width:6, layout:'scale', rowStep:1, octave:0, retune:'morph', latch:false, lights:'guide', hints:true, style:'pop', template:'off', tplIdx:0, page:false, harmony:true, sound:true,
+    fam:0, alter:zero7(), chordDeg:null, chordSize:4, perf:false, pat:'sustain', chLatch: id === 1, bpm: song.bpm });
+  Object.keys(CH.mods).forEach(k => { CH.mods[k] = null; });
+  CH.prev = null; CH.y = 0.4;
+  structural();
+  const kit = makeKit(song);
+  song.build(kit);
+  demo.song = song; demo.BEAT = kit.BEAT;
+  demo.ev = kit.ev.sort((a, b) => a.t - b.t);
+  demo.i = 0; demo.anims = []; demo.bar = -2; demo.on = true; demo.t0 = performance.now();
+  TR.t0 = demo.t0; TR.running = true;
+  song.el.btn.setAttribute('aria-pressed', 'true'); song.el.btn.textContent = '■ Stop the demo';
+  log(null, `Demo song: ${song.title}`, 'h');
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelector('.board-scroll').scrollIntoView({ block:'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  clearInterval(demo.timer);
+  demo.timer = setInterval(demoTick, 10);
+}
+function demoHalt() {
+  clearInterval(demo.timer);
+  demo.on = false; demo.anims = [];
+  if (!CH.act) TR.running = false;
+  if (demo.song) { demo.song.el.btn.setAttribute('aria-pressed', 'false'); demo.song.el.btn.textContent = '▶ Play the demo again'; }
+  setPlayhead(-99);
+}
+function demoStop(msg) { demoHalt(); releaseAll(); if (msg) setStep(0, msg); }
+Object.entries(SONGS).forEach(([id, s]) => {
+  const [btn, map, cap, steps] = s.ids.map(x => document.getElementById(x));
+  s.el = { btn, map, cap, steps };
+  renderSongMap(s);
+  btn.addEventListener('click', () => { if (demo.on && demo.song === s) demoStop('Demo stopped. Press play to start again.'); else demoStart(+id); });
+});
+const tabs = [...document.querySelectorAll('.tabs [role="tab"]')];
+function selectTab(tab) {
+  tabs.forEach(t => {
+    const on = t === tab;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+    document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+  });
+  if (demo.on && demo.song && demo.song.el.btn.closest('[hidden]')) demoStop('Demo stopped.');
+}
+tabs.forEach(t => t.addEventListener('click', () => selectTab(t)));
+
+/* ---------- boot ---------- */
+recompute();
+layoutCols();
+build();
+render();
+log(null, 'MPE configuration → ch 1 + members 2–8 (melody), bend ±48 · chords and bass on ch 16', 'h');
+log(null, `Harmony → ${H.title}`, 'h');
+
+/* ---------- companion: mirror a LinnStrument over USB MIDI ---------- */
+// SysEx from the firmware: F0 7D 48 42 <version> <command> <data...> F7 (see COMPANION.md)
+const SX_HEAD = [0x7D, 0x48, 0x42];
+const SX_STATE = 0x01, SX_MEMORIES = 0x02, SX_REQUEST = 0x10, SX_VERSION = 1;
+const FW_STYLES = ['pop','rock','blues','jazz','soul','cinematic','flamenco','free'];
+const FW_LIGHTS = ['guide','function','degrees','notes'];
+const FW_RETUNE = ['morph','hold','retrig'];
+const FW_TPL_STYLE = [0,0,0,1,1,1,2,2,2,3,3,3,3,4,4,4,5,5,5,6,6];   // the firmware's template table, by style
+const connEl = document.getElementById('conn'), connState = document.getElementById('connState'), connBtn = document.getElementById('connBtn');
+
+function fwTemplateId(g) {
+  if (g < 0 || g >= FW_TPL_STYLE.length) return 'off';
+  const st = FW_TPL_STYLE[g], local = g - FW_TPL_STYLE.indexOf(st);
+  const t = STYLES[FW_STYLES[st]].templates[local];
+  return t ? t.id : 'off';
+}
+function mirrorTouched() {
+  const set = new Set();
+  if (!MIRROR.notes.size || S.page) return set;
+  for (let k = 0; k < P; k++) for (let r = 0; r < NUMROWS; r++) {
+    const m = soundingNote(k, r);
+    if (m !== null && MIRROR.notes.get(m) > 0) set.add(k + ',' + r);
+  }
+  return set;
+}
+function applyFwState(d) {
+  if (d.length < 33) return;
+  const prevSet = pitchSet(curState()), prevTitle = H.title;
+  S.harmony = !!d[0]; S.perf = !!d[1]; S.page = !!d[2];
+  S.root = d[3]; S.fam = d[4]; S.mode = d[5];
+  S.alter = Array.from(d.slice(6, 13), x => x - 2);
+  S.chordDeg = d[13] ? d[13] - 1 : null; S.chordSize = d[14]; S.sticky = !!d[15];
+  S.rowStep = d[16]; S.retune = FW_RETUNE[d[17]] || 'morph'; S.style = FW_STYLES[d[18]] || 'pop';
+  S.template = fwTemplateId(d[19] - 1); S.tplIdx = d[20];
+  S.lights = FW_LIGHTS[d[21]] || 'guide'; S.hints = !!d[22]; S.pat = PATS[d[23]] || 'sustain';
+  S.clock = d[24] ? 'int' : 'host'; S.chLatch = !!d[25];
+  S.octave = d[30] - 5;
+  S.layout = 'scale'; S.side = 'left'; S.width = 6;
+  const armed = d[29];
+  CH.mods = { vx: armed & 1 ? 'fw' : null, brw: armed & 2 ? 'fw' : null, sus: armed & 4 ? 'fw' : null, add9: armed & 8 ? 'fw' : null };
+  recompute(); layoutCols();
+  // the sounding left-hand chord, rebuilt with the mockup's own voicing so the lights match
+  const type = d[26] - 1;
+  if (type >= 0 && CH_MODS[type]) {
+    const m = CH_MODS[type], deg = d[27], cm = d[28];
+    const mods = { vx: !!(cm & 1), brw: !!(cm & 2), sus: !!(cm & 4), add9: !!(cm & 8) };
+    const b = buildChord(m, deg, mods, CH.prev);
+    if (b) { CH.act = Object.assign(b, { m, d: deg, mods, key: `${m}:${deg}:${cm}`, pid: null, latched: true, startAt: 0, held: null }); CH.prev = b.notes; CH.lit = litOf(b); }
+  } else { CH.act = null; CH.lit = null; }
+  const added = [...pitchSet(curState())].filter(pc => !prevSet.has(pc));
+  if (added.length && prevSet.size) {
+    changed = { until: performance.now() + 1400, pcs: new Set(added) };
+    clearTimeout(changedTimer); changedTimer = setTimeout(scheduleRender, 1450);
+  }
+  if (H.title !== prevTitle) log(null, `LinnStrument → ${H.title}`, 'h');
+  render();
+}
+function applyFwMemories(d) {
+  for (let i = 0; i < 8; i++) {
+    const o = i * 13;
+    if (o + 13 > d.length) break;
+    S.mem[i] = d[o] ? { root: d[o + 1], fam: d[o + 2], mode: d[o + 3], alter: Array.from(d.slice(o + 4, o + 11), x => x - 2),
+                        chordDeg: d[o + 11] ? d[o + 11] - 1 : null, chordSize: d[o + 12], pat: null, style: null } : null;   // the firmware's memories hold the harmony only
+  }
+  render();
+}
+// one complete MIDI message from the LinnStrument
+function mirrorMidi(bytes) {
+  const st = bytes[0];
+  if (st === 0xF0) {
+    const body = bytes.slice(1, bytes[bytes.length - 1] === 0xF7 ? -1 : undefined);
+    if (body.length < 5 || body[0] !== SX_HEAD[0] || body[1] !== SX_HEAD[1] || body[2] !== SX_HEAD[2]) return;
+    MIRROR.last = performance.now();
+    if (!MIRROR.on) startMirroring();
+    const data = body.slice(5);
+    if (body[4] === SX_STATE) applyFwState(data);
+    else if (body[4] === SX_MEMORIES) applyFwMemories(data);
+    return;
+  }
+  const type = st & 0xF0, ch = (st & 0x0F) + 1;
+  if (ch === 16 || (type !== 0x90 && type !== 0x80)) return;   // channel 16 is the left-hand chord, already shown
+  const note = bytes[1], on = type === 0x90 && bytes[2] > 0;
+  const n = (MIRROR.notes.get(note) || 0) + (on ? 1 : -1);
+  if (n > 0) MIRROR.notes.set(note, n); else MIRROR.notes.delete(note);
+  if (MIRROR.on) scheduleRender();
+}
+window.__harmonyMirrorFeed = bytes => mirrorMidi(Uint8Array.from(bytes));   // for testing without hardware
+
+function startMirroring() {
+  if (MIRROR.on) return;
+  if (demo.on) demoStop('Demo stopped: mirroring the LinnStrument.');
+  voices.slice().forEach(v => stopVoice(v, true)); chordStop();
+  MIRROR.on = true;
+  document.body.classList.add('mirroring');
+  connEl.classList.add('on');
+  connState.textContent = 'Mirroring the LinnStrument. The board shows what the instrument shows; change things on the instrument.';
+}
+function stopMirroring(why) {
+  MIRROR.on = false; MIRROR.notes.clear();
+  document.body.classList.remove('mirroring');
+  connEl.classList.remove('on');
+  connState.textContent = why;
+  CH.act = null; CH.lit = null;
+  render();
+}
+function requestState() {
+  if (MIRROR.output) MIRROR.output.send([0xF0, ...SX_HEAD, SX_VERSION, SX_REQUEST, 0xF7]);
+}
+function findPorts(access) {
+  const pick = map => [...map.values()].find(p => /linnstrument/i.test(p.name || '') && p.state !== 'disconnected') || null;
+  const input = pick(access.inputs), output = pick(access.outputs);
+  if (MIRROR.input && MIRROR.input !== input) MIRROR.input.onmidimessage = null;
+  MIRROR.input = input; MIRROR.output = output;
+  if (!input || !output) {
+    if (MIRROR.on) stopMirroring('The LinnStrument was disconnected. Plug it in (with OS Update off) and it reconnects by itself.');
+    else connState.textContent = 'No LinnStrument found. Plug it in with OS Update off, so it shows up as LinnStrument MIDI.';
+    return;
+  }
+  input.onmidimessage = e => mirrorMidi(e.data);
+  connState.textContent = `Found ${input.name}. Asking it for its state…`;
+  requestState();
+  setTimeout(() => {
+    if (!MIRROR.on && MIRROR.input === input) connState.textContent = 'The LinnStrument didn’t answer. It needs the Harmony Board firmware with companion support (see COMPANION.md).';
+  }, 1500);
+}
+connBtn.addEventListener('click', async () => {
+  if (!navigator.requestMIDIAccess) {
+    connState.textContent = 'This browser has no Web MIDI. Use Chrome or Edge, opened from a local server (see COMPANION.md).';
+    return;
+  }
+  try {
+    const access = await navigator.requestMIDIAccess({ sysex: true });
+    access.onstatechange = () => findPorts(access);
+    findPorts(access);
+  } catch (err) {
+    connState.textContent = 'MIDI access was refused. Allow MIDI (with SysEx) for this page in the browser’s site settings, then try again.';
+  }
+});
+})();
+</script>
+
+
+</body>
+</html>

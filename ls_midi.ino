@@ -222,6 +222,7 @@ void handleMidiInput(unsigned long nowMicros) {
         midiSysExLength = 0;
         break;
       case MIDIEndOfExclusive:
+        harmonyHandleSysEx(midiSysExBuffer, midiSysExLength);
         if (Device.midiThrough) {
           sysexOutQueue.push(MIDISystemExclusive);
           for (short i = 0; i < midiSysExLength; ++i) {
@@ -2288,6 +2289,20 @@ void initializeLastMidiTracking() {
       performContinuousTasks();
     }
   }
+}
+
+// whether a SysEx message is still waiting to go out
+boolean midiSysExIdle() {
+  return sysexOutQueue.empty();
+}
+
+// queue a SysEx message; data is everything between F0 and F7
+void midiSendSysExMessage(const byte* data, short len) {
+  sysexOutQueue.push(MIDISystemExclusive);
+  for (short i = 0; i < len; ++i) {
+    sysexOutQueue.push(data[i] & 0x7F);
+  }
+  sysexOutQueue.push(MIDIEndOfExclusive);
 }
 
 void queueMidiMessage(MIDIStatus type, byte param1, byte param2, byte channel) {

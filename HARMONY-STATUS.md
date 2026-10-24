@@ -9,6 +9,7 @@ Where things live
 - **Branch:** `harmony-board`, pushed to `origin/harmony-board`.
 - **Firmware code:** almost everything is in `ls_harmony.ino`. Hooks into the stock code are small and live in `ls_handleTouches.ino`, `ls_displayModes.ino`, `ls_settings.ino` (Split button), `ls_switches.ino` (PREV/NEXT), `ls_lowRow.ino`, `ls_rtos.ino` and `ls_midi.ino` (clock ticks and same-note lights), and `ls_leds.ino` (new colors and dimming).
 - **Flash helper:** `tools/flash_keep_settings.py` backs up settings, calibration and sequencer projects over serial, flashes, and restores them. Set it up once with the commands in HARMONY.md. Backups go to `~/linnstrument-backups/`.
+- **Companion app:** `companion/index.html`, the mockup turned into an app that mirrors the LinnStrument over USB MIDI. [COMPANION.md](COMPANION.md) covers running it and the SysEx protocol.
 - **Mockup:** the playable web version is the private artifact at https://claude.ai/artifact/1fP479mH7pkHc9nNYZKw6w. Its Build plan section has a "What's in the firmware" table, and FW tags and ✓ marks show which of its settings the firmware has.
 
 Done
@@ -22,6 +23,7 @@ Done
 | `cfd0f78` | Teal, azure and violet blends, half and quarter brightness, LED check page | Yes: all 13 colors distinct, dim levels steady |
 | `6b7d194` | Lights (Guide, Chord, Degrees, Notes) and hints | Yes |
 | `f1feb74` | Eight styles and 21 progression templates; same-note lights fixed for the harmony layout; melody-fit chord coloring removed | Yes: playing is visually clean |
+| the commit after `cde6ccf` | Companion app phase 1: the firmware sends its harmony state and memories as SysEx, and `companion/index.html` mirrors the board | Yes: mirrors the LinnStrument in Chrome |
 
 Lessons from hardware testing, worth keeping in mind:
 
@@ -36,13 +38,16 @@ Pending
 
 In the order I'd suggest:
 
-1. **Save settings across power-off.** Right now the harmony, the 8 memories, and the Harmony page settings (Compose/Perform, Latch, style, template, lights, hints, rows apart, held notes, pattern, clock) reset when the LinnStrument is unplugged. They should be stored with the factory settings, in a way the flash helper's backup and restore still handle: today the helper checks that the backup's settings size matches the new firmware's. While doing this, let memories also store the pattern and style, as the mockup's do.
-2. **Layout options**, the last Harmony page column (column 19): Scale steps (today's only layout), Chromatic with scale lights, and Chromatic with snap to scale. The mockup also has zone side (left or right) and zone width (4, 5 or 6 columns).
-3. **Open checks:**
+1. **Companion app, next phases:**
+   - Phase 2, control: change the harmony and Harmony page settings from the app, push and pull memory banks, and save song setups (memories, style, template, pattern) as files on the computer. The firmware needs SET commands in `harmonyHandleSysEx`; it stays the source of truth and reports the result back.
+   - Phase 3: progression templates written in the app and sent to the firmware.
+   - Phase 4, optional: wrap the app in Electron, for a desktop app without browser permission prompts.
+2. **Save settings across power-off.** Right now the harmony, the 8 memories, and the Harmony page settings (Compose/Perform, Latch, style, template, lights, hints, rows apart, held notes, pattern, clock) reset when the LinnStrument is unplugged. They should be stored with the factory settings, in a way the flash helper's backup and restore still handle: today the helper checks that the backup's settings size matches the new firmware's. While doing this, let memories also store the pattern and style, as the mockup's do.
+3. **Layout options**, the last Harmony page column (column 19): Scale steps (today's only layout), Chromatic with scale lights, and Chromatic with snap to scale. The mockup also has zone side (left or right) and zone width (4, 5 or 6 columns).
+4. **Open checks:**
    - Does the melody MPE track also sound the channel 16 chords in Ableton (test step 17 in HARMONY.md)? Not reported yet.
    - The flash helper's tests use a simulated LinnStrument that doesn't restart when the port opens. Adding that would cover the bug found on hardware.
-4. **Open design questions** from the mockup:
-   - Should harmony changes also go out over MIDI (NRPN or SysEx), so a DAW or plugin can follow along?
+5. **Open design questions** from the mockup:
    - Should Memory also store the left-hand chord, so the footswitch can step through a whole progression?
    - Should the chord channel (16) and the melody's MPE member channels (2–8) be settable?
    - The firmware targets the LinnStrument 200 (25 playing columns). The LinnStrument 128 hasn't been considered or tested.

@@ -1988,3 +1988,133 @@ void harmonyApplyTemplate(byte t) {
   harmonyCur.chordDeg = -1;
   harmonyChanged();
 }
+
+/******************************* companion app *******************************/
+
+// A private SysEx protocol over USB MIDI, so an app on the computer can mirror the harmony:
+//   F0 7D 48 42 <version> <command> <data...> F7
+// 7D is MIDI's manufacturer ID for non-commercial use, 48 42 is "HB", and every data byte is 0-127.
+// The LinnStrument sends STATE whenever the harmony or a setting changes, and MEMORIES whenever a
+// memory changes; REQUEST from the app makes it send both right away. COMPANION.md has the byte layout.
+#define HARM_SX_ID          0x7D
+#define HARM_SX_H           0x48
+#define HARM_SX_B           0x42
+#define HARM_SX_VERSION     1
+#define HARM_SX_STATE       0x01
+#define HARM_SX_MEMORIES    0x02
+#define HARM_SX_REQUEST     0x10
+#define HARM_SX_HEADER      5
+#define HARM_SX_STATE_LEN   33
+#define HARM_SX_MEM_SLOT    13
+#define HARM_SX_MEM_LEN     (HARM_MEMORIES * HARM_SX_MEM_SLOT)
+#define HARM_SX_STATE_MS    20               // how often to look for state changes
+#define HARM_SX_MEM_MS      100
+
+byte harmonySxState[HARM_SX_STATE_LEN];      // what was sent last
+byte harmonySxMem[HARM_SX_MEM_LEN];
+boolean harmonySxForceState = true;
+boolean harmonySxForceMem = true;
+unsigned long harmonySxStateAt = 0;
+unsigned long harmonySxMemAt = 0;
+
+void harmonySxBuildState(byte* d) {
+  byte i = 0;
+  d[i++] = harmonyEnabled ? 1 : 0;
+  d[i++] = harmonyPerform ? 1 : 0;
+  d[i++] = displayMode == displayHarmony ? 1 : 0;
+  d[i++] = harmonyCur.root;
+  d[i++] = harmonyCur.family;
+  d[i++] = harmonyCur.mode;
+  for (byte k = 0; k < 7; ++k) {
+    d[i++] = harmonyCur.alter[k] + 2;
+  }
+  d[i++] = harmonyCur.chordDeg + 1;
+  d[i++] = harmonyCur.chordSize;
+  d[i++] = harmonyKeepAlter ? 1 : 0;
+  d[i++] = harmonyRowIdx;
+  d[i++] = harmonyRetune;
+  d[i++] = harmonyStyle;
+  d[i++] = harmonyTemplate + 1;
+  d[i++] = harmonyTplIdx;
+  d[i++] = harmonyLights;
+  d[i++] = harmonyHints ? 1 : 0;
+  d[i++] = harmonyPattern;
+  d[i++] = harmonyPatClockSource;
+  d[i++] = harmonyLatch ? 1 : 0;
+  d[i++] = harmonyChordType + 1;
+  d[i++] = harmonyChordType >= 0 ? harmonyChordDeg : 0;
+  d[i++] = harmonyChordMods & 0x7F;
+  d[i++] = (harmonyModArmed | harmonyModHeld) & 0x7F;
+  d[i++] = Split[getSplitOf(HARM_FIRST_PLAY)].transposeOctave / 12 + 5;
+  byte used = 0;
+  for (byte m = 0; m < HARM_MEMORIES; ++m) {
+    if (harmonyMemUsed[m]) used |= 1 << m;
+  }
+  d[i++] = used & 0x7F;
+  d[i++] = used >> 7;
+}
+
+void harmonySxBuildMemories(byte* d) {
+  byte i = 0;
+  for (byte m = 0; m < HARM_MEMORIES; ++m) {
+    HarmonyState& s = harmonyMem[m];
+    d[i++] = harmonyMemUsed[m] ? 1 : 0;
+    d[i++] = s.root;
+    d[i++] = s.family;
+    d[i++] = s.mode;
+    for (byte k = 0; k < 7; ++k) {
+      d[i++] = s.alter[k] + 2;
+    }
+    d[i++] = s.chordDeg + 1;
+    d[i++] = s.chordSize;
+  }
+}
+
+void harmonySxSend(byte command, const byte* data, byte len) {
+  byte msg[HARM_SX_HEADER + HARM_SX_MEM_LEN];
+  msg[0] = HARM_SX_ID;
+  msg[1] = HARM_SX_H;
+  msg[2] = HARM_SX_B;
+  msg[3] = HARM_SX_VERSION;
+  msg[4] = command;
+  memcpy(&msg[HARM_SX_HEADER], data, len);
+  midiSendSysExMessage(msg, HARM_SX_HEADER + len);
+}
+
+// called continuously: sends the state or the memories when they changed, one message at a time
+void harmonyCompanionService() {
+  if (!harmonyReady || Device.serialMode || isMidiUsingDIN() || !midiSysExIdle()) return;
+
+  unsigned long now = millis();
+  if (harmonySxForceState || calcTimeDelta(now, harmonySxStateAt) >= HARM_SX_STATE_MS) {
+    harmonySxStateAt = now;
+    byte d[HARM_SX_STATE_LEN];
+    harmonySxBuildState(d);
+    if (harmonySxForceState || memcmp(d, harmonySxState, HARM_SX_STATE_LEN) != 0) {
+      memcpy(harmonySxState, d, HARM_SX_STATE_LEN);
+      harmonySxForceState = false;
+      harmonySxSend(HARM_SX_STATE, d, HARM_SX_STATE_LEN);
+      return;
+    }
+  }
+  if (harmonySxForceMem || calcTimeDelta(now, harmonySxMemAt) >= HARM_SX_MEM_MS) {
+    harmonySxMemAt = now;
+    byte d[HARM_SX_MEM_LEN];
+    harmonySxBuildMemories(d);
+    if (harmonySxForceMem || memcmp(d, harmonySxMem, HARM_SX_MEM_LEN) != 0) {
+      memcpy(harmonySxMem, d, HARM_SX_MEM_LEN);
+      harmonySxForceMem = false;
+      harmonySxSend(HARM_SX_MEMORIES, d, HARM_SX_MEM_LEN);
+    }
+  }
+}
+
+// incoming SysEx, without F0 and F7
+void harmonyHandleSysEx(const byte* d, short len) {
+  if (len < HARM_SX_HEADER || d[0] != HARM_SX_ID || d[1] != HARM_SX_H || d[2] != HARM_SX_B) return;
+  if (d[4] == HARM_SX_REQUEST) {
+    harmonySxForceState = true;
+    harmonySxForceMem = true;
+  }
+}
+
