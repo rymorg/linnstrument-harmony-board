@@ -45,7 +45,7 @@ What you need
 
 1. Plug the LinnStrument straight into the computer, not into a hub.
 2. Press **Global Settings** (the bottom button on the left edge).
-3. Find **OS Update**: column 16, counting from the control buttons, third pad from the bottom. Briefly press it once, with one finger, so its light turns on. Don't hold it, and don't touch the pad below it: pressing both together resets the LinnStrument's settings.
+3. Find **OS Update**: column 16, counting from the control buttons, third pad from the bottom. Briefly press it once, with one finger, so its light turns on. Don't hold it, and don't touch the bottom pad of that column: pressing both together resets the LinnStrument's settings.
 
 Not sure which pad that is? Open the [companion app](https://rymorg.github.io/linnstrument-harmony-board/) in Chrome, click **Connect LinnStrument** before step 2, and open Global Settings: the app labels the OS Update pad **UPDT**.
 

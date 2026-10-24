@@ -97,6 +97,46 @@ label.btn input{position:absolute;opacity:0;width:1px;height:1px}
 details.log summary{cursor:pointer;color:var(--muted);font-size:14px}
 pre#log{font:400 12px/1.5 var(--f-mono);background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:10px 12px;max-height:300px;overflow:auto;white-space:pre-wrap;margin:8px 0 0}
 #reconnect{position:sticky;top:10px;z-index:5}
+/* how to turn on OS Update: a drawing of the LinnStrument 200, looping through the two presses */
+.howto{margin:2px 0 0;display:flex;flex-direction:column;gap:6px}
+.howto svg{width:100%;height:auto;display:block}
+.howto figcaption{font-size:13px;color:var(--muted)}
+.howto .wood{fill:url(#howtoWood)}
+.howto .panel{fill:#131516}
+.howto .pad{fill:#8a8f93}
+.howto .key{fill:#d0d4d6}
+.howto .silk{font:600 16px var(--f-display);letter-spacing:.08em;text-transform:uppercase;fill:#c2c9cb}
+.howto .num{font:700 13px var(--f-display);fill:#fff}
+.howto .cap{font:700 23px var(--f-body);fill:var(--fg)}
+.howto .ring{fill:none;stroke:#2ee6ea;stroke-width:3}
+.howto .warn{fill:none;stroke:#ff5a4d;stroke-width:2.5;stroke-dasharray:5 4}
+.howto .warntext{font:700 18px var(--f-body);fill:#ff7a6e}
+.howto .lit-key{fill:#2ee6ea}
+.howto .lit-pad{fill:#2fdc55}
+.howto .badge circle{fill:#2ee6ea}
+.howto .badge text{font:700 17px var(--f-body);fill:#052528;text-anchor:middle;dominant-baseline:central}
+.howto .s1,.howto .s2,.howto .s3,.howto .on1,.howto .on2,.howto .tap1,.howto .tap2{opacity:0}
+@media (prefers-reduced-motion: no-preference){
+  .howto .s1{animation:howto-s1 9s infinite}
+  .howto .s2{animation:howto-s2 9s infinite}
+  .howto .s3{animation:howto-s3 9s infinite}
+  .howto .on1{animation:howto-on1 9s infinite}
+  .howto .on2{animation:howto-on2 9s infinite}
+  .howto .tap1{animation:howto-tap1 9s infinite;transform-box:fill-box;transform-origin:center}
+  .howto .tap2{animation:howto-tap2 9s infinite;transform-box:fill-box;transform-origin:center}
+  .howto .ring{animation:howto-pulse 1s ease-in-out infinite alternate}
+}
+@media (prefers-reduced-motion: reduce){
+  .howto .s3,.howto .on1,.howto .on2{opacity:1}
+}
+@keyframes howto-s1{0%,36%{opacity:1}38%,100%{opacity:0}}
+@keyframes howto-s2{0%,37%{opacity:0}39%,74%{opacity:1}76%,100%{opacity:0}}
+@keyframes howto-s3{0%,75%{opacity:0}77%,97%{opacity:1}100%{opacity:0}}
+@keyframes howto-on1{0%,18%{opacity:0}20%,97%{opacity:1}100%{opacity:0}}
+@keyframes howto-on2{0%,56%{opacity:0}58%,97%{opacity:1}100%{opacity:0}}
+@keyframes howto-tap1{0%,12%{opacity:0;transform:scale(1.6)}17%{opacity:.9;transform:scale(1)}22%,100%{opacity:0;transform:scale(1)}}
+@keyframes howto-tap2{0%,50%{opacity:0;transform:scale(1.6)}55%{opacity:.9;transform:scale(1)}60%,100%{opacity:0;transform:scale(1)}}
+@keyframes howto-pulse{from{stroke-opacity:1}to{stroke-opacity:.35}}
 code{font:500 13px/1 var(--f-mono);background:var(--chip);padding:2px 5px;border-radius:4px}
 </style>
 </head>
@@ -141,9 +181,15 @@ code{font:500 13px/1 var(--f-mono);background:var(--chip);padding:2px 5px;border
   <!-- 1. Back up -->
   <section class="card" id="cardBackup" data-modes="install backup">
     <h2><span class="n">1</span>Back up the LinnStrument</h2>
+    <figure class="howto">
+      <svg id="howtoSvg" viewBox="0 0 860 412" role="img" aria-labelledby="howtoTitle">
+        <title id="howtoTitle">The LinnStrument 200 from above: press Global Settings, the bottom button on the left edge, then briefly press OS Update, the pad in column 16, third from the bottom, so it lights up. Don't touch the bottom pad of that column.</title>
+      </svg>
+      <figcaption>Turning on OS Update. The animation repeats.</figcaption>
+    </figure>
     <ol>
       <li>Plug in the LinnStrument and press <b>Global Settings</b> (the bottom button on the left edge).</li>
-      <li>Briefly press <b>OS Update</b> once: column 16, counting from the control buttons, third pad from the bottom, so its light turns on. Use one finger and don't touch the pad below it: pressing both together resets the settings.</li>
+      <li>Briefly press <b>OS Update</b> once: column 16, counting from the control buttons, third pad from the bottom, so its light turns on. Use one finger and don't touch the bottom pad of that column: pressing both together resets the settings.</li>
       <li>Click the button and choose <b>LinnStrument</b> in the list. Reading the settings changes nothing on the LinnStrument.</li>
     </ol>
     <div class="row">
@@ -735,6 +781,49 @@ $("restoreBtn").onclick = async () => {
     await setBusy(false);
   }
 };
+
+// ------------------------------------------------------------------ the OS Update drawing
+
+// The LinnStrument 200: a column of 8 control buttons, then 25 columns by 8 rows of pads. Rows count
+// from the bottom; Global Settings is the bottom button, OS Update is column 16, row 3 from the bottom,
+// and the bottom pad of that column resets the settings when pressed together with it.
+function drawHowto() {
+  const PAD = 26, STEP = 30, TOP = 86, KEYX = 34, GRIDX = 84;
+  const rowY = (r) => TOP + (7 - r) * STEP;          // r: 1 = bottom row
+  const colX = (c) => GRIDX + (c - 1) * STEP;        // c: 1..25
+  const parts = [`<defs><linearGradient id="howtoWood" x1="0" x2="1"><stop offset="0" stop-color="#5b321a"/><stop offset=".45" stop-color="#9c6137"/><stop offset="1" stop-color="#5b321a"/></linearGradient></defs>`];
+  const cap = (cls, text) => `<text class="cap ${cls}" x="430" y="30" text-anchor="middle">${text}</text>`;
+  parts.push(cap("s1", "1. Press Global Settings"));
+  parts.push(cap("s2", "2. Tap OS Update: column 16, third from the bottom"));
+  parts.push(cap("s3", "OS Update is on: its light stays lit"));
+  parts.push(`<rect class="wood" x="0" y="${TOP - 14}" width="20" height="${8 * STEP + 24}" rx="6"/>`);
+  parts.push(`<rect class="wood" x="840" y="${TOP - 14}" width="20" height="${8 * STEP + 24}" rx="6"/>`);
+  parts.push(`<rect class="panel" x="20" y="${TOP - 14}" width="820" height="${8 * STEP + 24}"/>`);
+  for (let r = 1; r <= 8; r++) {
+    parts.push(`<rect class="key" x="${KEYX}" y="${rowY(r) + 14}" width="34" height="11" rx="2"/>`);
+    for (let c = 1; c <= 25; c++) parts.push(`<rect class="pad" x="${colX(c)}" y="${rowY(r)}" width="${PAD}" height="${PAD}" rx="3"/>`);
+  }
+  // column numbers above, the button's name below
+  for (const c of [1, 16, 25]) parts.push(`<text class="silk" x="${colX(c) + PAD / 2}" y="${TOP - 22}" text-anchor="middle">${c}</text>`);
+  parts.push(`<text class="silk" x="${KEYX - 8}" y="${rowY(1) + PAD + 34}">Global Settings</text>`);
+  parts.push(`<text class="silk" x="${colX(16) + PAD / 2}" y="${rowY(1) + PAD + 34}" text-anchor="middle">column 16</text>`);
+  // step 1: Global Settings
+  const gx = KEYX, gy = rowY(1) + 14;
+  parts.push(`<rect class="lit-key on1" x="${gx}" y="${gy}" width="34" height="11" rx="2"/>`);
+  parts.push(`<g class="s1"><rect class="ring" x="${gx - 7}" y="${gy - 7}" width="48" height="25" rx="7"/>` +
+    `<g class="badge"><circle cx="${gx + 17}" cy="${gy - 22}" r="11"/><text x="${gx + 17}" y="${gy - 22}">1</text></g></g>`);
+  parts.push(`<circle class="tap1" cx="${gx + 17}" cy="${gy + 5}" r="14" fill="#fff"/>`);
+  // step 2: OS Update, and the pad not to touch
+  const ux = colX(16), uy = rowY(3), rx = colX(16), ry = rowY(1);
+  parts.push(`<rect class="lit-pad on2" x="${ux}" y="${uy}" width="${PAD}" height="${PAD}" rx="3"/>`);
+  parts.push(`<g class="s2"><rect class="ring" x="${ux - 6}" y="${uy - 6}" width="${PAD + 12}" height="${PAD + 12}" rx="7"/>` +
+    `<g class="badge"><circle cx="${ux + PAD + 22}" cy="${uy + PAD / 2}" r="11"/><text x="${ux + PAD + 22}" y="${uy + PAD / 2}">2</text></g>` +
+    `<rect class="warn" x="${rx - 4}" y="${ry - 4}" width="${PAD + 8}" height="${PAD + 8}" rx="6"/>` +
+    `<text class="warntext" x="${rx + PAD / 2}" y="${ry + PAD + 62}" text-anchor="middle">Not the bottom pad: pressing it too resets the settings</text></g>`);
+  parts.push(`<circle class="tap2" cx="${ux + PAD / 2}" cy="${uy + PAD / 2}" r="15" fill="#fff"/>`);
+  $("howtoSvg").insertAdjacentHTML("beforeend", parts.join(""));
+}
+drawHowto();
 
 // ------------------------------------------------------------------ start
 
