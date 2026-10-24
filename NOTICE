@@ -1,0 +1,11 @@
+LinnStrument Harmony Board
+https://github.com/rymorg/linnstrument-harmony-board
+
+This project is derived from the LinnStrument firmware by Roger Linn Design
+(https://github.com/rogerlinndesign/linnstrument-firmware), licensed under the
+Apache License, Version 2.0. It has been modified: the Harmony Board changes
+add ls_harmony.ino, the companion app, the flash helper and their documentation,
+and change several of the original source files.
+
+It is an unofficial project, not affiliated with or supported by Roger Linn
+Design. LinnStrument is a product of Roger Linn Design.

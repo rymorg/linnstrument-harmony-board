@@ -82,4 +82,4 @@ Please don't send bug reports or feature requests about this fork to Roger Linn 
 License
 -------
 
-Apache License 2.0, the same as the original firmware. See [LICENSE.txt](LICENSE.txt).
+Apache License 2.0, the same as the original firmware. See [LICENSE.txt](LICENSE.txt) and [NOTICE](NOTICE).

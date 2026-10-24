@@ -6,7 +6,7 @@ Where the work stands as of October 23, 2026. [HARMONY.md](HARMONY.md) is the us
 Where things live
 -----------------
 
-- **Branch:** `harmony-board`, pushed to `origin/harmony-board`.
+- **Repository:** https://github.com/rymorg/linnstrument-harmony-board, branch `main`. It started as a fork of the official firmware and keeps its history; the `upstream` remote still points to Roger Linn Design's repository for pulling in their changes, and the `stock-firmware` branch is the stock code this project started from.
 - **Firmware code:** almost everything is in `ls_harmony.ino`. Hooks into the stock code are small and live in `ls_handleTouches.ino`, `ls_displayModes.ino`, `ls_settings.ino` (Split button), `ls_switches.ino` (PREV/NEXT), `ls_lowRow.ino`, `ls_rtos.ino` and `ls_midi.ino` (clock ticks and same-note lights), and `ls_leds.ino` (new colors and dimming).
 - **Flash helper:** `tools/flash_keep_settings.py` backs up settings, calibration and sequencer projects over serial, flashes, and restores them. Set it up once with the commands in HARMONY.md. Backups go to `~/linnstrument-backups/`.
 - **Companion app:** `companion/index.html`, the mockup turned into an app that mirrors the LinnStrument over USB MIDI. [COMPANION.md](COMPANION.md) covers running it and the SysEx protocol.
