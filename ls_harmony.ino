@@ -61,6 +61,8 @@ valid for the stock firmware.
 #define HARM_MEM_CLEAR_MS   900              // hold a memory pad this long to clear it
 
 const byte HARM_MAJOR[7] = {0, 2, 4, 5, 7, 9, 11};
+const byte HARM_IONIAN[7] = {0, 2, 4, 5, 7, 9, 11};
+const byte HARM_AEOLIAN[7] = {0, 2, 3, 5, 7, 8, 10};
 const byte HARM_PARENT[4][7] = {
   {0, 2, 4, 5, 7, 9, 11},                    // major, its modes from Ionian to Locrian
   {0, 2, 3, 5, 7, 9, 11},                    // melodic minor
@@ -177,7 +179,61 @@ byte harmonyPatVoiceNote[HARM_PAT_VOICES];
 byte harmonyPatVoiceVel[HARM_PAT_VOICES];
 unsigned long harmonyPatVoiceOff[HARM_PAT_VOICES];  // the tick at which the note ends
 unsigned long harmonyPatVoiceDue[HARM_PAT_VOICES];  // when a waiting note starts, in micros
-// lights and hints; the rules here are the mockup's Pop style, until styles are added
+// styles: each one swaps the rules behind the lights and hints
+#define HARM_STYLE_POP       0
+#define HARM_STYLE_ROCK      1
+#define HARM_STYLE_BLUES     2
+#define HARM_STYLE_JAZZ      3
+#define HARM_STYLE_SOUL      4
+#define HARM_STYLE_CINEMATIC 5
+#define HARM_STYLE_FLAMENCO  6
+#define HARM_STYLE_FREE      7
+#define HARM_STYLES          8
+#define HARM_PAGE_STYLE      11
+#define HARM_PAGE_TEMPLATE   13
+#define HARM_AVOID_NONE      0
+#define HARM_AVOID_ALL       1               // a note a half step above any chord tone
+#define HARM_AVOID_ROOT      2               // a note a half step above the chord's root
+#define HARM_FLAVOR_NONE     0
+#define HARM_FLAVOR_BLUE     1               // b3 and b5 of the key over major chords
+#define HARM_FLAVOR_ALTERED  2               // b9, #9, #11 and b13 over dominant chords
+#define HARM_FLAVOR_SIGNATURE 3              // where the mode differs from plain major or minor
+#define HARM_FLAVOR_FLAT2    4               // the b2 of the key
+
+const byte HARM_STYLE_COLOR[HARM_STYLES] = {COLOR_CYAN, COLOR_RED, COLOR_BLUE, COLOR_MAGENTA, COLOR_ORANGE, COLOR_GREEN, COLOR_PINK, COLOR_YELLOW};
+const byte HARM_STYLE_SIZE[HARM_STYLES] = {4, 3, 4, 4, 5, 4, 3, 0};             // the chord size a style starts with, 0 to keep it
+const byte HARM_STYLE_AVOID[HARM_STYLES] = {HARM_AVOID_ALL, HARM_AVOID_ROOT, HARM_AVOID_NONE, HARM_AVOID_ALL,
+                                            HARM_AVOID_ROOT, HARM_AVOID_NONE, HARM_AVOID_NONE, HARM_AVOID_NONE};
+const byte HARM_STYLE_FLAVOR[HARM_STYLES] = {HARM_FLAVOR_NONE, HARM_FLAVOR_BLUE, HARM_FLAVOR_BLUE, HARM_FLAVOR_ALTERED,
+                                             HARM_FLAVOR_NONE, HARM_FLAVOR_SIGNATURE, HARM_FLAVOR_FLAT2, HARM_FLAVOR_NONE};
+// natural next moves, one bit per root motion in scale steps (bit 0, the same root, is always natural)
+const byte HARM_STYLE_MOVES[HARM_STYLES] = {B0101011, B1011011, B1011001, B1101001, B1101001, B0100111, B1000011, B1111111};
+// the thumb modifiers a style leans on stay bright with hints on: bit 0 V/x, 1 Borrow, 2 sus4, 3 add9
+const byte HARM_STYLE_MODS[HARM_STYLES] = {B0001, B0010, B0001, B0011, B1010, B1100, B0000, B1111};
+
+// progression templates: the style, the mode it sets (a rotation of the major scale), whether it raises
+// the 7th, and the chord degrees in order
+#define HARM_TEMPLATES      21
+#define HARM_TPL_MAX_STEPS  9
+const byte HARM_TPL_STYLE[HARM_TEMPLATES] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6};
+const byte HARM_TPL_MODE[HARM_TEMPLATES]  = {0, 0, 0, 4, 5, 0, 4, 4, 4, 0, 0, 0, 5, 0, 1, 0, 5, 3, 5, 2, 2};
+const byte HARM_TPL_RAISE7[HARM_TEMPLATES] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+const byte HARM_TPL_LEN[HARM_TEMPLATES]   = {4, 4, 4, 3, 3, 4, 7, 9, 7, 3, 4, 5, 3, 4, 2, 3, 4, 2, 4, 4, 2};
+const byte HARM_TPL_STEPS[HARM_TEMPLATES][HARM_TPL_MAX_STEPS] = {
+  {0, 4, 5, 3}, {5, 3, 0, 4}, {0, 5, 3, 4},                                       // Pop: I-V-vi-IV, vi-IV-I-V, I-vi-IV-V
+  {0, 6, 3}, {0, 5, 6}, {0, 3, 4, 3},                                             // Rock: I-bVII-IV, i-bVI-bVII, I-IV-V-IV
+  {0, 3, 0, 4, 3, 0, 4}, {0, 3, 0, 3, 0, 4, 3, 0, 4}, {0, 4, 3, 0, 4, 0, 4},     // Blues: 12-bar, quick-change 12-bar, 8-bar
+  {1, 4, 0}, {0, 5, 1, 4}, {2, 5, 1, 4, 0}, {1, 4, 0},                            // Jazz: ii-V-I, I-vi-ii-V, iii-vi-ii-V-I, minor ii-V-i
+  {3, 2, 1, 0}, {0, 3}, {1, 4, 0},                                                // Soul: IV-iii-ii-I, i-iv in Dorian, ii-V-I
+  {0, 5, 2, 6}, {0, 1}, {0, 6, 5, 6},                                             // Cinematic: i-bVI-bIII-bVII, I-II in Lydian, i-bVII-bVI-bVII
+  {3, 2, 1, 0}, {0, 1}                                                            // Flamenco: Andalusian iv-bIII-bII-I, I-bII
+};
+
+byte harmonyStyle = HARM_STYLE_POP;
+signed char harmonyTemplate = -1;            // the template in use, -1 when off
+byte harmonyTplIdx = 0;                      // the template's next step
+
+// lights and hints
 #define HARM_LIGHTS_GUIDE   0                // chord root, chord tones, color tones, and notes to pass through
 #define HARM_LIGHTS_CHORD   1                // chord tones and altered notes only
 #define HARM_LIGHTS_DEGREES 2                // one hue per scale degree
@@ -197,7 +253,6 @@ boolean harmonyHints = true;
 unsigned short harmonyCurSet = 0;            // pitch classes of the current scale, one bit each
 unsigned short harmonyChangedPcs = 0;        // pitch classes the last harmony change brought in
 unsigned long harmonyChangedUntil = 0;
-boolean harmonyZoneDirty = false;            // the chord pads need repainting for the held melody notes
 const byte HARM_DEG_HUES[7] = {COLOR_RED, COLOR_ORANGE, COLOR_YELLOW, COLOR_GREEN, COLOR_TEAL, COLOR_BLUE, COLOR_VIOLET};
 const byte HARM_FIFTHS_COLOR[12] = {COLOR_RED, COLOR_AZURE, COLOR_YELLOW, COLOR_VIOLET, COLOR_GREEN, COLOR_PINK,
                                     COLOR_CYAN, COLOR_ORANGE, COLOR_BLUE, COLOR_LIME, COLOR_MAGENTA, COLOR_TEAL};
@@ -323,8 +378,10 @@ void harmonyRecompute() {
   // the lit chord: the focused chord, or the tonic chord
   if (hepta) {
     byte deg = harmonyCur.chordDeg >= 0 ? harmonyCur.chordDeg : 0;
-    for (byte j = 0; j < harmonyCur.chordSize; ++j) {
-      byte pc = (harmonyCur.root + harmonyIv[(deg + 2 * j) % 7]) % 12;
+    signed char styled[5];
+    byte n = harmonyStyledRel(deg, harmonyCur.chordSize, styled);
+    for (byte j = 0; j < (n ? n : harmonyCur.chordSize); ++j) {
+      byte pc = n ? (harmonyCur.root + harmonyIv[deg] + styled[j]) % 12 : (harmonyCur.root + harmonyIv[(deg + 2 * j) % 7]) % 12;
       if (harmonyLitRole[pc] < 0) {
         harmonyLitRole[pc] = j;
       }
@@ -368,7 +425,26 @@ void harmonyChanged() {
   harmonyRecompute();
   harmonyMorphHeldNotes();
   harmonyChordRetune();
+  harmonyRefreshPlayedLights();
   updateDisplay();
+}
+
+// the "Same" note lights of held notes move with the layout when the harmony changes
+void harmonyRefreshPlayedLights() {
+  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+    for (byte row = 0; row < NUMROWS; ++row) {
+      if (Split[getSplitOf(col)].playedTouchMode == playedSame) setLed(col, row, COLOR_OFF, cellOff, LED_LAYER_PLAYED);
+    }
+  }
+  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+    for (byte row = 0; row < NUMROWS; ++row) {
+      TouchInfo& c = cell(col, row);
+      byte split = getSplitOf(col);
+      if (c.touched == touchedCell && c.note >= 0 && Split[split].playedTouchMode == playedSame) {
+        harmonyHighlightNote(split, c.note, true);
+      }
+    }
+  }
 }
 
 void harmonySetEnabled(boolean on) {
@@ -424,14 +500,6 @@ int harmonyPitchOffset(byte channel) {
 void harmonyNoteStarted(byte channel) {
   if (channel >= 1 && channel <= 16) {
     harmonyBendOffset[channel] = 0;
-  }
-  harmonyMelodyChanged();
-}
-
-// in Perform mode, the chord pads' hints follow the melody notes that are held down
-void harmonyMelodyChanged() {
-  if (harmonyActive() && harmonyPerform && harmonyHints && sensorCol >= HARM_FIRST_PLAY) {
-    harmonyZoneDirty = true;
   }
 }
 
@@ -659,6 +727,10 @@ void harmonyChordTouch(byte row) {
   if (row == 7) {
     harmonyCur.chordSize = harmonyCur.chordSize >= 5 ? 3 : harmonyCur.chordSize + 1;
   }
+  else if (harmonyTemplate >= 0) {
+    harmonyTemplateAdvance(row);
+    harmonyCur.chordDeg = row;
+  }
   else {
     harmonyCur.chordDeg = (harmonyCur.chordDeg == row) ? -1 : row;
   }
@@ -795,6 +867,20 @@ void paintHarmonyPage() {
     setLed(HARM_PAGE_HELD, 7 - i, harmonyRetune == i ? COLOR_WHITE : COLOR_PINK, cellOn);
   }
 
+  // style: pop, rock, blues, jazz, soul, cinematic, flamenco, free
+  for (byte i = 0; i < HARM_STYLES; ++i) {
+    setLed(HARM_PAGE_STYLE, 7 - i, harmonyStyle == i ? COLOR_WHITE : HARM_STYLE_COLOR[i], cellOn);
+  }
+
+  // template: off, then the style's templates
+  setLed(HARM_PAGE_TEMPLATE, 7, harmonyTemplate < 0 ? COLOR_WHITE : COLOR_RED, cellOn);
+  byte shown = 0;
+  for (byte t = 0; t < HARM_TEMPLATES && shown < 6; ++t) {
+    if (HARM_TPL_STYLE[t] != harmonyStyle) continue;
+    setLed(HARM_PAGE_TEMPLATE, 6 - shown, harmonyTemplate == t ? COLOR_WHITE : COLOR_BLUE, cellOn);
+    shown++;
+  }
+
   // lights: guide, chord tones, degrees, note names
   for (byte i = 0; i < HARM_LIGHTS_COUNT; ++i) {
     setLed(HARM_PAGE_LIGHTS, 7 - i, harmonyLights == i ? COLOR_WHITE : COLOR_GREEN, cellOn);
@@ -831,6 +917,23 @@ void harmonyPageTouch(byte col, byte row) {
   }
   else if (col == HARM_PAGE_PATTERN && row >= 8 - HARM_PAT_COUNT) {
     harmonySetPattern(7 - row);
+  }
+  else if (col == HARM_PAGE_STYLE) {
+    harmonySetStyle(7 - row);
+  }
+  else if (col == HARM_PAGE_TEMPLATE && row == 7) {
+    harmonyTemplate = -1;
+  }
+  else if (col == HARM_PAGE_TEMPLATE) {
+    byte shown = 0;
+    for (byte t = 0; t < HARM_TEMPLATES; ++t) {
+      if (HARM_TPL_STYLE[t] != harmonyStyle) continue;
+      if (6 - shown == row) {
+        harmonyApplyTemplate(t);
+        break;
+      }
+      shown++;
+    }
   }
   else if (col == HARM_PAGE_LIGHTS && row >= 8 - HARM_LIGHTS_COUNT) {
     harmonyLights = 7 - row;
@@ -895,6 +998,21 @@ boolean harmonyIsPerform() {
 
 /******************************* lights *******************************/
 
+// Blues plays I, IV and V as dominant 7ths, Flamenco plays the tonic as a major chord with a b9;
+// returns how many tones went into rel, 0 when the style leaves this chord alone
+byte harmonyStyledRel(byte deg, byte size, signed char* rel) {
+  if (harmonyLen != 7) return 0;
+  const signed char blues[5] = {0, 4, 7, 10, 14};
+  const signed char flamenco[5] = {0, 4, 7, 10, 13};
+  const signed char* src = 0;
+  if (harmonyStyle == HARM_STYLE_BLUES && (deg == 0 || deg == 3 || deg == 4)) src = blues;
+  else if (harmonyStyle == HARM_STYLE_FLAMENCO && deg == 0) src = flamenco;
+  if (!src) return 0;
+  byte n = size < 3 ? 3 : (size > 5 ? 5 : size);
+  for (byte i = 0; i < n; ++i) rel[i] = src[i];
+  return n;
+}
+
 // pitch classes of a harmony, one bit each
 unsigned short harmonyScaleSet(byte root, byte family, byte mode, const signed char* alter) {
   byte iv[12];
@@ -958,9 +1076,15 @@ byte harmonyKeyLight(byte pc) {
   return harmonyDegreeOfPc[pc] >= 0 ? COLOR_GREEN : COLOR_OFF;
 }
 
-// the pitch classes of the chord on a scale degree, with size notes
+// the pitch classes of the chord on a scale degree, with size notes, in the style's chord qualities
 unsigned short harmonyDegreePcs(byte deg, byte size) {
   unsigned short pcs = 0;
+  signed char styled[5];
+  byte n = harmonyStyledRel(deg, size, styled);
+  if (n) {
+    for (byte j = 0; j < n; ++j) pcs |= 1 << ((harmonyCur.root + harmonyIv[deg] + styled[j]) % 12);
+    return pcs;
+  }
   for (byte j = 0; j < size; ++j) {
     pcs |= 1 << ((harmonyCur.root + harmonyIv[(deg + 2 * j) % 7]) % 12);
   }
@@ -970,8 +1094,21 @@ unsigned short harmonyDegreePcs(byte deg, byte size) {
 // the job of a chord, judged by its notes: it pulls hardest home when it holds the leading tone and the note
 // a tritone above it (V7, vii), it's tension with the leading tone alone, away when it holds the 4th degree,
 // and home otherwise; modes without a leading tone treat v and bVII as their tension chords
+#define HARM_FN_FREE        4                // Free judges nothing: every chord is just a chord
+
 byte harmonyChordFunction(byte deg, unsigned short pcs) {
-  if (harmonyLen != 7 || deg == 0) return HARM_FN_HOME;
+  if (harmonyLen != 7) return HARM_FN_HOME;
+  if (harmonyStyle == HARM_STYLE_FREE) return HARM_FN_FREE;
+  if (deg == 0) return HARM_FN_HOME;
+  if (harmonyStyle == HARM_STYLE_BLUES) return deg == 4 ? HARM_FN_PULL : HARM_FN_AWAY;
+  if (harmonyStyle == HARM_STYLE_FLAMENCO) return deg == 1 ? HARM_FN_PULL : (deg == 4 ? HARM_FN_TENSION : HARM_FN_AWAY);
+  if (harmonyStyle == HARM_STYLE_CINEMATIC) {
+    // judged by how many notes it shares with the home triad
+    unsigned short home = harmonyDegreePcs(0, 3);
+    byte shared = harmonyBitCount(pcs & home);
+    return shared >= 2 ? HARM_FN_HOME : (shared == 1 ? HARM_FN_AWAY : HARM_FN_TENSION);
+  }
+  if (harmonyStyle == HARM_STYLE_ROCK && deg != 4) return (deg == 1 || deg == 3 || deg == 6) ? HARM_FN_AWAY : HARM_FN_HOME;
   byte lt = (harmonyCur.root + 11) % 12;
   byte fourth = (harmonyCur.root + harmonyIv[3]) % 12;
   if (harmonyDegreeOfPc[lt] >= 0) {
@@ -985,19 +1122,62 @@ byte harmonyChordFunction(byte deg, unsigned short pcs) {
   return (pcs >> fourth & 1) ? HARM_FN_AWAY : HARM_FN_HOME;
 }
 
-// natural next moves by root motion in scale steps: up a 4th, down a 3rd, up a step
 boolean harmonyNaturalMove(byte from, byte to) {
   byte st = (to - from + 7) % 7;
-  return st == 0 || st == 3 || st == 5 || st == 1;
+  return (HARM_STYLE_MOVES[harmonyStyle] >> st) & 1;
 }
 
-// a chord pad's hint: its function's color, dim when it's not a natural next move, pulsing when it resolves the tension
-byte harmonyChordHintLight(byte deg, unsigned short pcs, byte cur, unsigned short curPcs) {
+// the mode's signature notes: where it differs from plain major or minor
+unsigned short harmonySignaturePcs() {
+  if (harmonyLen != 7) return 0;
+  const byte* ref = harmonyIv[2] == 4 ? HARM_IONIAN : HARM_AEOLIAN;
+  unsigned short pcs = 0;
+  for (byte i = 0; i < 7; ++i) {
+    if (harmonyIv[i] != ref[i]) pcs |= 1 << ((harmonyCur.root + harmonyIv[i]) % 12);
+  }
+  return pcs;
+}
+
+// whether the style wants to go from the chord on cur to the one on deg next
+boolean harmonyPulseTarget(byte cur, unsigned short curPcs, byte deg) {
+  switch (harmonyStyle) {
+    case HARM_STYLE_FREE: return false;
+    case HARM_STYLE_JAZZ:
+    case HARM_STYLE_SOUL: return deg == (cur + 3) % 7;
+    case HARM_STYLE_ROCK: return deg == 0 && (cur == 3 || cur == 4 || cur == 6);
+    case HARM_STYLE_BLUES: return (cur == 4 && (deg == 3 || deg == 0)) || (cur == 3 && deg == 0);
+    case HARM_STYLE_FLAMENCO: return (cur == 1 || cur == 2 || cur == 3) && deg == (cur + 6) % 7;
+    case HARM_STYLE_CINEMATIC: {
+      if (deg == cur) return false;
+      unsigned short sig = harmonySignaturePcs();
+      return (sig >> ((harmonyCur.root + harmonyIv[deg]) % 12) & 1) || (sig >> ((harmonyCur.root + harmonyIv[(deg + 2) % 7]) % 12) & 1);
+    }
+  }
+  byte fn = harmonyChordFunction(cur, curPcs);
+  return deg == 0 && (fn == HARM_FN_TENSION || fn == HARM_FN_PULL);
+}
+
+// the degree a template wants next, -1 when no template is on
+signed char harmonyTemplateNext() {
+  if (harmonyTemplate < 0) return -1;
+  return HARM_TPL_STEPS[harmonyTemplate][harmonyTplIdx % HARM_TPL_LEN[harmonyTemplate]];
+}
+
+void harmonyTemplateAdvance(byte deg) {
+  if (harmonyTemplate >= 0 && deg == harmonyTemplateNext()) {
+    harmonyTplIdx = (harmonyTplIdx + 1) % HARM_TPL_LEN[harmonyTemplate];
+  }
+}
+
+// a chord pad's hint: its function's color, dim when it's not a natural next move for the style, and
+// pulsing where the style (or the template) wants to go next; pullsInto is the degree a sounding V/x or
+// substitute chord leads into, -1 otherwise
+byte harmonyChordHintLight(byte deg, unsigned short pcs, byte cur, unsigned short curPcs, signed char pullsInto) {
   byte fn = harmonyChordFunction(deg, pcs);
-  byte curFn = harmonyChordFunction(cur, curPcs);
-  boolean resolves = (deg == 0 && (curFn == HARM_FN_TENSION || curFn == HARM_FN_PULL));
-  byte disp = resolves ? cellFocusPulse : (harmonyNaturalMove(cur, deg) ? 0 : cellDimHalf);
-  return HARM_LIGHT(HARM_FN_COLOR[fn], disp);
+  signed char next = harmonyTemplateNext();
+  boolean pulse = next >= 0 ? deg == next : (pullsInto >= 0 ? deg == pullsInto : harmonyPulseTarget(cur, curPcs, deg));
+  byte disp = pulse ? cellFocusPulse : (harmonyNaturalMove(cur, deg) ? 0 : cellDimHalf);
+  return HARM_LIGHT(fn == HARM_FN_FREE ? COLOR_BLUE : HARM_FN_COLOR[fn], disp);
 }
 
 byte harmonyZoneColor(byte col, byte row) {
@@ -1041,9 +1221,10 @@ byte harmonyZoneColor(byte col, byte row) {
       if (!hepta) return COLOR_OFF;
       if (row == 7) return harmonyCur.chordSize == 3 ? COLOR_LIME : (harmonyCur.chordSize == 4 ? COLOR_YELLOW : COLOR_ORANGE);
       byte cur = harmonyCur.chordDeg >= 0 ? harmonyCur.chordDeg : 0;
-      if (harmonyCur.chordDeg == row || (harmonyHints && row == cur)) return COLOR_WHITE;
-      if (!harmonyHints) return COLOR_BLUE;
-      return harmonyChordHintLight(row, harmonyDegreePcs(row, harmonyCur.chordSize), cur, harmonyDegreePcs(cur, harmonyCur.chordSize));
+      boolean tplNext = (harmonyTemplateNext() == row);
+      if (harmonyCur.chordDeg == row || (harmonyHints && row == cur)) return HARM_LIGHT(COLOR_WHITE, tplNext ? cellFocusPulse : 0);
+      if (!harmonyHints) return HARM_LIGHT(COLOR_BLUE, tplNext ? cellFocusPulse : 0);
+      return harmonyChordHintLight(row, harmonyDegreePcs(row, harmonyCur.chordSize), cur, harmonyDegreePcs(cur, harmonyCur.chordSize), -1);
     }
 
     case HARM_COL_MEMORY: {
@@ -1057,6 +1238,26 @@ byte harmonyZoneColor(byte col, byte row) {
     }
   }
   return COLOR_OFF;
+}
+
+// the style's flavor notes: blue notes over major chords (Rock, Blues), altered notes on dominants (Jazz),
+// the mode's signature notes (Cinematic), the b2 (Flamenco)
+boolean harmonyFlavorPc(byte pc) {
+  signed char litRoot = -1;
+  for (byte i = 0; i < 12; ++i) {
+    if (harmonyLitRole[i] == 0) litRoot = i;
+  }
+  if (litRoot < 0) return false;
+  byte rk = (pc - harmonyCur.root + 12) % 12;
+  byte rc = (pc - litRoot + 12) % 12;
+  boolean major = harmonyLitRole[(litRoot + 4) % 12] >= 0;
+  switch (HARM_STYLE_FLAVOR[harmonyStyle]) {
+    case HARM_FLAVOR_BLUE: return major && (rk == 3 || rk == 6);
+    case HARM_FLAVOR_ALTERED: return major && harmonyLitRole[(litRoot + 10) % 12] >= 0 && (rc == 1 || rc == 3 || rc == 6 || rc == 8);
+    case HARM_FLAVOR_SIGNATURE: return (harmonySignaturePcs() >> pc) & 1;
+    case HARM_FLAVOR_FLAT2: return rk == 1;
+  }
+  return false;
 }
 
 // the playing surface, by the Lights setting
@@ -1077,13 +1278,15 @@ byte harmonyPlayColor(byte col, byte row) {
   byte light;
   switch (harmonyLights) {
     case HARM_LIGHTS_GUIDE: {
-      // a note a half step above a chord tone is tense when held: pass through it
-      boolean avoid = false;
-      if (!inChord) {
-        byte below = (pc + 11) % 12;
-        avoid = harmonyLitRole[below] >= 0;
-      }
-      light = role == 0 ? COLOR_CYAN : (inChord ? COLOR_GREEN : (avoid ? HARM_LIGHT(COLOR_RED, cellDimHalf) : COLOR_AZURE));
+      if (role == 0) { light = COLOR_CYAN; break; }
+      if (inChord) { light = COLOR_GREEN; break; }
+      if (harmonyStyle == HARM_STYLE_FREE) { light = COLOR_OFF; break; }
+      if (harmonyFlavorPc(pc)) { light = COLOR_VIOLET; break; }
+      // a note a half step above a chord tone (or the root, by style) is tense when held: pass through it
+      byte below = (pc + 11) % 12;
+      boolean avoid = HARM_STYLE_AVOID[harmonyStyle] == HARM_AVOID_ALL ? harmonyLitRole[below] >= 0
+                    : HARM_STYLE_AVOID[harmonyStyle] == HARM_AVOID_ROOT ? harmonyLitRole[below] == 0 : false;
+      light = avoid ? HARM_LIGHT(COLOR_RED, cellDimHalf) : COLOR_AZURE;
       break;
     }
     case HARM_LIGHTS_DEGREES:
@@ -1118,27 +1321,33 @@ void paintHarmonyCell(byte col, byte row) {
   setLed(col, row, color, color == COLOR_OFF ? cellOff : (disp ? (CellDisplay)disp : cellOn), LED_LAYER_MAIN);
 }
 
-// called continuously: ends the pulse of newly brought-in notes, and repaints the chord pads for the melody
+// called continuously: ends the pulse of newly brought-in notes
 void harmonyLightsService() {
   if (!harmonyActive() || displayMode != displayNormal) return;
   if (harmonyChangedPcs && (long)(millis() - harmonyChangedUntil) >= 0) {
     harmonyChangedPcs = 0;
     updateDisplay();
   }
-  if (harmonyZoneDirty) {
-    harmonyZoneDirty = false;
-    for (byte col = 1; col < HARM_COL_MEMORY; ++col) {
-      for (byte row = 0; row < NUMROWS; ++row) {
-        paintHarmonyCell(col, row);
-      }
+}
+
+// the stock "Same" note lights find a note's pads with the chromatic layout's math; in harmony mode
+// light the playing pads that really play the note instead, and never the harmony zone
+boolean harmonyHighlightNote(byte split, byte notenum, boolean on) {
+  if (!harmonyActive()) return false;
+  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+    for (byte row = 0; row < NUMROWS; ++row) {
+      byte note = harmonyNotes[col][row];
+      if (note == HARM_NOTE_NONE) continue;
+      if (note + Split[split].transposeOctave + Split[split].transposePitch != notenum) continue;
+      if (on) setLed(col, row, Split[split].colorPlayed, cellOn, LED_LAYER_PLAYED);
+      else setLed(col, row, COLOR_OFF, cellOff, LED_LAYER_PLAYED);
     }
   }
+  return true;
 }
 
 /******************************* Perform mode: left-hand chords *******************************/
 
-const byte HARM_IONIAN[7] = {0, 2, 4, 5, 7, 9, 11};
-const byte HARM_AEOLIAN[7] = {0, 2, 3, 5, 7, 8, 10};
 
 void harmonySetPerform(boolean on) {
   if (harmonyPerform == on) return;
@@ -1175,9 +1384,10 @@ byte harmonyChordTones(byte type, byte deg, byte mods, signed char* rel, byte& r
   byte count = 0;
   short ninth = 14;
 
-  if (mods & HARM_MOD_VX) {
-    // the dominant 7th that leads into this degree's chord
-    rootPc = (harmonyCur.root + harmonyIv[deg] + 7) % 12;
+  boolean sub = (mods & HARM_MOD_BRW) && harmonyStyle == HARM_STYLE_JAZZ;
+  if ((mods & HARM_MOD_VX) || sub) {
+    // the dominant 7th that leads into this degree's chord; in Jazz, Borrow plays its tritone substitute
+    rootPc = (harmonyCur.root + harmonyIv[deg] + (sub && !(mods & HARM_MOD_VX) ? 1 : 7)) % 12;
     rel[count++] = 0;
     rel[count++] = 4;
     rel[count++] = 7;
@@ -1198,6 +1408,10 @@ byte harmonyChordTones(byte type, byte deg, byte mods, signed char* rel, byte& r
       rel[count++] = harmonyScaleSemis(sc, len, deg + 2 * j) - sc[deg];
     }
     if (len == 7) ninth = harmonyScaleSemis(sc, len, deg + 8) - sc[deg];
+    if (!(mods & HARM_MOD_BRW)) {
+      byte styled = harmonyStyledRel(deg, size, rel);
+      if (styled) count = styled;
+    }
   }
 
   if ((mods & HARM_MOD_SUS) && count > 1) rel[1] = 5;
@@ -1395,6 +1609,7 @@ void harmonyChordPress(byte type, byte deg, byte col, byte row) {
   harmonyChordLastZ = 255;
   harmonyChordSendOn();
   harmonyLightChord();
+  if (!(mods & (HARM_MOD_VX | HARM_MOD_BRW))) harmonyTemplateAdvance(deg);
   updateDisplay();
 }
 
@@ -1512,20 +1727,6 @@ void harmonyPerformRelease(byte col, byte row) {
   }
 }
 
-// pitch classes of the melody pads held down right now
-unsigned short harmonyHeldMelodyPcs() {
-  unsigned short held = 0;
-  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
-    for (byte row = 0; row < NUMROWS; ++row) {
-      if (cell(col, row).touched == touchedCell && harmonyNotes[col][row] != HARM_NOTE_NONE) {
-        short n = harmonyNotes[col][row] + Split[getSplitOf(col)].transposePitch + 120;
-        held |= 1 << (n % 12);
-      }
-    }
-  }
-  return held;
-}
-
 unsigned short harmonyChordPcs(byte type, byte deg, byte mods) {
   signed char rel[HARM_MAX_CHORD];
   byte rootPc;
@@ -1545,36 +1746,31 @@ byte harmonyPerformZoneColor(byte col, byte row) {
     if (mods & (1 << type)) return COLOR_WHITE;
     if (type == 1 && harmonyLen != 7) return COLOR_OFF;
     const byte thumbColors[4] = {COLOR_ORANGE, COLOR_PINK, COLOR_YELLOW, COLOR_YELLOW};
-    // the style's favorite modifier is bright; for now that's V/x
-    return HARM_LIGHT(thumbColors[type], (harmonyHints && type != 0) ? cellDimHalf : 0);
+    // the modifiers the style leans on stay bright
+    return HARM_LIGHT(thumbColors[type], (harmonyHints && !(HARM_STYLE_MODS[harmonyStyle] >> type & 1)) ? cellDimHalf : 0);
   }
 
   byte deg = row - 1;
   if (deg >= harmonyLen) return COLOR_OFF;
   if (harmonyChordType == type && harmonyChordDeg == deg) return COLOR_WHITE;
   byte plain = type == HARM_CHORD_SMART ? COLOR_LIME : COLOR_BLUE;
-  if (!harmonyHints) return plain;
+  if (!harmonyHints) return HARM_LIGHT(plain, harmonyTemplateNext() == deg ? cellFocusPulse : 0);
 
   unsigned short pcs = harmonyChordPcs(type, deg, mods);
   if (pcs == 0) return COLOR_OFF;
 
-  // while melody notes are held: the chord contains them, they add color, or one clashes
-  unsigned short held = harmonyHeldMelodyPcs();
-  if (held) {
-    if ((held & ~pcs) == 0) return COLOR_GREEN;
-    for (byte pc = 0; pc < 12; ++pc) {
-      if ((held >> pc & 1) && !(pcs >> pc & 1) && (pcs >> ((pc + 11) % 12) & 1)) return HARM_LIGHT(COLOR_RED, cellDimHalf);
-    }
-    return COLOR_AZURE;
-  }
-
   if (harmonyLen != 7) return plain;
-  if (mods & HARM_MOD_VX) return COLOR_RED;          // a dominant that pulls into this row
+  // a dominant (or in Jazz a tritone substitute) that pulls into this row
+  if ((mods & HARM_MOD_VX) || ((mods & HARM_MOD_BRW) && harmonyStyle == HARM_STYLE_JAZZ)) return COLOR_RED;
 
   byte cur = harmonyChordType >= 0 ? harmonyChordDeg : 0;
   unsigned short curPcs = harmonyChordType >= 0 ? harmonyChordPcs(harmonyChordType, harmonyChordDeg, harmonyChordMods)
                                                  : harmonyDegreePcs(0, 3);
-  return harmonyChordHintLight(deg, pcs, cur, curPcs);
+  signed char pullsInto = -1;
+  if (harmonyChordType >= 0 && ((harmonyChordMods & HARM_MOD_VX) || ((harmonyChordMods & HARM_MOD_BRW) && harmonyStyle == HARM_STYLE_JAZZ))) {
+    pullsInto = harmonyChordDeg;
+  }
+  return harmonyChordHintLight(deg, pcs, cur, curPcs, pullsInto);
 }
 
 /******************************* chord patterns *******************************/
@@ -1767,4 +1963,28 @@ void paintHarmonyLedTest() {
     setLed(col, 3, colors[i], cellDimQuarter);
     setLed(col, 2, colors[i], cellDimQuarter);
   }
+}
+
+/******************************* styles and templates *******************************/
+
+void harmonySetStyle(byte style) {
+  if (style >= HARM_STYLES) return;
+  harmonyStyle = style;
+  harmonyTemplate = -1;
+  harmonyTplIdx = 0;
+  if (HARM_STYLE_SIZE[style]) harmonyCur.chordSize = HARM_STYLE_SIZE[style];
+  harmonyChanged();
+}
+
+// a template sets its mode in the current key and lights the way through its chords
+void harmonyApplyTemplate(byte t) {
+  if (t >= HARM_TEMPLATES) return;
+  harmonyTemplate = t;
+  harmonyTplIdx = 0;
+  harmonyCur.family = 0;
+  harmonyCur.mode = HARM_TPL_MODE[t];
+  harmonyClearAlter();
+  if (HARM_TPL_RAISE7[t]) harmonyCur.alter[6] = 1;
+  harmonyCur.chordDeg = -1;
+  harmonyChanged();
 }

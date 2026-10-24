@@ -1756,6 +1756,7 @@ void highlightPossibleNoteCells(byte split, byte notenum) {
   if (userFirmwareActive) return;
   if (displayMode != displayNormal) return;
   if (isVisibleSequencerForSplit(split)) return;
+  if (harmonyHighlightNote(split, notenum, true)) return;
 
   byte row = 0;
   if (Split[split].lowRowMode != lowRowNormal) {
@@ -1792,6 +1793,7 @@ void resetPossibleNoteCells(byte split, byte notenum) {
   if (userFirmwareActive) return;
   if (displayMode != displayNormal) return;
   if (isVisibleSequencerForSplit(split)) return;
+  if (harmonyHighlightNote(split, notenum, false)) return;
   
   byte row = 0;
   if (Split[split].lowRowMode != lowRowNormal) {

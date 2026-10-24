@@ -13,7 +13,7 @@ What's in this build
 - **Held notes.** Notes you hold while changing the harmony glide to the same scale degree in the new harmony, using per-note pitch bend (Morph). The Harmony page can switch this to Hold, so held notes keep their pitch, or Retrigger, so they restart on their new notes.
 - **Memories.** Store and recall harmonies on the Memory column, and step through them with any switch assigned to PREV or NEXT.
 
-Not in this build yet: styles and templates (the lights and hints follow the mockup's Pop style for now), layout options, and saving the harmony, memories and page settings across power cycles. The mockup marks which of its settings the firmware has.
+Not in this build yet: layout options, and saving the harmony, memories and page settings across power cycles. The mockup marks which of its settings the firmware has.
 
 Control buttons
 ---------------
@@ -39,12 +39,14 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 | 7 · Harmony | On, Off (stock layout) |
 | 9 · Mode | Compose, Perform |
 | 21 · Rows apart | 3rd, 4th, 5th, octave (in a 7-note scale) |
+| 11 · Style | Pop (cyan), Rock (red), Blues (blue), Jazz (magenta), Soul (orange), Cinematic (green), Flamenco (pink), Free (yellow): the rules behind the lights and hints (see Styles and templates) |
+| 13 · Template | Off (red), then the style's progression templates (blue), in the order listed under Styles and templates |
 | 15 · Lights | Guide, Chord, Degrees, Notes: how the playing surface is colored (see What the lights mean) |
 | 17 · Hints | On, Off: whether the harmony zone and chord pads color themselves by what would sound good next |
 | 23 · Held notes | Morph (glide to the new harmony), Hold (keep their pitch), Retrigger (restart on the new notes) |
 | 25 · Pattern | Sustain (green), Pulse (yellow), Strum (orange), Arpeggio (pink): how Perform-mode chords play. The bottom two pads pick the clock: Host (blue) or Internal (cyan) |
 
-The current choice is white. The dark columns in between are where the mockup's other settings (style, template and layout) will go.
+The current choice is white. The dark columns in between are where the mockup's layout setting will go.
 
 ### LED check
 
@@ -116,6 +118,34 @@ Rows are counted from the bottom (row 1 is nearest you). Column 0 is the control
 - **Mode families**, in order: major, melodic minor, harmonic minor, harmonic major, then pentatonic and symmetric (major pentatonic, minor pentatonic, blues, whole tone, both diminished scales, chromatic). Alter and Chord work with 7-note scales only.
 - **Memory:** tap an empty slot to store the current harmony, tap a stored slot to recall it, and hold a stored slot for about a second to clear it. Slots 1–4 start with examples: D Dorian, G Mixolydian, C Lydian, and A minor with a raised 7th.
 
+Styles and templates
+--------------------
+
+A style changes the rules behind the lights and hints, not the notes you play. Picking one also sets its usual chord size (the Chord column's top pad) and turns the template off.
+
+| Style | Chord size | What changes |
+|---|---|---|
+| Pop | 7th | Tension chords lead home. Natural moves: up a 4th, down a 3rd, up a step. V/x is the bright modifier. |
+| Rock | triad | ♭VII, ♭VI and IV back to I: IV, ♭VII and V pulse the tonic. Only the note a half step above the root is marked to pass through. Blue notes (♭3, ♭5) over major chords light violet. Borrow is the bright modifier. |
+| Blues | 7th | I, IV and V play as dominant 7ths. V pulls hardest home, and V leads to IV or I. Blue notes light violet, and nothing is marked to pass through. |
+| Jazz | 7th | ii–V chains: the chord a 5th below always pulses. Altered notes (♭9, ♯9, ♯11, ♭13) on dominant chords light violet. In Perform mode, Borrow plays the tritone substitute instead, the dominant 7th a half step above the chord. |
+| Soul | 9th | Bass lines that walk down; the chord a 5th below pulses. Borrow and add9 are the bright modifiers. |
+| Cinematic | 7th | Chords are judged by how many notes they share with home (azure: 2 or more, green: 1, orange: none), and chords built on the mode's signature notes pulse. Those notes light violet. sus4 and add9 are the bright modifiers. |
+| Flamenco | triad | Phrygian with a major I (and a ♭9 on 9th chords). ♭II pulls hardest home, and iv, ♭III and ♭II pulse the next step down. The ♭2 lights violet. |
+| Free | — | No judgments: only chord tones light up, every chord pad is blue, and every modifier stays bright. |
+
+A template sets its mode in the current key, and the next chord of its progression blinks in time on the Chord column (or the chord pads in Perform mode), whether hints are on or off. Play that chord and the next one blinks. In Compose mode, while a template is on, tapping the lit Chord pad again doesn't clear it.
+
+| Style | Templates, top pad down |
+|---|---|
+| Pop | I–V–vi–IV, vi–IV–I–V, I–vi–IV–V (Ionian) |
+| Rock | I–♭VII–IV (Mixolydian), i–♭VI–♭VII (Aeolian), I–IV–V–IV (Ionian) |
+| Blues | 12-bar, quick-change 12-bar, 8-bar (Mixolydian) |
+| Jazz | ii–V–I, I–vi–ii–V, iii–vi–ii–V–I (Ionian), minor ii–V–i (Aeolian with a raised 7th) |
+| Soul | IV–iii–ii–I (Ionian), i–iv (Dorian), ii–V–I (Ionian) |
+| Cinematic | i–♭VI–♭III–♭VII (Aeolian), I–II (Lydian), i–♭VII–♭VI–♭VII (Aeolian) |
+| Flamenco | Andalusian iv–♭III–♭II–I, I–♭II (Phrygian) |
+
 What the lights mean
 --------------------
 
@@ -128,11 +158,11 @@ What the lights mean
 | Degrees | one hue per scale degree: red, orange, yellow, green, teal, blue, violet for 1–7, bright for chord tones and dim for the rest |
 | Notes | one hue per note name around the circle of fifths, so a C is always red; bright for chord tones, dim for the rest |
 
-Notes that a harmony change brings in blink for about a second and a half.
+Notes that a harmony change brings in blink for about a second and a half. With the factory Note Lights setting "Same" (Per-Split Settings), touching a pad also lights every other playing pad with that note, in the harmony layout and never in the harmony zone; the harmony zone only changes when you change the harmony or chords.
 
 **Harmony zone, hints on.** Pads that change the harmony (keys, fifths, REL, PAR, modes, memories) show how many notes would change: white for none, green for one, yellow for two, orange for three or more (dim orange for four or more). The memory the next NEXT press would recall blinks in time with the tempo.
 
-Chord pads show what the chord does:
+Chord pads show what the chord does (the rules follow the style; these are Pop's):
 
 | Color | Function |
 |---|---|
@@ -141,7 +171,7 @@ Chord pads show what the chord does:
 | Orange | tension (it holds the leading tone; in modes without one, v and ♭VII) |
 | Red | the strongest pull home (the leading tone and the note a tritone above it, like V7) |
 
-They're bright for a natural next move from the current chord (up a 4th, down a 3rd or up a step) and dim otherwise, and the tonic blinks in time while a tension chord is playing. In Perform mode, holding melody notes recolors the chord pads: green when the chord contains them, azure when they add color, dim red when one clashes a half step above a chord tone. With V/x armed, the chord pads turn red. On the thumb strip, V/x stays bright and the other modifiers are dim. Alter pads show raised degrees magenta and lowered ones orange.
+They're bright for a natural next move from the current chord and dim otherwise, and the chord the style wants next blinks in time (in Pop, the tonic while a tension chord is playing). With V/x armed, the chord pads turn red. On the thumb strip, the modifiers the style leans on stay bright and the others are dim. Alter pads show raised degrees magenta and lowered ones orange.
 
 **Hints off**, and anywhere hints don't apply:
 
