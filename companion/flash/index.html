@@ -333,14 +333,26 @@ $("reconnectBtn").onclick = async () => {
   }
 };
 
-// must be called from a click: the first time, the user picks the LinnStrument
+// must be called from a click: the first time, the user picks the LinnStrument. Says what's going on, since
+// an embedded browser (an app's preview pane) may never show the chooser at all.
 async function ensurePort() {
   if (provider.chosen) return true;
+  showResult("warn", "<p>Choose <b>LinnStrument</b> in the list the browser shows, then click <b>Connect</b>.</p>" +
+    "<p class='small'>No list? Open this page in Chrome or Edge itself, not in an app's built-in browser.</p>");
   try {
     await provider.choose();
+    showResult("", "");
+    log("LinnStrument chosen.");
     return true;
   } catch (e) {
-    if (e.name !== "NotFoundError") throw e;
+    log(`No port chosen (${e.name}: ${e.message}).`);
+    if (e.name === "NotFoundError") {
+      showResult("warn", "<p>No LinnStrument was chosen. If it wasn't in the list, check that the <b>OS Update</b> pad is lit " +
+        "(Global Settings, column 16, third pad from the bottom), try another cable or port, and close other apps or tabs " +
+        "that use its serial port. On Windows, install the <a href=\"https://github.com/rymorg/linnstrument-harmony-board/blob/main/LinnStrument%20Windows%20Driver.zip\">LinnStrument driver</a>.</p>");
+    } else {
+      showResult("bad", `<p><b>The browser wouldn't open the port chooser:</b> ${escape(e.message)}</p><p>Open this page in Chrome or Edge itself.</p>`);
+    }
     return false;
   }
 }
