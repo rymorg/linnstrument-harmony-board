@@ -504,7 +504,7 @@ void serialSendHarmony() {
   Serial.write(ackCode);
 
   byte record[HARM_SAVE_RECORD];
-  int32_t size = harmonySavedRecord(record) ? HARM_SAVE_RECORD : 0;
+  int32_t size = harmonySavedRecord(record);
   Serial.write((byte*)&size, sizeof(int32_t));
 
   const uint8_t batchsize = 96;

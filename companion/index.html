@@ -344,9 +344,9 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
     <section class="card" aria-labelledby="h-ctl">
       <h2 id="h-ctl">Controls</h2>
       <div class="ctl" id="ctl">
-        <span class="k">Zone side</span>
+        <span class="k">Zone side<em class="fw" title="Also in the firmware build">FW</em></span>
         <div class="seg" data-key="side"><button id="c-side-left" data-v="left">Left</button><button id="c-side-right" data-v="right">Right</button></div>
-        <span class="k">Zone width</span>
+        <span class="k">Zone width<em class="fw" title="Also in the firmware build">FW</em></span>
         <div class="seg" data-key="width" data-num="1"><button id="c-w-4" data-v="4">4 cols</button><button id="c-w-5" data-v="5">5</button><button id="c-w-6" data-v="6">6</button></div>
         <span class="k">Harmony<em class="fw" title="Also in the firmware build">FW</em></span>
         <div class="seg" data-key="harmony" data-bool="1"><button id="c-hm-1" data-v="1">On</button><button id="c-hm-0" data-v="0">Off (stock layout)</button></div>
@@ -358,7 +358,7 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
         <div class="seg" data-key="pat"><button id="c-pt-s" data-v="sustain">Sustain</button><button id="c-pt-p" data-v="pulse">Pulse</button><button id="c-pt-st" data-v="strum">Strum</button><button id="c-pt-a" data-v="arp">Arp</button></div>
         <span class="k">Tempo</span>
         <div class="seg" data-key="bpm" data-num="1"><button id="c-bpm-80" data-v="80">80</button><button id="c-bpm-100" data-v="100">100</button><button id="c-bpm-120" data-v="120">120 BPM</button></div>
-        <span class="k">Layout</span>
+        <span class="k">Layout<em class="fw" title="Also in the firmware build">FW</em></span>
         <div class="seg" data-key="layout"><button id="c-l-scale" data-v="scale">Scale steps</button><button id="c-l-chr" data-v="chromatic">Chromatic</button><button id="c-l-snap" data-v="snap">Chromatic + snap</button></div>
         <span class="k">Rows apart<em class="fw" title="Also in the firmware build">FW</em></span>
         <div class="seg" data-key="rowStep" data-num="1"><button id="c-r-0" data-v="0">3rd</button><button id="c-r-1" data-v="1">4th</button><button id="c-r-2" data-v="2">5th</button><button id="c-r-3" data-v="3">Octave</button></div>
@@ -429,7 +429,7 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
           <tr><td>Scale-step layout, rows a 3rd, 4th, 5th or octave apart, scale-aware slides</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Held notes on a harmony change: Morph, Hold, Retrigger</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Split: tap for Compose or Perform, hold for the Harmony page</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
-          <tr><td>Harmony page: everything except Layout</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Harmony page: every setting, plus zone side and width</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Perform chord split: I–VII in root position, 1st and 2nd inversion, 7th and Smart voicing</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Thumb strip: V/x, Borrow, sus4, add9, Latch (on by default)</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Chords and bass on channel 16, CC74 and pressure from the chord pad, re-strike on harmony changes</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
@@ -438,8 +438,8 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
           <tr><td>Half and quarter brightness, and the teal, azure and violet blends (LED check on the Harmony page)</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Lights (Guide, Chord, Degrees, Notes) and hints</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
           <tr><td>Styles and progression templates</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
-          <tr><td>Chromatic and snap layouts, zone side and width</td><td class="st-n">Next</td><td class="st-y">Yes</td></tr>
-          <tr><td>Harmony, memories and page settings kept across power-off</td><td class="st-n">Planned</td><td class="st-n">No</td></tr>
+          <tr><td>Chromatic and snap layouts, zone side and width</td><td class="st-y">Yes</td><td class="st-y">Yes</td></tr>
+          <tr><td>Harmony, memories and page settings kept across power-off</td><td class="st-y">Yes</td><td class="st-n">No</td></tr>
           <tr><td>Melody latch, pad labels and sound (mockup helpers for playing with a mouse)</td><td class="st-n">—</td><td class="st-y">Yes</td></tr>
         </tbody>
       </table>
@@ -1501,7 +1501,7 @@ const PAGE_STYLES = [
 ];
 const PAGE_LIGHTS = [['guide','GUIDE','Guide: chord tones, color tones and notes to pass through'], ['function','CHORD','Chord tones only'], ['degrees','DEG','One color per scale degree'], ['notes','NOTES','One color per note name']];
 const PAGE_COLS = [[0, 'Harmony'], [2, 'Mode'], [4, 'Style'], [6, 'Template'], [8, 'Lights'], [10, 'Hints'], [12, 'Layout'], [14, 'Rows'], [16, 'Held'], [18, 'Pattern']];
-const PAGE_FW = new Set([0, 2, 4, 6, 8, 10, 14, 16, 18]);          // page columns the firmware build has; the rest are mockup only
+const PAGE_FW = new Set([0, 2, 4, 6, 8, 10, 12, 14, 16, 18]);          // page columns the firmware build has; the rest are mockup only
 function togglePage() {
   S.page = !S.page;
   voices.slice().forEach(v => stopVoice(v, true));
@@ -2393,7 +2393,7 @@ function applyFwState(d) {
   S.octave = d[30] - 5;
   MIRROR.display = d.length > 33 ? d[33] : (S.page ? 46 : 0);
   if (MIRROR.display === 0) MIRROR.frame = null;
-  S.layout = 'scale'; S.side = 'left'; S.width = 6;
+  S.layout = ['scale', 'chromatic', 'snap'][d[34]] || 'scale'; S.side = d[35] ? 'right' : 'left'; S.width = d.length > 36 ? d[36] : 6;
   const armed = d[29];
   CH.mods = { vx: armed & 1 ? 'fw' : null, brw: armed & 2 ? 'fw' : null, sus: armed & 4 ? 'fw' : null, add9: armed & 8 ? 'fw' : null };
   recompute(); layoutCols();
@@ -2496,6 +2496,9 @@ function harmonyPageInfo(c, r) {
   if (c === 1 && r === 7) return L('LED', 'LED check');
   if (c === 7 && top < 2) return L(['ON', 'OFF'][top], top ? 'Harmony mode off: the stock layout' : 'Harmony mode on');
   if (c === 9 && top < 2) return L(['COMP', 'PERF'][top], top ? 'Perform mode: left-hand chords' : 'Compose mode: harmony controls');
+  if (c === 3 && top < 2) return L(['LEFT', 'RIGHT'][top], `Harmony zone on the ${['left', 'right'][top]} edge`);
+  if (c === 5 && top < 3) return L(String(6 - top), ['Zone 6 columns wide: Key ♯♭, Key, Mode, Alter, Chord, Memory', 'Zone 5 columns wide: no Memory column (PREV and NEXT still step memories)', 'Zone 4 columns wide: no Chord or Memory column'][top]);
+  if (c === 19 && top < 3) return L(['SCALE', 'CHROM', 'SNAP'][top], ['Layout: each column is the next scale tone', 'Layout: each column is a semitone, scale tones lit', 'Layout: chromatic, and pads outside the scale play the nearest scale tone'][top]);
   if (c === 11) { const k = FW_STYLES[top]; return L(STYLES[k].name.slice(0, 4).toUpperCase(), `Style: ${STYLES[k].name}`); }
   if (c === 13) {
     if (top === 0) return L('OFF', 'Template off');

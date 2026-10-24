@@ -585,7 +585,10 @@ def backup_device(port, skip_projects):
         try:
             harmony = conn.read_harmony()
             if harmony is None:
-                harmony = b""                    # firmware without Harmony Board saving
+                print("    No Harmony Board data: this firmware doesn't answer the harmony backup command.")
+                harmony = b""
+            elif not harmony:
+                print("    No Harmony Board data: the LinnStrument reports nothing saved yet.")
         except (LinnStrumentError,) + PORT_ERRORS as e:
             print("    Warning: couldn't read the Harmony Board data (%s); continuing without it." % e)
             harmony = b""

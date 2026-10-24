@@ -13,8 +13,7 @@ What's in this build
 - **Held notes.** Notes you hold while changing the harmony glide to the same scale degree in the new harmony, using per-note pitch bend (Morph). The Harmony page can switch this to Hold, so held notes keep their pitch, or Retrigger, so they restart on their new notes.
 - **Memories.** Store and recall harmonies on the Memory column, and step through them with any switch assigned to PREV or NEXT.
 - **Saved across power-off.** The harmony, the 8 memories, Compose or Perform, Latch and every Harmony page setting come back when you plug the LinnStrument in again. See Saving below.
-
-Not in this build yet: layout options. The mockup marks which of its settings the firmware has.
+- **Layouts and zone placement.** Besides the scale-step layout, the playing surface can be chromatic, with scale tones lit, or chromatic with snap, where pads outside the scale play the nearest scale tone. The harmony zone can sit on either edge and be 4, 5 or 6 columns wide.
 
 Control buttons
 ---------------
@@ -39,7 +38,10 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 |---|---|
 | 7 · Harmony | On, Off (stock layout) |
 | 9 · Mode | Compose, Perform |
+| 19 · Layout | Scale steps, Chromatic, Chromatic with snap (see Layouts) |
 | 21 · Rows apart | 3rd, 4th, 5th, octave (in a 7-note scale) |
+| 3 · Zone side | Left, Right: which edge the harmony zone sits on. On the right it's mirrored, Key ♯♭ outermost, and the 5th pads point outward |
+| 5 · Zone width | 6, 5, 4 columns: 5 drops the Memory column (PREV and NEXT still step memories), 4 drops Chord too. Perform mode always uses all 6 |
 | 11 · Style | Pop (cyan), Rock (red), Blues (blue), Jazz (magenta), Soul (orange), Cinematic (green), Flamenco (pink), Free (yellow): the rules behind the lights and hints (see Styles and templates) |
 | 13 · Template | Off (red), then the style's progression templates (blue), in the order listed under Styles and templates |
 | 15 · Lights | Guide, Chord, Degrees, Notes: how the playing surface is colored (see What the lights mean) |
@@ -47,8 +49,7 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 | 23 · Held notes | Morph (glide to the new harmony), Hold (keep their pitch), Retrigger (restart on the new notes) |
 | 25 · Pattern | Sustain (green), Pulse (yellow), Strum (orange), Arpeggio (pink): how Perform-mode chords play. The bottom two pads pick the clock: Host (blue) or Internal (cyan) |
 
-The current choice is white. The dark columns in between are where the mockup's layout setting will go.
-
+The current choice is white. 
 ### LED check
 
 The top pad of column 1 on the Harmony page (violet) opens a test screen for the colors the lights work will use. Tap Split to go back to the Harmony page.
@@ -60,6 +61,17 @@ Each color has one column, with a dark column between neighbors:
 | Color | red | orange | yellow | lime | green | **teal** | cyan | **azure** | blue | **violet** | magenta | pink | white |
 
 From the top, rows 8 and 7 are full brightness, rows 6 and 5 half brightness, and rows 4 and 3 a quarter. Teal, azure and violet are new: like orange and lime, each alternates between two colors on every refresh (teal: cyan and green; azure: cyan and blue; violet: magenta and blue). The LEDs light one column at a time, and dim pads go dark halfway (or a quarter of the way) through their column's turn, so they refresh as fast as full-brightness pads. Things to look for: whether teal, azure and violet read as their own colors next to their neighbors, whether the dim rows look steady or flicker, and whether a dim color still looks like its full-brightness version.
+
+Layouts
+-------
+
+| Layout | Each column is | Rows apart |
+|---|---|---|
+| **Scale steps** (default) | the next note of the scale, so every pad is in the scale | a 3rd, 4th, 5th or octave in scale steps |
+| **Chromatic** | the next semitone, starting from C2 on the bottom row; scale tones light up by the Lights setting, the others stay dark but play | 4, 5, 7 or 12 semitones (the Rows apart setting) |
+| **Chromatic with snap** | the next semitone, but a pad outside the scale plays the nearest scale tone, looking down first; slides move in steps between scale tones | as Chromatic |
+
+Changing the layout, the zone side or the zone width lets go of every note and chord.
 
 Perform mode
 ------------
@@ -192,7 +204,7 @@ In Perform mode, chord pads are blue, Smart pads lime, and the sounding chord wh
 Saving
 ------
 
-The harmony, the memories and the Harmony page settings are saved on their own, a few seconds after you stop changing them, and only while no pad is touched and no chord pattern is playing (writing to flash pauses the LinnStrument for a few milliseconds). Nothing is saved if nothing changed.
+The harmony, the memories and the Harmony page settings are saved on their own, a few seconds after you stop changing them, while no pad is touched (writing to flash pauses the LinnStrument for a few milliseconds). A playing chord pattern holds the save back for up to 20 seconds. Turning on OS Update saves right away, so a flash helper backup always has the latest. Nothing is saved if nothing changed.
 
 They're kept apart from the factory settings, so those keep their size and stay compatible with the official Updater. Each save goes to the next of 16 flash pages, with a sequence number and a checksum, and at power-up the LinnStrument loads the newest page that checks out. If the power goes off in the middle of a save, the previous save is still there, and spreading saves over 16 pages makes the flash last 16 times longer.
 

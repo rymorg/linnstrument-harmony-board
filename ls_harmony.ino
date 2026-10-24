@@ -38,13 +38,20 @@ PREV or NEXT steps through the memories while harmony mode is active, which keep
 valid for the stock firmware.
 **************************************************************************************************/
 
+// the harmony zone's modules, numbered from the outer edge of the board; harmonyModuleAt() finds them,
+// since the zone can sit on either side and be 4, 5 or 6 columns wide
 #define HARM_COL_KEYACC     1
 #define HARM_COL_KEYNAT     2
 #define HARM_COL_MODE       3
 #define HARM_COL_ALTER      4
 #define HARM_COL_CHORD      5
 #define HARM_COL_MEMORY     6
-#define HARM_FIRST_PLAY     7
+#define HARM_LAYOUT_SCALE   0                // each column is the next scale tone
+#define HARM_LAYOUT_CHROM   1                // each column is a semitone; scale tones light up
+#define HARM_LAYOUT_SNAP    2                // chromatic, and pads outside the scale play the nearest scale tone
+#define HARM_PAGE_SIDE      3
+#define HARM_PAGE_WIDTH     5
+#define HARM_PAGE_LAYOUT    19
 #define HARM_NOTE_NONE      255
 #define HARM_FAMILIES       5
 #define HARM_SYMMETRIC      4                // the family index of the pentatonic and symmetric scales
@@ -269,7 +276,11 @@ byte harmonyIv[12];                          // intervals in use
 byte harmonyLen = 7;
 signed char harmonyDegreeOfPc[12];           // scale degree of each pitch class, -1 when it's not in the scale
 signed char harmonyLitRole[12];              // 0 for the lit chord's root, 1+ for its other tones, -1 otherwise
-byte harmonyNotes[MAXCOLS][MAXROWS];         // MIDI note of each playing cell before octave transposition
+byte harmonyNotes[MAXCOLS][MAXROWS];         // MIDI note each playing cell plays, before octave transposition
+byte harmonyPadNotes[MAXCOLS][MAXROWS];      // the note each playing cell sits on, for the lights (differs only in snap)
+byte harmonyLayout = HARM_LAYOUT_SCALE;
+boolean harmonySideRight = false;            // the harmony zone on the right edge instead of the left
+byte harmonyWidth = 6;                       // zone columns in Compose mode: 4 (no Chord or Memory), 5 (no Memory) or 6
 int harmonyBendOffset[17];                   // per MIDI channel, the pitch offset of a held note after a harmony change
 
 signed char harmonyMemPressRow = -1;
@@ -282,8 +293,33 @@ boolean harmonyActive() {
   return harmonyEnabled && harmonyReady && !userFirmwareActive;
 }
 
+// the zone's width right now: Perform mode always uses all six columns
+byte harmonyZoneWidth() {
+  return harmonyPerform ? 6 : harmonyWidth;
+}
+
+// the zone module on a column (HARM_COL_*), or 0 for the playing surface and the control buttons
+byte harmonyModuleAt(byte col) {
+  if (col == 0 || col >= NUMCOLS) return 0;
+  byte i = harmonySideRight ? NUMCOLS - 1 - col : col - 1;
+  return i < harmonyZoneWidth() ? i + 1 : 0;
+}
+
 boolean harmonyIsZoneCol(byte col) {
-  return col >= 1 && col < HARM_FIRST_PLAY;
+  return harmonyModuleAt(col) != 0;
+}
+
+// the playing surface's first and last columns
+byte harmonyPlayFirst() {
+  return harmonySideRight ? 1 : 1 + harmonyZoneWidth();
+}
+
+byte harmonyPlayLast() {
+  return harmonySideRight ? NUMCOLS - 1 - harmonyZoneWidth() : NUMCOLS - 1;
+}
+
+boolean harmonyIsPlayCol(byte col) {
+  return col >= harmonyPlayFirst() && col <= harmonyPlayLast();
 }
 
 // whether the current sensor cell is a harmony zone pad that should be handled by this module
@@ -407,13 +443,33 @@ void harmonyRecompute() {
   for (byte col = 0; col < MAXCOLS; ++col) {
     for (byte row = 0; row < MAXROWS; ++row) {
       harmonyNotes[col][row] = HARM_NOTE_NONE;
+      harmonyPadNotes[col][row] = HARM_NOTE_NONE;
     }
   }
-  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+  byte first = harmonyPlayFirst(), last = harmonyPlayLast();
+  for (byte col = first; col <= last; ++col) {
     for (byte row = 0; row < NUMROWS; ++row) {
-      short s = (col - HARM_FIRST_PLAY) + row * steps;
-      short note = base + 12 * (s / harmonyLen) + harmonyIv[s % harmonyLen];
-      harmonyNotes[col][row] = (note >= 0 && note <= 127) ? note : HARM_NOTE_NONE;
+      short k = col - first;
+      short note, sounding;
+      if (harmonyLayout == HARM_LAYOUT_SCALE) {
+        short s = k + row * steps;
+        note = base + 12 * (s / harmonyLen) + harmonyIv[s % harmonyLen];
+        sounding = note;
+      }
+      else {
+        // chromatic from C2, rows the same interval apart as in the scale layout
+        note = 36 + k + row * HARM_ROW_SEMIS[harmonyRowIdx];
+        sounding = note;
+        if (harmonyLayout == HARM_LAYOUT_SNAP && harmonyDegreeOfPc[note % 12] < 0) {
+          // the nearest scale tone, looking down first
+          for (byte d = 1; d < 7; ++d) {
+            if (note - d >= 0 && harmonyDegreeOfPc[(note - d) % 12] >= 0) { sounding = note - d; break; }
+            if (harmonyDegreeOfPc[(note + d) % 12] >= 0) { sounding = note + d; break; }
+          }
+        }
+      }
+      harmonyPadNotes[col][row] = (note >= 0 && note <= 127) ? note : HARM_NOTE_NONE;
+      harmonyNotes[col][row] = (sounding >= 0 && sounding <= 127) ? sounding : HARM_NOTE_NONE;
     }
   }
 }
@@ -434,12 +490,12 @@ void harmonyChanged() {
 
 // the "Same" note lights of held notes move with the layout when the harmony changes
 void harmonyRefreshPlayedLights() {
-  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+  for (byte col = harmonyPlayFirst(); col <= harmonyPlayLast(); ++col) {
     for (byte row = 0; row < NUMROWS; ++row) {
       if (Split[getSplitOf(col)].playedTouchMode == playedSame) setLed(col, row, COLOR_OFF, cellOff, LED_LAYER_PLAYED);
     }
   }
-  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+  for (byte col = harmonyPlayFirst(); col <= harmonyPlayLast(); ++col) {
     for (byte row = 0; row < NUMROWS; ++row) {
       TouchInfo& c = cell(col, row);
       byte split = getSplitOf(col);
@@ -448,6 +504,15 @@ void harmonyRefreshPlayedLights() {
       }
     }
   }
+}
+
+// the zone moved or the layout changed: let go of everything and rebuild the note tables
+void harmonyLayoutChanged() {
+  harmonyChordStop();
+  harmonyModArmed = 0;
+  harmonyModHeld = 0;
+  resetAllTouches();
+  harmonyRecompute();
 }
 
 void harmonySetEnabled(boolean on) {
@@ -470,7 +535,7 @@ void harmonySetEnabled(boolean on) {
 // map an X movement, measured from the cell where the touch started, onto the notes of its row,
 // so that the pitch interpolates between neighboring scale tones and lands on them at cell centers
 short harmonyMapX(short initialCol, byte row, short movedX) {
-  if (!harmonyActive() || initialCol < HARM_FIRST_PLAY || initialCol >= NUMCOLS || row >= NUMROWS) return movedX;
+  if (!harmonyActive() || initialCol < 0 || !harmonyIsPlayCol(initialCol) || row >= NUMROWS) return movedX;
 
   byte note0 = harmonyNotes[initialCol][row];
   if (note0 == HARM_NOTE_NONE) return movedX;
@@ -479,12 +544,12 @@ short harmonyMapX(short initialCol, byte row, short movedX) {
   int32_t whole = q >= 0 ? q / HARM_COL_UNITS16 : -((-q + HARM_COL_UNITS16 - 1) / HARM_COL_UNITS16);
   int32_t frac = q - whole * HARM_COL_UNITS16;
   int32_t colA = initialCol + whole;
-  if (colA < HARM_FIRST_PLAY) {
-    colA = HARM_FIRST_PLAY;
+  if (colA < harmonyPlayFirst()) {
+    colA = harmonyPlayFirst();
     frac = 0;
   }
-  if (colA >= NUMCOLS - 1) {
-    colA = NUMCOLS - 1;
+  if (colA >= harmonyPlayLast()) {
+    colA = harmonyPlayLast();
     frac = 0;
   }
 
@@ -509,13 +574,13 @@ void harmonyNoteStarted(byte channel) {
 // held notes keep their degree when the harmony changes: Morph bends each note's channel to its new pitch,
 // Hold keeps the pitch it had, and Retrigger ends the note and starts the new one in its place
 void harmonyMorphHeldNotes() {
-  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+  for (byte col = harmonyPlayFirst(); col <= harmonyPlayLast(); ++col) {
     for (byte row = 0; row < NUMROWS; ++row) {
       TouchInfo& c = cell(col, row);
       if (c.touched != touchedCell || !c.hasNote() || c.channel < 1) continue;
 
       byte split = getSplitOf(col);
-      short startCol = c.initialColumn >= HARM_FIRST_PLAY ? c.initialColumn : col;
+      short startCol = (c.initialColumn > 0 && harmonyIsPlayCol(c.initialColumn)) ? c.initialColumn : col;
       byte note = harmonyNotes[startCol][row];
       if (note == HARM_NOTE_NONE) continue;
 
@@ -555,16 +620,19 @@ void harmonyMorphHeldNotes() {
 
 // a touch that slides off the playing surface onto the memory column shouldn't trigger it
 boolean harmonyIgnoreZoneTouch() {
-  return sensorCol == HARM_COL_MEMORY && cell(HARM_FIRST_PLAY, sensorRow).touched != untouchedCell;
+  if (harmonyModuleAt(sensorCol) != HARM_COL_MEMORY) return false;
+  byte neighbor = harmonySideRight ? sensorCol - 1 : sensorCol + 1;
+  return cell(neighbor, sensorRow).touched != untouchedCell;
 }
 
 void harmonyZoneTouch(byte col, byte row) {
-  if (harmonyPerform && col < HARM_COL_MEMORY) {
+  byte module = harmonyModuleAt(col);
+  if (harmonyPerform && module < HARM_COL_MEMORY) {
     harmonyPerformTouch(col, row);
     return;
   }
 
-  switch (col) {
+  switch (module) {
     case HARM_COL_KEYACC: harmonyKeyAccidentalTouch(row); break;
     case HARM_COL_KEYNAT: harmonyKeyNaturalTouch(row); break;
     case HARM_COL_MODE:   harmonyModeTouch(row); break;
@@ -576,12 +644,13 @@ void harmonyZoneTouch(byte col, byte row) {
 
 // called on every scan while a zone pad stays down
 void harmonyZoneHold(byte col, byte row) {
-  if (harmonyPerform && col < HARM_COL_MEMORY) {
+  byte module = harmonyModuleAt(col);
+  if (harmonyPerform && module < HARM_COL_MEMORY) {
     harmonyPerformHold(col, row);
     return;
   }
 
-  if (col == HARM_COL_MEMORY && row == harmonyMemPressRow && !harmonyMemPressDone &&
+  if (module == HARM_COL_MEMORY && row == harmonyMemPressRow && !harmonyMemPressDone &&
       calcTimeDelta(millis(), harmonyMemPressStart) > HARM_MEM_CLEAR_MS) {
     harmonyMemPressDone = true;
     harmonyMemUsed[row] = false;
@@ -591,7 +660,7 @@ void harmonyZoneHold(byte col, byte row) {
 
 // called when a zone pad is let go
 void harmonyZoneRelease(byte col, byte row) {
-  if (harmonyPerform && col < HARM_COL_MEMORY) {
+  if (harmonyPerform && harmonyModuleAt(col) < HARM_COL_MEMORY) {
     harmonyPerformRelease(col, row);
   }
 }
@@ -619,7 +688,7 @@ void harmonyKeyNaturalTouch(byte row) {
     harmonySetRoot(HARM_NATURAL_PC[row]);
   }
   else {
-    harmonySetRoot(harmonyCur.root + 7);       // up a fifth
+    harmonySetRoot(harmonyCur.root + (harmonySideRight ? 5 : 7));   // up a fifth (down on the right side)
   }
 }
 
@@ -634,7 +703,7 @@ void harmonyKeyAccidentalTouch(byte row) {
     harmonyParallel();
   }
   else {
-    harmonySetRoot(harmonyCur.root + 5);       // down a fifth
+    harmonySetRoot(harmonyCur.root + (harmonySideRight ? 7 : 5));   // down a fifth (up on the right side)
   }
 }
 
@@ -870,6 +939,14 @@ void paintHarmonyPage() {
     setLed(HARM_PAGE_HELD, 7 - i, harmonyRetune == i ? COLOR_WHITE : COLOR_PINK, cellOn);
   }
 
+  // zone side: left, right; zone width: 6, 5, 4; layout: scale steps, chromatic, chromatic with snap
+  setLed(HARM_PAGE_SIDE, 7, harmonySideRight ? COLOR_CYAN : COLOR_WHITE, cellOn);
+  setLed(HARM_PAGE_SIDE, 6, harmonySideRight ? COLOR_WHITE : COLOR_CYAN, cellOn);
+  for (byte i = 0; i < 3; ++i) {
+    setLed(HARM_PAGE_WIDTH, 7 - i, harmonyWidth == 6 - i ? COLOR_WHITE : COLOR_LIME, cellOn);
+    setLed(HARM_PAGE_LAYOUT, 7 - i, harmonyLayout == i ? COLOR_WHITE : COLOR_GREEN, cellOn);
+  }
+
   // style: pop, rock, blues, jazz, soul, cinematic, flamenco, free
   for (byte i = 0; i < HARM_STYLES; ++i) {
     setLed(HARM_PAGE_STYLE, 7 - i, harmonyStyle == i ? COLOR_WHITE : HARM_STYLE_COLOR[i], cellOn);
@@ -920,6 +997,24 @@ void harmonyPageTouch(byte col, byte row) {
   }
   else if (col == HARM_PAGE_PATTERN && row >= 8 - HARM_PAT_COUNT) {
     harmonySetPattern(7 - row);
+  }
+  else if (col == HARM_PAGE_SIDE && row >= 6) {
+    if (harmonySideRight != (row == 6)) {
+      harmonySideRight = (row == 6);
+      harmonyLayoutChanged();
+    }
+  }
+  else if (col == HARM_PAGE_WIDTH && row >= 5) {
+    if (harmonyWidth != 13 - row) {
+      harmonyWidth = 13 - row;                 // rows 7, 6, 5 are 6, 5 and 4 columns
+      harmonyLayoutChanged();
+    }
+  }
+  else if (col == HARM_PAGE_LAYOUT && row >= 5) {
+    if (harmonyLayout != 7 - row) {
+      harmonyLayout = 7 - row;
+      harmonyLayoutChanged();
+    }
   }
   else if (col == HARM_PAGE_STYLE) {
     harmonySetStyle(7 - row);
@@ -1184,18 +1279,19 @@ byte harmonyChordHintLight(byte deg, unsigned short pcs, byte cur, unsigned shor
 }
 
 byte harmonyZoneColor(byte col, byte row) {
-  if (harmonyPerform && col < HARM_COL_MEMORY) return harmonyPerformZoneColor(col, row);
+  byte module = harmonyModuleAt(col);
+  if (harmonyPerform && module < HARM_COL_MEMORY) return harmonyPerformZoneColor(col, row);
 
   boolean hepta = (harmonyLen == 7);
-  switch (col) {
+  switch (module) {
     case HARM_COL_KEYACC:
       if (row == 2) return harmonyActionLight(harmonyRelativeSet());
       if (row == 6) return harmonyActionLight(harmonyParallelSet());
-      if (HARM_ACCIDENTAL_PC[row] < 0) return harmonyHints ? harmonyRootLight((harmonyCur.root + 5) % 12) : COLOR_YELLOW;
+      if (HARM_ACCIDENTAL_PC[row] < 0) return harmonyHints ? harmonyRootLight((harmonyCur.root + (harmonySideRight ? 7 : 5)) % 12) : COLOR_YELLOW;
       return harmonyKeyLight(HARM_ACCIDENTAL_PC[row]);
 
     case HARM_COL_KEYNAT:
-      if (row == 7) return harmonyHints ? harmonyRootLight((harmonyCur.root + 7) % 12) : COLOR_YELLOW;
+      if (row == 7) return harmonyHints ? harmonyRootLight((harmonyCur.root + (harmonySideRight ? 5 : 7)) % 12) : COLOR_YELLOW;
       return harmonyKeyLight(HARM_NATURAL_PC[row]);
 
     case HARM_COL_MODE: {
@@ -1265,7 +1361,7 @@ boolean harmonyFlavorPc(byte pc) {
 
 // the playing surface, by the Lights setting
 byte harmonyPlayColor(byte col, byte row) {
-  byte note = harmonyNotes[col][row];
+  byte note = harmonyPadNotes[col][row];
   if (note == HARM_NOTE_NONE) return COLOR_OFF;
 
   byte split = getSplitOf(col);
@@ -1337,7 +1433,7 @@ void harmonyLightsService() {
 // light the playing pads that really play the note instead, and never the harmony zone
 boolean harmonyHighlightNote(byte split, byte notenum, boolean on) {
   if (!harmonyActive()) return false;
-  for (byte col = HARM_FIRST_PLAY; col < NUMCOLS; ++col) {
+  for (byte col = harmonyPlayFirst(); col <= harmonyPlayLast(); ++col) {
     for (byte row = 0; row < NUMROWS; ++row) {
       byte note = harmonyNotes[col][row];
       if (note == HARM_NOTE_NONE) continue;
@@ -1696,7 +1792,7 @@ void harmonyThumbUp(byte i) {
 }
 
 void harmonyPerformTouch(byte col, byte row) {
-  byte type = col - 1;
+  byte type = harmonyModuleAt(col) - 1;
   if (row == 0) {
     harmonyThumbDown(type);
   }
@@ -1723,7 +1819,7 @@ void harmonyPerformHold(byte col, byte row) {
 
 void harmonyPerformRelease(byte col, byte row) {
   if (row == 0) {
-    harmonyThumbUp(col - 1);
+    harmonyThumbUp(harmonyModuleAt(col) - 1);
   }
   else if (col == harmonyChordPadCol && row == harmonyChordPadRow) {
     harmonyChordRelease();
@@ -1742,7 +1838,7 @@ unsigned short harmonyChordPcs(byte type, byte deg, byte mods) {
 }
 
 byte harmonyPerformZoneColor(byte col, byte row) {
-  byte type = col - 1;
+  byte type = harmonyModuleAt(col) - 1;
   byte mods = harmonyModArmed | harmonyModHeld;
   if (row == 0) {
     if (type == HARM_THUMB_LATCH) return harmonyLatch ? COLOR_GREEN : COLOR_OFF;
@@ -2008,7 +2104,8 @@ void harmonyApplyTemplate(byte t) {
 #define HARM_SX_FRAME       0x03
 #define HARM_SX_REQUEST     0x10
 #define HARM_SX_HEADER      5
-#define HARM_SX_STATE_LEN   34
+#define HARM_SX_STATE_LEN   37
+#define HARM_SX_SCREEN_BYTE 33
 #define HARM_SX_MEM_SLOT    13
 #define HARM_SX_MEM_LEN     (HARM_MEMORIES * HARM_SX_MEM_SLOT)
 #define HARM_SX_STATE_MS    20               // how often to look for state changes
@@ -2054,7 +2151,7 @@ void harmonySxBuildState(byte* d) {
   d[i++] = harmonyChordType >= 0 ? harmonyChordDeg : 0;
   d[i++] = harmonyChordMods & 0x7F;
   d[i++] = (harmonyModArmed | harmonyModHeld) & 0x7F;
-  d[i++] = Split[getSplitOf(HARM_FIRST_PLAY)].transposeOctave / 12 + 5;
+  d[i++] = Split[getSplitOf(harmonyPlayFirst())].transposeOctave / 12 + 5;
   byte used = 0;
   for (byte m = 0; m < HARM_MEMORIES; ++m) {
     if (harmonyMemUsed[m]) used |= 1 << m;
@@ -2062,6 +2159,9 @@ void harmonySxBuildState(byte* d) {
   d[i++] = used & 0x7F;
   d[i++] = used >> 7;
   d[i++] = displayMode;
+  d[i++] = harmonyLayout;
+  d[i++] = harmonySideRight ? 1 : 0;
+  d[i++] = harmonyWidth;
 }
 
 // settings screens go out as the LEDs themselves, so the app shows exactly what the LinnStrument shows;
@@ -2118,7 +2218,7 @@ void harmonyCompanionService() {
     byte d[HARM_SX_STATE_LEN];
     harmonySxBuildState(d);
     if (harmonySxForceState || memcmp(d, harmonySxState, HARM_SX_STATE_LEN) != 0) {
-      if (d[HARM_SX_STATE_LEN - 1] != harmonySxState[HARM_SX_STATE_LEN - 1]) harmonySxForceFrame = true;   // a new screen
+      if (d[HARM_SX_SCREEN_BYTE] != harmonySxState[HARM_SX_SCREEN_BYTE]) harmonySxForceFrame = true;   // a new screen
       memcpy(harmonySxState, d, HARM_SX_STATE_LEN);
       harmonySxForceState = false;
       harmonySxSend(HARM_SX_STATE, d, HARM_SX_STATE_LEN);
@@ -2174,14 +2274,16 @@ void harmonyHandleSysEx(const byte* d, short len) {
 #define HARM_FLASH_BASE     0x3F000          // the last 4 KB of the storage bank, far past the projects and settings
 #define HARM_FLASH_SLOTS    16
 #define HARM_FLASH_PAGE     256
-#define HARM_SAVE_VERSION   1
+#define HARM_SAVE_VERSION   2                // version 2 added the layout, zone side and zone width
 #define HARM_SAVE_STATE     12               // one harmony: root, family, mode, 7 alterations, chord degree, chord size
-#define HARM_SAVE_SETTINGS  13
+#define HARM_SAVE_SETTINGS  16
 #define HARM_SAVE_PAYLOAD   (HARM_SAVE_STATE + 1 + HARM_MEMORIES * HARM_SAVE_STATE + HARM_SAVE_SETTINGS)
+#define HARM_SAVE_PAYLOAD_1 (HARM_SAVE_PAYLOAD - 3)
 #define HARM_SAVE_HEADER    10               // magic, sequence, version, length
 #define HARM_SAVE_RECORD    (HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD + 4)
 #define HARM_SAVE_CHECK_MS  500
 #define HARM_SAVE_QUIET_MS  3000
+#define HARM_SAVE_PATTERN_MS 20000          // a playing pattern holds a save back this long at most
 
 byte harmonySaved[HARM_SAVE_PAYLOAD];        // what the newest saved record holds
 byte harmonySavePending[HARM_SAVE_PAYLOAD];  // the payload last seen, to tell when changes have settled
@@ -2235,10 +2337,13 @@ void harmonySaveBuild(byte* d) {
   d[i++] = harmonyHints ? 1 : 0;
   d[i++] = harmonyPattern;
   d[i++] = harmonyPatClockSource;
+  d[i++] = harmonyLayout;
+  d[i++] = harmonySideRight ? 1 : 0;
+  d[i++] = harmonyWidth;
 }
 
-// every value in range, so a damaged or foreign record is never applied
-boolean harmonySavePayloadValid(const byte* d) {
+// every value in range, so a damaged or foreign record is never applied; len tells the version apart
+boolean harmonySavePayloadValid(const byte* d, byte len) {
   if (!harmonyStateValid(d)) return false;
   byte i = HARM_SAVE_STATE + 1;
   for (byte m = 0; m < HARM_MEMORIES; ++m) {
@@ -2249,6 +2354,7 @@ boolean harmonySavePayloadValid(const byte* d) {
   if (t[0] > 1 || t[1] > 1 || t[2] > 1 || t[3] > 1 || t[4] > 3 || t[5] > 2 || t[6] >= HARM_STYLES) return false;
   if (t[7] > HARM_TEMPLATES || t[9] >= HARM_LIGHTS_COUNT || t[10] > 1 || t[11] >= HARM_PAT_COUNT || t[12] > 1) return false;
   if (t[7] > 0 && (HARM_TPL_STYLE[t[7] - 1] != t[6] || t[8] >= HARM_TPL_LEN[t[7] - 1])) return false;
+  if (len >= HARM_SAVE_PAYLOAD && (t[13] > HARM_LAYOUT_SNAP || t[14] > 1 || t[15] < 4 || t[15] > 6)) return false;
   return true;
 }
 
@@ -2263,7 +2369,7 @@ void harmonyGetState(const byte* d, byte* root, byte* family, byte* mode, signed
   *chordSize = d[11];
 }
 
-void harmonySaveApply(const byte* d) {
+void harmonySaveApply(const byte* d, byte len) {
   harmonyGetState(d, &harmonyCur.root, &harmonyCur.family, &harmonyCur.mode, harmonyCur.alter, &harmonyCur.chordDeg, &harmonyCur.chordSize);
   byte i = HARM_SAVE_STATE;
   byte used = d[i++];
@@ -2288,16 +2394,22 @@ void harmonySaveApply(const byte* d) {
   harmonyHints = d[i++];
   harmonyPattern = d[i++];
   harmonyPatClockSource = d[i++];
+  if (len >= HARM_SAVE_PAYLOAD) {
+    harmonyLayout = d[i++];
+    harmonySideRight = d[i++];
+    harmonyWidth = d[i++];
+  }
 }
 
 // a record's sequence number when it checks out, or 0
 uint32_t harmonyRecordSeq(const byte* r) {
   if (r[0] != 'H' || r[1] != 'B' || r[2] != 'S' || r[3] != '1') return 0;
-  if (r[8] != HARM_SAVE_VERSION || r[9] != HARM_SAVE_PAYLOAD) return 0;
+  if (!(r[8] == 1 && r[9] == HARM_SAVE_PAYLOAD_1) && !(r[8] == HARM_SAVE_VERSION && r[9] == HARM_SAVE_PAYLOAD)) return 0;
+  byte len = r[9];
   uint32_t crc;
-  memcpy(&crc, &r[HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD], 4);
-  if (crc != crc_byte_array((uint8_t*)r, HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD)) return 0;
-  if (!harmonySavePayloadValid(&r[HARM_SAVE_HEADER])) return 0;
+  memcpy(&crc, &r[HARM_SAVE_HEADER + len], 4);
+  if (crc != crc_byte_array((uint8_t*)r, HARM_SAVE_HEADER + len)) return 0;
+  if (!harmonySavePayloadValid(&r[HARM_SAVE_HEADER], len)) return 0;
   uint32_t seq;
   memcpy(&seq, &r[4], 4);
   return seq;
@@ -2325,7 +2437,8 @@ signed char harmonyNewestSlot(uint32_t* seq) {
 void harmonyLoadSaved() {
   harmonySaveSlot = harmonyNewestSlot(&harmonySaveSeq);
   if (harmonySaveSlot >= 0) {
-    harmonySaveApply(harmonySlotRecord(harmonySaveSlot) + HARM_SAVE_HEADER);
+    const byte* r = harmonySlotRecord(harmonySaveSlot);
+    harmonySaveApply(r + HARM_SAVE_HEADER, r[9]);
   }
 }
 
@@ -2373,24 +2486,41 @@ void harmonySaveService() {
     return;
   }
   if (memcmp(d, harmonySaved, HARM_SAVE_PAYLOAD) == 0) return;
-  if (calcTimeDelta(now, harmonySaveChangedAt) < HARM_SAVE_QUIET_MS) return;
-  if (cellsTouched > 0 || harmonyPatActive) return;
+  unsigned long quiet = calcTimeDelta(now, harmonySaveChangedAt);
+  if (quiet < HARM_SAVE_QUIET_MS || cellsTouched > 0) return;
+  if (harmonyPatActive && quiet < HARM_SAVE_PATTERN_MS) return;   // a latched pattern can play for a long time
   harmonyWriteRecord(d);
 }
 
-// for the flash helper: the newest saved record, false when there is none
-boolean harmonySavedRecord(byte* r) {
-  if (harmonySaveSlot < 0) return false;
-  memcpy(r, harmonySlotRecord(harmonySaveSlot), HARM_SAVE_RECORD);
-  return true;
+// save any change right away; called when OS Update is turned on, since the flash helper's backup starts by
+// restarting the LinnStrument, which would lose anything not yet saved
+void harmonySaveNow() {
+  if (!harmonyReady) return;
+  byte d[HARM_SAVE_PAYLOAD];
+  harmonySaveBuild(d);
+  if (memcmp(d, harmonySaved, HARM_SAVE_PAYLOAD) != 0) {
+    harmonyWriteRecord(d);
+  }
+  memcpy(harmonySavePending, d, HARM_SAVE_PAYLOAD);
 }
 
-// for the flash helper: a record from a backup becomes the newest saved one, and takes effect
+// for the flash helper: the newest saved record and its length, 0 when there is none
+byte harmonySavedRecord(byte* r) {
+  if (harmonySaveSlot < 0) return 0;
+  const byte* src = harmonySlotRecord(harmonySaveSlot);
+  byte len = HARM_SAVE_HEADER + src[9] + 4;
+  memcpy(r, src, len);
+  return len;
+}
+
+// for the flash helper: a record from a backup takes effect and is saved as the newest, in the current format
 boolean harmonyRestoreRecord(const byte* r, int32_t len) {
-  if (len != HARM_SAVE_RECORD || harmonyRecordSeq(r) == 0) return false;
+  if (len < HARM_SAVE_HEADER + 4 || len != HARM_SAVE_HEADER + r[9] + 4 || harmonyRecordSeq(r) == 0) return false;
+  harmonySaveApply(r + HARM_SAVE_HEADER, r[9]);
+  byte d[HARM_SAVE_PAYLOAD];
+  harmonySaveBuild(d);
   harmonySaveSlot = harmonyNewestSlot(&harmonySaveSeq);
-  harmonyWriteRecord(r + HARM_SAVE_HEADER);
-  harmonySaveApply(r + HARM_SAVE_HEADER);
+  harmonyWriteRecord(d);
   harmonySaveSync();
   harmonyRecompute();
   return true;

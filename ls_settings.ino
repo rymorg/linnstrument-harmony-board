@@ -3161,6 +3161,7 @@ void handleGlobalSettingRelease() {
         }
 
         if (ensureCellBeforeHoldWait(resetColor, resetDisplay)) {
+          if (!Device.serialMode) harmonySaveNow();      // before a flash helper backup can restart the LinnStrument
           switchSerialMode(!Device.serialMode);
           storeSettings();
         }
