@@ -969,8 +969,9 @@ void paintOSVersionDisplay() {
 void paintOSVersionBuildDisplay() {
   clearDisplay();
 
+  // in this firmware, the second version screen shows the Harmony Board version instead of the stock build
   byte color = Split[LEFT].colorAccent;
-  smallfont_draw_string(0, 0, OSVersionBuild, color);
+  smallfont_draw_string(0, 0, HarmonyVersionShort, color);
 }
 
 // paint the current preset number for a particular side, in large block characters

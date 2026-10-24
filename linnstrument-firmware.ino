@@ -47,6 +47,8 @@ For any questions about this, contact Roger Linn Design at support@rogerlinndesi
 
 const char* OSVersion = "234";
 const char* OSVersionBuild = ".074";
+const char* HarmonyVersion = "0.1.0";               // the Harmony Board version; releases are tagged v<HarmonyVersion>
+const char* HarmonyVersionShort = "H0.1";           // as shown on the OS version screen
 
 // SPI addresses
 #define SPI_LEDS    10               // Arduino pin for LED control over SPI

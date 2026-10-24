@@ -2494,6 +2494,7 @@ function octaveInfo(c, r) {
 function harmonyPageInfo(c, r) {
   const top = 7 - r;
   if (c === 1 && r === 7) return L('LED', 'LED check');
+  if (c === 1 && r === 0) return L('RST', 'Reset the harmony, memories and Harmony page settings to defaults: tap, then tap again within 3 seconds');
   if (c === 7 && top < 2) return L(['ON', 'OFF'][top], top ? 'Harmony mode off: the stock layout' : 'Harmony mode on');
   if (c === 9 && top < 2) return L(['COMP', 'PERF'][top], top ? 'Perform mode: left-hand chords' : 'Compose mode: harmony controls');
   if (c === 3 && top < 2) return L(['LEFT', 'RIGHT'][top], `Harmony zone on the ${['left', 'right'][top]} edge`);
@@ -2558,6 +2559,7 @@ function mirrorMidi(bytes) {
     if (body[4] === SX_STATE) applyFwState(data);
     else if (body[4] === SX_MEMORIES) applyFwMemories(data);
     else if (body[4] === 0x03) applyFwFrame(data);
+    else if (body[4] === 0x04) { MIRROR.version = String.fromCharCode(...data); connState.textContent = `Mirroring the LinnStrument (Harmony Board ${MIRROR.version}). The board shows what the instrument shows; change things on the instrument.`; }
     return;
   }
   const type = st & 0xF0, ch = (st & 0x0F) + 1;

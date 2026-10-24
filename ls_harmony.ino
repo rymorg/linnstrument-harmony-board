@@ -160,6 +160,8 @@ byte harmonyChordLastZ = 255;
 #define HARM_PAT_COUNT      4
 #define HARM_PAGE_PATTERN   25
 #define HARM_PAGE_LEDTEST   1                // top pad of column 1 on the Harmony page opens the LED check
+#define HARM_PAGE_RESET     1                // bottom pad of column 1: tap twice to reset the harmony to defaults
+#define HARM_RESET_ARM_MS   3000
 #define HARM_PAT_VOICES     16
 #define HARM_PAT_FREE       0
 #define HARM_PAT_WAITING    1                // a strum note waiting for its moment
@@ -281,6 +283,7 @@ byte harmonyPadNotes[MAXCOLS][MAXROWS];      // the note each playing cell sits 
 byte harmonyLayout = HARM_LAYOUT_SCALE;
 boolean harmonySideRight = false;            // the harmony zone on the right edge instead of the left
 byte harmonyWidth = 6;                       // zone columns in Compose mode: 4 (no Chord or Memory), 5 (no Memory) or 6
+unsigned long harmonyResetArmedAt = 0;       // when the reset pad was tapped once, 0 when not armed
 int harmonyBendOffset[17];                   // per MIDI channel, the pitch offset of a held note after a harmony change
 
 signed char harmonyMemPressRow = -1;
@@ -369,14 +372,7 @@ void initializeHarmony() {
     }
   }
 
-  // example memories, the same ones as the mockup: D Dorian, G Mixolydian, C Lydian, A minor with a raised 7th
-  for (byte i = 0; i < HARM_MEMORIES; ++i) {
-    harmonyMemUsed[i] = false;
-  }
-  harmonyMemUsed[0] = true; harmonyMem[0] = harmonyCur;
-  harmonyMemUsed[1] = true; harmonyMem[1] = harmonyCur; harmonyMem[1].root = 7; harmonyMem[1].mode = 4; harmonyMem[1].chordDeg = 0;
-  harmonyMemUsed[2] = true; harmonyMem[2] = harmonyCur; harmonyMem[2].root = 0; harmonyMem[2].mode = 3; harmonyMem[2].chordDeg = 0;
-  harmonyMemUsed[3] = true; harmonyMem[3] = harmonyCur; harmonyMem[3].root = 9; harmonyMem[3].mode = 5; harmonyMem[3].chordDeg = 4; harmonyMem[3].alter[6] = 1;
+  harmonyDefaultMemories();
 
   for (byte ch = 0; ch <= 16; ++ch) {
     harmonyBendOffset[ch] = 0;
@@ -921,6 +917,9 @@ void paintHarmonyPage() {
   // LED check
   setLed(HARM_PAGE_LEDTEST, 7, COLOR_VIOLET, cellOn);
 
+  // reset to defaults: red, blinking once armed
+  setLed(HARM_PAGE_RESET, 0, COLOR_RED, harmonyResetArmed() ? cellFastPulse : cellOn);
+
   // harmony on, off
   setLed(HARM_PAGE_ONOFF, 7, harmonyEnabled ? COLOR_WHITE : COLOR_CYAN, cellOn);
   setLed(HARM_PAGE_ONOFF, 6, harmonyEnabled ? COLOR_CYAN : COLOR_WHITE, cellOn);
@@ -1038,6 +1037,15 @@ void harmonyPageTouch(byte col, byte row) {
   }
   else if (col == HARM_PAGE_HINTS && (row == 7 || row == 6)) {
     harmonyHints = (row == 7);
+  }
+  else if (col == HARM_PAGE_RESET && row == 0) {
+    if (harmonyResetArmed()) {
+      harmonyResetArmedAt = 0;
+      harmonyResetAll();
+    }
+    else {
+      harmonyResetArmedAt = millis() | 1;      // never 0, which means not armed
+    }
   }
   else if (col == HARM_PAGE_LEDTEST && row == 7) {
     setDisplayMode(displayHarmonyLedTest);
@@ -1422,6 +1430,11 @@ void paintHarmonyCell(byte col, byte row) {
 
 // called continuously: ends the pulse of newly brought-in notes
 void harmonyLightsService() {
+  // an armed reset pad that wasn't tapped again stops blinking
+  if (harmonyResetArmedAt && !harmonyResetArmed()) {
+    harmonyResetArmedAt = 0;
+    if (displayMode == displayHarmony) updateDisplay();
+  }
   if (!harmonyActive() || displayMode != displayNormal) return;
   if (harmonyChangedPcs && (long)(millis() - harmonyChangedUntil) >= 0) {
     harmonyChangedPcs = 0;
@@ -2102,6 +2115,7 @@ void harmonyApplyTemplate(byte t) {
 #define HARM_SX_STATE       0x01
 #define HARM_SX_MEMORIES    0x02
 #define HARM_SX_FRAME       0x03
+#define HARM_SX_VERSION_MSG 0x04             // device to app: the Harmony Board version, as ASCII
 #define HARM_SX_REQUEST     0x10
 #define HARM_SX_HEADER      5
 #define HARM_SX_STATE_LEN   37
@@ -2121,6 +2135,7 @@ unsigned long harmonySxStateAt = 0;
 unsigned long harmonySxMemAt = 0;
 byte harmonySxFrame[HARM_SX_FRAME_LEN];      // the last LED frame sent
 boolean harmonySxForceFrame = true;
+boolean harmonySxForceVersion = true;
 unsigned long harmonySxFrameAt = 0;
 
 void harmonySxBuildState(byte* d) {
@@ -2213,6 +2228,11 @@ void harmonyCompanionService() {
   if (!harmonyReady || Device.serialMode || isMidiUsingDIN() || !midiSysExIdle()) return;
 
   unsigned long now = millis();
+  if (harmonySxForceVersion) {
+    harmonySxForceVersion = false;
+    harmonySxSend(HARM_SX_VERSION_MSG, (const byte*)HarmonyVersion, strlen(HarmonyVersion));
+    return;
+  }
   if (harmonySxForceState || calcTimeDelta(now, harmonySxStateAt) >= HARM_SX_STATE_MS) {
     harmonySxStateAt = now;
     byte d[HARM_SX_STATE_LEN];
@@ -2256,6 +2276,7 @@ void harmonyHandleSysEx(const byte* d, short len) {
     harmonySxForceState = true;
     harmonySxForceMem = true;
     harmonySxForceFrame = true;
+    harmonySxForceVersion = true;
   }
 }
 
@@ -2526,3 +2547,46 @@ boolean harmonyRestoreRecord(const byte* r, int32_t len) {
   return true;
 }
 
+/******************************* reset to defaults *******************************/
+
+boolean harmonyResetArmed() {
+  return harmonyResetArmedAt != 0 && calcTimeDelta(millis(), harmonyResetArmedAt) < HARM_RESET_ARM_MS;
+}
+
+// the example memories, the same ones as the mockup: D Dorian, G Mixolydian, C Lydian, A minor with a raised 7th
+void harmonyDefaultMemories() {
+  HarmonyState dorian = {2, 0, 1, {0, 0, 0, 0, 0, 0, 0}, -1, 4};
+  for (byte i = 0; i < HARM_MEMORIES; ++i) {
+    harmonyMemUsed[i] = false;
+  }
+  harmonyMemUsed[0] = true; harmonyMem[0] = dorian;
+  harmonyMemUsed[1] = true; harmonyMem[1] = dorian; harmonyMem[1].root = 7; harmonyMem[1].mode = 4; harmonyMem[1].chordDeg = 0;
+  harmonyMemUsed[2] = true; harmonyMem[2] = dorian; harmonyMem[2].root = 0; harmonyMem[2].mode = 3; harmonyMem[2].chordDeg = 0;
+  harmonyMemUsed[3] = true; harmonyMem[3] = dorian; harmonyMem[3].root = 9; harmonyMem[3].mode = 5; harmonyMem[3].chordDeg = 4; harmonyMem[3].alter[6] = 1;
+}
+
+// the reset pad: the harmony, the memories and every Harmony page setting back to how a fresh flash starts;
+// the change is saved like any other
+void harmonyResetAll() {
+  HarmonyState dorian = {2, 0, 1, {0, 0, 0, 0, 0, 0, 0}, -1, 4};
+  harmonyCur = dorian;
+  harmonyDefaultMemories();
+  harmonyEnabled = true;
+  harmonyPerform = false;
+  harmonyLatch = true;
+  harmonyKeepAlter = false;
+  harmonyRowIdx = 1;
+  harmonyRetune = HARM_RETUNE_MORPH;
+  harmonyStyle = HARM_STYLE_POP;
+  harmonyTemplate = -1;
+  harmonyTplIdx = 0;
+  harmonyLights = HARM_LIGHTS_GUIDE;
+  harmonyHints = true;
+  harmonySetPattern(HARM_PAT_SUSTAIN);
+  harmonyPatClockSource = HARM_CLOCK_HOST;
+  harmonyLayout = HARM_LAYOUT_SCALE;
+  harmonySideRight = false;
+  harmonyWidth = 6;
+  Global.splitActive = false;
+  harmonyLayoutChanged();
+}
