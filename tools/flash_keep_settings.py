@@ -59,6 +59,8 @@ SEND_SETTINGS = b"s"
 RESTORE_SETTINGS = b"r"
 SEND_PROJECTS = b"p"
 RESTORE_PROJECT = b"q"
+SEND_HARMONY = b"x"                  # Harmony Board firmware only: its saved harmony block
+RESTORE_HARMONY = b"y"
 CRC_CHECK = b"c"                     # asks for the CRC of the batch just sent
 CRC_WRONG = b"w"                     # the batch gets sent again
 CRC_OK = b"o"
@@ -72,9 +74,11 @@ PORT_ERRORS = (serial.SerialException, termios.error, OSError)
 
 BACKUP_DIR = os.path.expanduser("~/linnstrument-backups")
 BACKUP_MAGIC = b"LSBACKUP"
-BACKUP_FORMAT = 1
-# magic, format, settings version, project count, settings size, project size, CRC-32 of the payload
-BACKUP_HEADER = struct.Struct("<8sHBBIII")
+BACKUP_FORMAT = 2
+# magic, format, settings version, project count, settings size, project size, CRC-32 of the payload (format 1)
+BACKUP_HEADER_1 = struct.Struct("<8sHBBIII")
+# format 2 adds the size of the Harmony Board block, stored after the projects
+BACKUP_HEADER = struct.Struct("<8sHBBIIII")
 
 BOSSAC_GLOB = "~/Library/Arduino15/packages/arduino/tools/bossac/*/bossac"
 
@@ -88,6 +92,10 @@ class LinnStrumentError(Exception):
 
 class NoAnswer(LinnStrumentError):
     """The firmware didn't answer the countdown: it isn't in serial mode, or isn't running."""
+
+
+class NotSupported(NoAnswer):
+    """The firmware doesn't know the command, so there's no point retrying it."""
 
 
 # ------------------------------------------------------------------------------------------------
@@ -271,6 +279,34 @@ class Connection:
         self._send(data)
         self._expect(ACK, "end of project")
 
+    def read_harmony(self):
+        """The Harmony Board's saved block (ls_serial.ino), b"" when nothing is saved, None when the firmware
+        doesn't know the command."""
+        self.handshake()
+        self._write(SEND_HARMONY)
+        try:
+            self._expect(ACK, "acknowledgement", timeout=1.0)
+        except LinnStrumentError:
+            return None
+        (size,) = struct.unpack("<i", self._read(4, "harmony size"))
+        if not 0 <= size <= 4096:
+            raise LinnStrumentError("implausible harmony size %d" % size)
+        data = self._receive(size) if size else b""
+        self._expect(ACK, "end of harmony")
+        return data
+
+    def write_harmony(self, data):
+        self.handshake()
+        self._write(RESTORE_HARMONY)
+        try:
+            self._expect(ACK, "acknowledgement", timeout=1.0)
+        except LinnStrumentError:
+            raise NotSupported("this firmware doesn't take Harmony Board data")
+        self._write(struct.pack("<i", len(data)))
+        self._expect(ACK, "acknowledgement of the harmony size")
+        self._send(data)
+        self._expect(ACK, "confirmation", timeout=5)
+
     def write_settings(self, data):
         self.handshake()
         self._write(RESTORE_SETTINGS)
@@ -320,10 +356,11 @@ class Progress:
 class Backup:
     """The settings blob exactly as the firmware sends it (a struct Configuration), plus projects."""
 
-    def __init__(self, settings, project_size=0, projects=()):
+    def __init__(self, settings, project_size=0, projects=(), harmony=b""):
         self.settings = settings
         self.project_size = project_size
         self.projects = list(projects)
+        self.harmony = harmony or b""
 
     @property
     def version(self):
@@ -332,13 +369,15 @@ class Backup:
     def describe(self):
         text = "%d bytes of settings (format version %d)" % (len(self.settings), self.version)
         if self.projects:
-            text += " and %d sequencer projects" % len(self.projects)
+            text += ", %d sequencer projects" % len(self.projects)
+        if self.harmony:
+            text += ", and the Harmony Board's harmony, memories and page settings"
         return text
 
     def save(self, path):
-        payload = self.settings + b"".join(self.projects)
+        payload = self.settings + b"".join(self.projects) + self.harmony
         header = BACKUP_HEADER.pack(BACKUP_MAGIC, BACKUP_FORMAT, self.version, len(self.projects),
-                                    len(self.settings), self.project_size, zlib.crc32(payload))
+                                    len(self.settings), self.project_size, len(self.harmony), zlib.crc32(payload))
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         tmp = path + ".part"
         with open(tmp, "wb") as f:
@@ -354,18 +393,24 @@ class Backup:
             if not data or not 1 <= data[0] <= 64 or len(data) > 64 * 1024:
                 raise LinnStrumentError("%s is neither a backup from this script nor a raw settings blob" % path)
             return cls(data)
-        if len(data) < BACKUP_HEADER.size:
+        if len(data) < BACKUP_HEADER_1.size:
             raise LinnStrumentError("%s is truncated" % path)
-        magic, fmt, _, count, settings_size, project_size, crc = BACKUP_HEADER.unpack_from(data)
-        payload = data[BACKUP_HEADER.size:]
-        if fmt != BACKUP_FORMAT:
-            raise LinnStrumentError("%s uses backup format %d, this script reads format %d" % (path, fmt, BACKUP_FORMAT))
-        if len(payload) != settings_size + count * project_size or zlib.crc32(payload) != crc:
+        (fmt,) = struct.unpack_from("<H", data, 8)
+        if fmt == 1:
+            magic, fmt, _, count, settings_size, project_size, crc = BACKUP_HEADER_1.unpack_from(data)
+            harmony_size, payload = 0, data[BACKUP_HEADER_1.size:]
+        elif fmt == 2 and len(data) >= BACKUP_HEADER.size:
+            magic, fmt, _, count, settings_size, project_size, harmony_size, crc = BACKUP_HEADER.unpack_from(data)
+            payload = data[BACKUP_HEADER.size:]
+        else:
+            raise LinnStrumentError("%s uses backup format %d, this script reads formats 1 and %d" % (path, fmt, BACKUP_FORMAT))
+        projects_end = settings_size + count * project_size
+        if len(payload) != projects_end + harmony_size or zlib.crc32(payload) != crc:
             raise LinnStrumentError("%s is damaged (size or checksum mismatch)" % path)
         settings = payload[:settings_size]
         projects = [payload[settings_size + i * project_size:settings_size + (i + 1) * project_size]
                     for i in range(count)]
-        return cls(settings, project_size, projects)
+        return cls(settings, project_size, projects, payload[projects_end:])
 
 
 def default_backup_path():
@@ -536,7 +581,15 @@ def backup_device(port, skip_projects):
                 project_size, projects = with_retries(conn.read_projects, conn)
             except LinnStrumentError as e:
                 print("    Warning: couldn't read the sequencer projects (%s); continuing with settings only." % e)
-    return Backup(settings, project_size, projects)
+        harmony = b""
+        try:
+            harmony = conn.read_harmony()
+            if harmony is None:
+                harmony = b""                    # firmware without Harmony Board saving
+        except (LinnStrumentError,) + PORT_ERRORS as e:
+            print("    Warning: couldn't read the Harmony Board data (%s); continuing without it." % e)
+            harmony = b""
+    return Backup(settings, project_size, projects, harmony)
 
 
 def restore_device(conn, backup, skip_projects):
@@ -553,6 +606,12 @@ def restore_device(conn, backup, skip_projects):
                 progress.finish()
             except LinnStrumentError as e:
                 print("\n    Warning: couldn't restore the sequencer projects (%s); restoring settings anyway." % e)
+    if backup.harmony:
+        try:
+            with_retries(lambda: conn.write_harmony(backup.harmony), conn)
+            print("    Restored the Harmony Board's harmony, memories and page settings.")
+        except (LinnStrumentError,) + PORT_ERRORS as e:
+            print("    Warning: couldn't restore the Harmony Board data (%s); restoring settings anyway." % e)
     # this has to come last: once the settings are in, the firmware leaves serial mode
     with_retries(lambda: conn.write_settings(backup.settings), conn)
 

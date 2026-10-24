@@ -148,6 +148,7 @@ inline void performContinuousTasks(unsigned long nowMicros) {
   harmonyPatternService(nowMicros);
   harmonyLightsService();
   harmonyCompanionService();
+  harmonySaveService();
 
   if (Device.serialMode) {
     if (!continuousSerialIO) {

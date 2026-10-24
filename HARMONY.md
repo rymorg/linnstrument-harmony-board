@@ -12,8 +12,9 @@ What's in this build
 - **Scale-aware slides.** Sliding sideways glides through the row's notes and lands on scale tones at pad centers.
 - **Held notes.** Notes you hold while changing the harmony glide to the same scale degree in the new harmony, using per-note pitch bend (Morph). The Harmony page can switch this to Hold, so held notes keep their pitch, or Retrigger, so they restart on their new notes.
 - **Memories.** Store and recall harmonies on the Memory column, and step through them with any switch assigned to PREV or NEXT.
+- **Saved across power-off.** The harmony, the 8 memories, Compose or Perform, Latch and every Harmony page setting come back when you plug the LinnStrument in again. See Saving below.
 
-Not in this build yet: layout options, and saving the harmony, memories and page settings across power cycles. The mockup marks which of its settings the firmware has.
+Not in this build yet: layout options. The mockup marks which of its settings the firmware has.
 
 Control buttons
 ---------------
@@ -188,6 +189,15 @@ They're bright for a natural next move from the current chord and dim otherwise,
 
 In Perform mode, chord pads are blue, Smart pads lime, and the sounding chord white. On the thumb strip, V/x is orange, Borrow pink, sus4 and add9 yellow, Latch green while it's on, and an armed modifier white. The Split button is cyan in Compose mode, magenta in Perform mode and white while the Harmony page is open.
 
+Saving
+------
+
+The harmony, the memories and the Harmony page settings are saved on their own, a few seconds after you stop changing them, and only while no pad is touched and no chord pattern is playing (writing to flash pauses the LinnStrument for a few milliseconds). Nothing is saved if nothing changed.
+
+They're kept apart from the factory settings, so those keep their size and stay compatible with the official Updater. Each save goes to the next of 16 flash pages, with a sequence number and a checksum, and at power-up the LinnStrument loads the newest page that checks out. If the power goes off in the middle of a save, the previous save is still there, and spreading saves over 16 pages makes the flash last 16 times longer.
+
+Flashing erases everything, saved harmony included, so the flash helper backs it up and restores it along with the settings. A LinnStrument that's never saved anything, or a fresh flash restored from a backup without it, starts with D Dorian and the four example memories.
+
 Build
 -----
 
@@ -234,7 +244,7 @@ Resetting the LinnStrument into its bootloader erases its whole flash, settings 
    tools/.venv/bin/python tools/flash_keep_settings.py build/linnstrument-firmware.ino.bin
    ```
 
-   It saves a backup in `~/linnstrument-backups/`, asks before erasing, flashes and verifies, then restores the backup. Leave the LinnStrument alone until it says Done.
+   It saves a backup in `~/linnstrument-backups/` (settings, calibration, sequencer projects, and the Harmony Board's saved harmony and memories), asks before erasing, flashes and verifies, then restores the backup. Leave the LinnStrument alone until it says Done.
 5. The LinnStrument comes back in MIDI mode with its settings. If the backup had no calibration in it, it opens the calibration screen instead: follow the lights, sliding a finger along each lit row, then along each lit column. Finishing calibration also saves the restored settings.
 
 If a run stops partway, the backup is still on disk; `--restore FILE` sends it back, with or without a `.bin` to flash first. Opening the serial port restarts the LinnStrument, and its USB sometimes drops out for a second or two while it does; the helper waits that out.
@@ -282,5 +292,4 @@ Known limits
 - Chords share channel 16, so a sustained chord re-strikes on a harmony change instead of gliding.
 - On the Host clock, if the DAW stops sending clock without a Stop message, patterns stop too, and their notes end after half a second. Memories don't store the pattern yet.
 - Low-row functions are off in Harmony mode, and splits are unavailable.
-- Harmony, the Harmony page settings, Compose or Perform, Latch and memories reset at power-off.
 - Everything above has been tested on a LinnStrument 200. The LinnStrument 128 hasn't been tested. See [HARMONY-STATUS.md](HARMONY-STATUS.md) for what's done and what's left.

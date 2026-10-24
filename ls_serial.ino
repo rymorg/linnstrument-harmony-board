@@ -36,7 +36,9 @@ enum linnCommands {
   SendProjects = 'p',
   RestoreProject = 'q',
   RestoreSettings = 'r',
-  SendSettings = 's'
+  SendSettings = 's',
+  SendHarmony = 'x',                    // the Harmony Board's saved block, for the flash helper
+  RestoreHarmony = 'y'
 };
 
 byte codePos = 0;
@@ -112,6 +114,18 @@ void handleSerialIO() {
       case RestoreProject:
       {
         serialRestoreProject();
+        break;
+      }
+
+      case SendHarmony:
+      {
+        serialSendHarmony();
+        break;
+      }
+
+      case RestoreHarmony:
+      {
+        serialRestoreHarmony();
         break;
       }
 
@@ -483,3 +497,74 @@ void serialRestoreProject() {
   Serial.write(ackCode);
   delayUsec(500000);
 }
+
+// the Harmony Board's saved block (ls_harmony.ino), sent like the settings: its size, then CRC-checked batches;
+// a size of 0 means nothing is saved
+void serialSendHarmony() {
+  Serial.write(ackCode);
+
+  byte record[HARM_SAVE_RECORD];
+  int32_t size = harmonySavedRecord(record) ? HARM_SAVE_RECORD : 0;
+  Serial.write((byte*)&size, sizeof(int32_t));
+
+  const uint8_t batchsize = 96;
+  byte* src = record;
+  lastSerialMoment = millis();
+  while (size > 0) {
+    int actual = min(size, batchsize);
+    Serial.write(src, actual);
+
+    if (!waitForSerialCheck()) return;
+
+    int crc = negotiateOutgoingCRC(src, actual);
+    if (crc == -1)      return;
+    else if (crc == 0)  continue;
+
+    size -= actual;
+    src += actual;
+  }
+
+  Serial.write(ackCode);
+}
+
+void serialRestoreHarmony() {
+  Serial.write(ackCode);
+
+  lastSerialMoment = millis();
+  byte buff1[sizeof(int32_t)];
+  for (byte i = 0; i < sizeof(int32_t); ++i) {
+    if (!serialWaitForMaximumTwoSeconds()) return;
+    buff1[i] = Serial.read();
+    lastSerialMoment = millis();
+  }
+  int32_t size;
+  memcpy(&size, buff1, sizeof(int32_t));
+  if (size <= 0 || size > HARM_SAVE_RECORD) return;
+
+  Serial.write(ackCode);
+
+  byte record[HARM_SAVE_RECORD];
+  const uint8_t batchsize = 96;
+  byte buff2[batchsize];
+  int32_t received = 0;
+  lastSerialMoment = millis();
+  while (received < size) {
+    int actual = min(size - received, batchsize);
+    for (byte k = 0; k < actual; ++k) {
+      if (!serialWaitForMaximumTwoSeconds()) return;
+      buff2[k] = Serial.read();
+      lastSerialMoment = millis();
+    }
+
+    int crc = negotiateIncomingCRC(buff2, actual);
+    if (crc == -1)      return;
+    else if (crc == 0)  continue;
+
+    memcpy(&record[received], buff2, actual);
+    received += actual;
+  }
+
+  harmonyRestoreRecord(record, size);
+  Serial.write(ackCode);
+}
+

@@ -24,6 +24,7 @@ Done
 | `6b7d194` | Lights (Guide, Chord, Degrees, Notes) and hints | Yes |
 | `f1feb74` | Eight styles and 21 progression templates; same-note lights fixed for the harmony layout; melody-fit chord coloring removed | Yes: playing is visually clean |
 | the commit after `cde6ccf` | Companion app phase 1: the firmware sends its harmony state and memories as SysEx, and `companion/index.html` mirrors the board | Yes: mirrors the LinnStrument in Chrome |
+| (after `b93f8c6`) | Saving across power-off: the harmony, memories and Harmony page settings in 16 rotating, checksummed flash pages, saved once changes settle; the flash helper backs them up and restores them | Yes: everything came back after unplugging |
 
 Lessons from hardware testing, worth keeping in mind:
 
@@ -42,7 +43,7 @@ In the order I'd suggest:
    - Phase 2, control: change the harmony and Harmony page settings from the app, push and pull memory banks, and save song setups (memories, style, template, pattern) as files on the computer. The firmware needs SET commands in `harmonyHandleSysEx`; it stays the source of truth and reports the result back.
    - Phase 3: progression templates written in the app and sent to the firmware.
    - Phase 4, optional: wrap the app in Electron, for a desktop app without browser permission prompts.
-2. **Save settings across power-off.** Right now the harmony, the 8 memories, and the Harmony page settings (Compose/Perform, Latch, style, template, lights, hints, rows apart, held notes, pattern, clock) reset when the LinnStrument is unplugged. They should be stored with the factory settings, in a way the flash helper's backup and restore still handle: today the helper checks that the backup's settings size matches the new firmware's. While doing this, let memories also store the pattern and style, as the mockup's do.
+2. **Memories that store the pattern and style**, as the mockup's do. Saving across power-off is done; this needs the saved format's version to go up, with old saves converted.
 3. **Layout options**, the last Harmony page column (column 19): Scale steps (today's only layout), Chromatic with scale lights, and Chromatic with snap to scale. The mockup also has zone side (left or right) and zone width (4, 5 or 6 columns).
 4. **Open checks:**
    - Does the melody MPE track also sound the channel 16 chords in Ableton (test step 17 in HARMONY.md)? Not reported yet.

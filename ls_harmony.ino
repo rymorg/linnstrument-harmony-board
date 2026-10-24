@@ -346,10 +346,13 @@ void initializeHarmony() {
     harmonyBendOffset[ch] = 0;
   }
 
+  harmonyLoadSaved();
+
   if (harmonyEnabled) {
     Global.splitActive = false;
   }
   harmonyRecompute();
+  harmonySaveSync();
   harmonyReady = true;
 }
 
@@ -2154,5 +2157,242 @@ void harmonyHandleSysEx(const byte* d, short len) {
     harmonySxForceMem = true;
     harmonySxForceFrame = true;
   }
+}
+
+/******************************* saving across power-off *******************************/
+
+// The harmony, the memories and the Harmony page settings live in their own block, outside the factory
+// settings, so the factory settings keep their size and layout. The block rotates through 16 flash pages
+// at the end of the storage bank: each save goes to the next page with a higher sequence number, and
+// loading picks the newest page that checks out, so a save cut short by a power loss leaves the previous
+// one in place, and the wear is spread over 16 pages. Saves wait until nothing has changed for a few
+// seconds, no pad is touched and no pattern is playing, since writing flash pauses the LinnStrument for
+// a few milliseconds.
+//
+// Each page holds a record: "HBS1", a 4-byte sequence number, the format version, the payload length,
+// the payload, and a CRC-32 of everything before it.
+#define HARM_FLASH_BASE     0x3F000          // the last 4 KB of the storage bank, far past the projects and settings
+#define HARM_FLASH_SLOTS    16
+#define HARM_FLASH_PAGE     256
+#define HARM_SAVE_VERSION   1
+#define HARM_SAVE_STATE     12               // one harmony: root, family, mode, 7 alterations, chord degree, chord size
+#define HARM_SAVE_SETTINGS  13
+#define HARM_SAVE_PAYLOAD   (HARM_SAVE_STATE + 1 + HARM_MEMORIES * HARM_SAVE_STATE + HARM_SAVE_SETTINGS)
+#define HARM_SAVE_HEADER    10               // magic, sequence, version, length
+#define HARM_SAVE_RECORD    (HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD + 4)
+#define HARM_SAVE_CHECK_MS  500
+#define HARM_SAVE_QUIET_MS  3000
+
+byte harmonySaved[HARM_SAVE_PAYLOAD];        // what the newest saved record holds
+byte harmonySavePending[HARM_SAVE_PAYLOAD];  // the payload last seen, to tell when changes have settled
+uint32_t harmonySaveSeq = 0;                 // the newest saved record's sequence number
+signed char harmonySaveSlot = -1;            // and its page, -1 when nothing is saved
+unsigned long harmonySaveCheckAt = 0;
+unsigned long harmonySaveChangedAt = 0;
+
+void harmonyPutState(byte* d, byte root, byte family, byte mode, const signed char* alter, signed char chordDeg, byte chordSize) {
+  d[0] = root;
+  d[1] = family;
+  d[2] = mode;
+  for (byte k = 0; k < 7; ++k) {
+    d[3 + k] = alter[k] + 2;
+  }
+  d[10] = chordDeg + 1;
+  d[11] = chordSize;
+}
+
+boolean harmonyStateValid(const byte* d) {
+  if (d[0] > 11 || d[1] >= HARM_FAMILIES || d[2] > 6 || d[10] > 7 || d[11] < 3 || d[11] > 5) return false;
+  for (byte k = 0; k < 7; ++k) {
+    if (d[3 + k] > 4) return false;
+  }
+  return true;
+}
+
+void harmonySaveBuild(byte* d) {
+  harmonyPutState(d, harmonyCur.root, harmonyCur.family, harmonyCur.mode, harmonyCur.alter, harmonyCur.chordDeg, harmonyCur.chordSize);
+  byte i = HARM_SAVE_STATE;
+  byte used = 0;
+  for (byte m = 0; m < HARM_MEMORIES; ++m) {
+    if (harmonyMemUsed[m]) used |= 1 << m;
+  }
+  d[i++] = used;
+  for (byte m = 0; m < HARM_MEMORIES; ++m) {
+    HarmonyState& s = harmonyMem[m];
+    harmonyPutState(&d[i], s.root, s.family, s.mode, s.alter, s.chordDeg, s.chordSize);
+    i += HARM_SAVE_STATE;
+  }
+  d[i++] = harmonyEnabled ? 1 : 0;
+  d[i++] = harmonyPerform ? 1 : 0;
+  d[i++] = harmonyLatch ? 1 : 0;
+  d[i++] = harmonyKeepAlter ? 1 : 0;
+  d[i++] = harmonyRowIdx;
+  d[i++] = harmonyRetune;
+  d[i++] = harmonyStyle;
+  d[i++] = harmonyTemplate + 1;
+  d[i++] = harmonyTplIdx;
+  d[i++] = harmonyLights;
+  d[i++] = harmonyHints ? 1 : 0;
+  d[i++] = harmonyPattern;
+  d[i++] = harmonyPatClockSource;
+}
+
+// every value in range, so a damaged or foreign record is never applied
+boolean harmonySavePayloadValid(const byte* d) {
+  if (!harmonyStateValid(d)) return false;
+  byte i = HARM_SAVE_STATE + 1;
+  for (byte m = 0; m < HARM_MEMORIES; ++m) {
+    if ((d[HARM_SAVE_STATE] >> m & 1) && !harmonyStateValid(&d[i])) return false;
+    i += HARM_SAVE_STATE;
+  }
+  const byte* t = &d[i];
+  if (t[0] > 1 || t[1] > 1 || t[2] > 1 || t[3] > 1 || t[4] > 3 || t[5] > 2 || t[6] >= HARM_STYLES) return false;
+  if (t[7] > HARM_TEMPLATES || t[9] >= HARM_LIGHTS_COUNT || t[10] > 1 || t[11] >= HARM_PAT_COUNT || t[12] > 1) return false;
+  if (t[7] > 0 && (HARM_TPL_STYLE[t[7] - 1] != t[6] || t[8] >= HARM_TPL_LEN[t[7] - 1])) return false;
+  return true;
+}
+
+void harmonyGetState(const byte* d, byte* root, byte* family, byte* mode, signed char* alter, signed char* chordDeg, byte* chordSize) {
+  *root = d[0];
+  *family = d[1];
+  *mode = d[2];
+  for (byte k = 0; k < 7; ++k) {
+    alter[k] = d[3 + k] - 2;
+  }
+  *chordDeg = d[10] - 1;
+  *chordSize = d[11];
+}
+
+void harmonySaveApply(const byte* d) {
+  harmonyGetState(d, &harmonyCur.root, &harmonyCur.family, &harmonyCur.mode, harmonyCur.alter, &harmonyCur.chordDeg, &harmonyCur.chordSize);
+  byte i = HARM_SAVE_STATE;
+  byte used = d[i++];
+  for (byte m = 0; m < HARM_MEMORIES; ++m) {
+    harmonyMemUsed[m] = (used >> m) & 1;
+    if (harmonyMemUsed[m]) {
+      HarmonyState& s = harmonyMem[m];
+      harmonyGetState(&d[i], &s.root, &s.family, &s.mode, s.alter, &s.chordDeg, &s.chordSize);
+    }
+    i += HARM_SAVE_STATE;
+  }
+  harmonyEnabled = d[i++];
+  harmonyPerform = d[i++];
+  harmonyLatch = d[i++];
+  harmonyKeepAlter = d[i++];
+  harmonyRowIdx = d[i++];
+  harmonyRetune = d[i++];
+  harmonyStyle = d[i++];
+  harmonyTemplate = (signed char)d[i++] - 1;
+  harmonyTplIdx = d[i++];
+  harmonyLights = d[i++];
+  harmonyHints = d[i++];
+  harmonyPattern = d[i++];
+  harmonyPatClockSource = d[i++];
+}
+
+// a record's sequence number when it checks out, or 0
+uint32_t harmonyRecordSeq(const byte* r) {
+  if (r[0] != 'H' || r[1] != 'B' || r[2] != 'S' || r[3] != '1') return 0;
+  if (r[8] != HARM_SAVE_VERSION || r[9] != HARM_SAVE_PAYLOAD) return 0;
+  uint32_t crc;
+  memcpy(&crc, &r[HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD], 4);
+  if (crc != crc_byte_array((uint8_t*)r, HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD)) return 0;
+  if (!harmonySavePayloadValid(&r[HARM_SAVE_HEADER])) return 0;
+  uint32_t seq;
+  memcpy(&seq, &r[4], 4);
+  return seq;
+}
+
+const byte* harmonySlotRecord(byte slot) {
+  return dueFlashStorage.readAddress(HARM_FLASH_BASE + slot * HARM_FLASH_PAGE);
+}
+
+// the newest record that checks out
+signed char harmonyNewestSlot(uint32_t* seq) {
+  signed char best = -1;
+  *seq = 0;
+  for (byte slot = 0; slot < HARM_FLASH_SLOTS; ++slot) {
+    uint32_t s = harmonyRecordSeq(harmonySlotRecord(slot));
+    if (s > *seq) {
+      *seq = s;
+      best = slot;
+    }
+  }
+  return best;
+}
+
+// at power-up: the newest saved record, if there is one
+void harmonyLoadSaved() {
+  harmonySaveSlot = harmonyNewestSlot(&harmonySaveSeq);
+  if (harmonySaveSlot >= 0) {
+    harmonySaveApply(harmonySlotRecord(harmonySaveSlot) + HARM_SAVE_HEADER);
+  }
+}
+
+// what's in memory now counts as saved, until it changes
+void harmonySaveSync() {
+  harmonySaveBuild(harmonySaved);
+  memcpy(harmonySavePending, harmonySaved, HARM_SAVE_PAYLOAD);
+}
+
+// write a record to the next page, with a sequence number above every other
+void harmonyWriteRecord(const byte* payload) {
+  byte r[HARM_SAVE_RECORD];
+  uint32_t seq = harmonySaveSeq + 1;
+  r[0] = 'H'; r[1] = 'B'; r[2] = 'S'; r[3] = '1';
+  memcpy(&r[4], &seq, 4);
+  r[8] = HARM_SAVE_VERSION;
+  r[9] = HARM_SAVE_PAYLOAD;
+  memcpy(&r[HARM_SAVE_HEADER], payload, HARM_SAVE_PAYLOAD);
+  uint32_t crc = crc_byte_array(r, HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD);
+  memcpy(&r[HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD], &crc, 4);
+
+  byte slot = (harmonySaveSlot + 1) % HARM_FLASH_SLOTS;
+  dueFlashStorage.write(HARM_FLASH_BASE + slot * HARM_FLASH_PAGE, r, HARM_SAVE_RECORD);
+  if (harmonyRecordSeq(harmonySlotRecord(slot)) == seq) {
+    harmonySaveSlot = slot;
+    harmonySaveSeq = seq;
+  }
+  // even if the page didn't read back right, don't try again until something changes: retrying every
+  // half second would wear the flash out
+  memcpy(harmonySaved, payload, HARM_SAVE_PAYLOAD);
+}
+
+// called continuously: saves once changes have settled and nothing is being played
+void harmonySaveService() {
+  if (!harmonyReady || Device.serialMode) return;
+  unsigned long now = millis();
+  if (calcTimeDelta(now, harmonySaveCheckAt) < HARM_SAVE_CHECK_MS) return;
+  harmonySaveCheckAt = now;
+
+  byte d[HARM_SAVE_PAYLOAD];
+  harmonySaveBuild(d);
+  if (memcmp(d, harmonySavePending, HARM_SAVE_PAYLOAD) != 0) {
+    memcpy(harmonySavePending, d, HARM_SAVE_PAYLOAD);
+    harmonySaveChangedAt = now;
+    return;
+  }
+  if (memcmp(d, harmonySaved, HARM_SAVE_PAYLOAD) == 0) return;
+  if (calcTimeDelta(now, harmonySaveChangedAt) < HARM_SAVE_QUIET_MS) return;
+  if (cellsTouched > 0 || harmonyPatActive) return;
+  harmonyWriteRecord(d);
+}
+
+// for the flash helper: the newest saved record, false when there is none
+boolean harmonySavedRecord(byte* r) {
+  if (harmonySaveSlot < 0) return false;
+  memcpy(r, harmonySlotRecord(harmonySaveSlot), HARM_SAVE_RECORD);
+  return true;
+}
+
+// for the flash helper: a record from a backup becomes the newest saved one, and takes effect
+boolean harmonyRestoreRecord(const byte* r, int32_t len) {
+  if (len != HARM_SAVE_RECORD || harmonyRecordSeq(r) == 0) return false;
+  harmonySaveSlot = harmonyNewestSlot(&harmonySaveSeq);
+  harmonyWriteRecord(r + HARM_SAVE_HEADER);
+  harmonySaveApply(r + HARM_SAVE_HEADER);
+  harmonySaveSync();
+  harmonyRecompute();
+  return true;
 }
 

@@ -57,8 +57,9 @@ class FakeLinnStrument(threading.Thread):
     COUNTDOWN = b"5, 4, 3, 2, 1 ...\n"
     CONTROL = b"LC\n\0"
 
-    def __init__(self, settings, projects, flash_marker=None):
+    def __init__(self, settings, projects, flash_marker=None, harmony=None):
         super().__init__(daemon=True)
+        self.harmony = harmony                   # None: firmware without the Harmony Board commands
         self.master, self.slave = pty.openpty()
         tty.setraw(self.slave)                   # keep a slave fd open so the pty never hangs up
         self.port = os.ttyname(self.slave)
@@ -115,6 +116,8 @@ class FakeLinnStrument(threading.Thread):
         self.flashed = True
         self.settings = bytearray(random_blob(len(self.settings), seed=99))
         self.projects = [bytearray(len(p)) for p in self.projects]
+        if self.harmony is not None:
+            self.harmony = b""                   # the saved harmony block is erased too
         self.serial_mode = True
         self.waiting_for_commands = False
         self.code_pos = 0
@@ -124,6 +127,8 @@ class FakeLinnStrument(threading.Thread):
         if self.waiting_for_commands:
             command = {ord("s"): self.send_settings, ord("r"): self.restore_settings,
                        ord("p"): self.send_projects, ord("q"): self.restore_project}.get(d)
+            if self.harmony is not None:
+                command = command or {ord("x"): self.send_harmony, ord("y"): self.restore_harmony}.get(d)
             if command:
                 command()
             else:
@@ -211,6 +216,21 @@ class FakeLinnStrument(threading.Thread):
         self.write(b"ACK\n")
         self.serial_mode = False                 # switchSerialMode(false)
         self.waiting_for_commands = False
+
+    def send_harmony(self):
+        self.write(b"ACK\n")
+        self.write(struct.pack("<i", len(self.harmony)))
+        if self.send_batches(bytes(self.harmony), "harmony"):
+            self.write(b"ACK\n")
+            self.events.append("sent harmony")
+
+    def restore_harmony(self):
+        self.write(b"ACK\n")
+        (size,) = struct.unpack("<i", self.read_bytes(4))
+        self.write(b"ACK\n")
+        self.harmony = self.receive_batches(size, "harmony")
+        self.write(b"ACK\n")
+        self.events.append("restored harmony")
 
     def restore_project(self):
         self.write(b"ACK\n")
@@ -376,6 +396,39 @@ exit 2
         self.assertIn("--force", out)
         self.assertFalse(os.path.exists(log))
         self.assertTrue(self.device.serial_mode)
+
+    def use_harmony_device(self, harmony):
+        self.device.stop()
+        self.device = FakeLinnStrument(self.user_settings, self.user_projects, self.marker, harmony=harmony)
+        self.device.start()
+
+    def test_flash_keeps_harmony_block(self):
+        harmony = random_blob(136, seed=7)
+        self.use_harmony_device(harmony)
+        bossac, _ = self.fake_bossac()
+        backup = os.path.join(self.tmp, "b.lsbackup")
+        code, out = self.run_script(self.fake_bin(), "--port", self.device.port, "--bossac", bossac,
+                                    "--yes", "--skip-projects", "-o", backup)
+        self.assertEqual(code, 0, out)
+        self.assertIn("restored harmony", self.device.events)
+        self.assertEqual(self.device.harmony, harmony)
+        self.assertEqual(fks.Backup.load(backup).harmony, harmony)
+
+    def test_backup_without_harmony_support(self):
+        backup = os.path.join(self.tmp, "b.lsbackup")
+        code, out = self.run_script("--backup-only", "--port", self.device.port, "--skip-projects", "-o", backup)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(fks.Backup.load(backup).harmony, b"")
+
+    def test_format_1_backup_still_loads(self):
+        settings = random_blob(SETTINGS_SIZE, seed=3)
+        payload = settings
+        path = os.path.join(self.tmp, "old.lsbackup")
+        with open(path, "wb") as f:
+            f.write(fks.BACKUP_HEADER_1.pack(fks.BACKUP_MAGIC, 1, settings[0], 0, len(settings), 0, zlib.crc32(payload)) + payload)
+        b = fks.Backup.load(path)
+        self.assertEqual(b.settings, settings)
+        self.assertEqual(b.harmony, b"")
 
     def test_elf_symbol_size(self):
         path = os.path.join(self.tmp, "x.elf")
