@@ -109,7 +109,7 @@ Footswitches
 Footswitches and the Switch 1 and 2 buttons keep their factory assignments, so a sustain pedal stays a sustain pedal. To step through memories with your feet, assign a switch to the sequencer's **PREV** or **NEXT**. While Harmony mode is on, those step to the previous or next stored memory; with it off, they do their factory sequencer job.
 
 1. Press **Global Settings**.
-2. In column 7, select the switch: the bottom pad is the left footswitch, the second is the right footswitch, then Switch 2 and Switch 1.
+2. In column 7, select the switch: the bottom pad is the left footswitch, the second is the right footswitch, then Switch 2 and Switch 1. The LinnStrument has one footswitch jack for one or two pedals; a single pedal works as the **right** footswitch (sustain at first), so that's the one to change.
 3. Hold the custom assignment pad (column 9, fourth from the bottom) until its screen opens. It shows the current choice, **TAP** (tap tempo) at first. Let go, then slide a finger slowly to the right across the pads, one pad at a time: each pad steps to the next name (TAP, LEG, LAT, PR+, PR−, PCH, PLAY, **PREV**, **NEXT**…), and sliding left steps back. Stop on **PREV** or **NEXT** and lift your finger to assign it.
 4. Repeat for the other footswitch, then press **Global Settings** to leave.
 
