@@ -127,6 +127,7 @@ boolean harmonySplitHeld = false;
 
 boolean harmonyPerform = false;
 boolean harmonyLatch = true;
+boolean harmonyChordSound = true;            // off: chord pads still light their chord and steer the hints, but send nothing
 byte harmonyModArmed = 0;                    // modifiers tapped for the next chord
 byte harmonyModHeld = 0;                     // modifiers held down right now
 byte harmonyModUsed = 0;                     // held modifiers that a chord has already used
@@ -884,7 +885,8 @@ void harmonyMemoryStep(signed char dir) {
 }
 
 // while harmony mode is active, a switch assigned to the sequencer's PREV or NEXT steps through the memories;
-// every other assignment, including the factory Arpeggiator and Sustain, works as usual
+// every other assignment, including the factory Arpeggiator and Sustain, works as usual. A step never makes a
+// sound by itself: a sounding Perform-mode chord stops instead of re-striking in the new harmony.
 boolean harmonyHandlesSwitch(byte whichSwitch, boolean pressed) {
   if (!harmonyActive()) return false;
 
@@ -892,6 +894,7 @@ boolean harmonyHandlesSwitch(byte whichSwitch, boolean pressed) {
   if (assignment != ASSIGNED_SEQUENCER_PREV && assignment != ASSIGNED_SEQUENCER_NEXT) return false;
 
   if (pressed) {
+    if (harmonyChordType >= 0) harmonyChordStop();
     harmonyMemoryStep(assignment == ASSIGNED_SEQUENCER_NEXT ? 1 : -1);
   }
   return true;
@@ -930,9 +933,11 @@ void paintHarmonyPage() {
     setLed(HARM_PAGE_ROWS, 7 - i, harmonyRowIdx == i ? COLOR_WHITE : COLOR_YELLOW, cellOn);
   }
 
-  // mode: compose, perform
+  // mode: compose, perform; below them, chord sound: on, off
   setLed(HARM_PAGE_MODE, 7, harmonyPerform ? COLOR_MAGENTA : COLOR_WHITE, cellOn);
   setLed(HARM_PAGE_MODE, 6, harmonyPerform ? COLOR_WHITE : COLOR_MAGENTA, cellOn);
+  setLed(HARM_PAGE_MODE, 4, harmonyChordSound ? COLOR_WHITE : COLOR_ORANGE, cellOn);
+  setLed(HARM_PAGE_MODE, 3, harmonyChordSound ? COLOR_ORANGE : COLOR_WHITE, cellOn);
 
   // held notes: morph, hold, retrigger
   for (byte i = 0; i < 3; ++i) {
@@ -991,6 +996,9 @@ void harmonyPageTouch(byte col, byte row) {
   }
   else if (col == HARM_PAGE_MODE && (row == 7 || row == 6)) {
     harmonySetPerform(row == 6);
+  }
+  else if (col == HARM_PAGE_MODE && (row == 4 || row == 3)) {
+    harmonySetChordSound(row == 4);
   }
   else if (col == HARM_PAGE_HELD && row >= 5) {
     harmonyRetune = 7 - row;
@@ -1706,6 +1714,13 @@ byte harmonySmartBass(byte rootPc, const signed char* rel, byte count, byte lowe
   return root ? root : 36 + rootPc;
 }
 
+// chord sound off silences a sounding chord at once; its lights stay
+void harmonySetChordSound(boolean on) {
+  if (!on) harmonyChordSendOff();
+  harmonyChordSound = on;
+  if (on && harmonyChordType >= 0) harmonyChordSendOn();
+}
+
 // the notes of a chord pad: voiced chord plus a bass note; the inversion columns put that note in the bass
 boolean harmonyBuildChord(byte type, byte deg, byte mods, byte* notes, byte& count, byte& bass, byte& rootPc, signed char* rel) {
   count = harmonyChordTones(type, deg, mods, rel, rootPc);
@@ -1731,6 +1746,7 @@ boolean harmonyBuildChord(byte type, byte deg, byte mods, byte* notes, byte& cou
 }
 
 void harmonyChordSendOn() {
+  if (!harmonyChordSound) return;
   if (harmonyPattern != HARM_PAT_SUSTAIN) {
     harmonyPatternStart();
     return;
@@ -1921,7 +1937,7 @@ void harmonyPerformTouch(byte col, byte row) {
 
 // while the chord pad stays down, its Y goes out as CC74 and its pressure as channel pressure
 void harmonyPerformHold(byte col, byte row) {
-  if (row == 0 || col != harmonyChordPadCol || row != harmonyChordPadRow) return;
+  if (row == 0 || col != harmonyChordPadCol || row != harmonyChordPadRow || !harmonyChordSound) return;
 
   byte y = sensorCell->calibratedY();
   if (y != harmonyChordLastY) {
@@ -2223,7 +2239,7 @@ void harmonyApplyTemplate(byte t) {
 #define HARM_SX_VERSION_MSG 0x04             // device to app: the Harmony Board version, as ASCII
 #define HARM_SX_REQUEST     0x10
 #define HARM_SX_HEADER      5
-#define HARM_SX_STATE_LEN   37
+#define HARM_SX_STATE_LEN   38
 #define HARM_SX_SCREEN_BYTE 33
 #define HARM_SX_MEM_SLOT    13
 #define HARM_SX_MEM_LEN     (HARM_MEMORIES * HARM_SX_MEM_SLOT)
@@ -2282,6 +2298,7 @@ void harmonySxBuildState(byte* d) {
   d[i++] = harmonyLayout;
   d[i++] = harmonySideRight ? 1 : 0;
   d[i++] = harmonyWidth;
+  d[i++] = harmonyChordSound ? 1 : 0;
 }
 
 // settings screens go out as the LEDs themselves, so the app shows exactly what the LinnStrument shows;
@@ -2400,11 +2417,12 @@ void harmonyHandleSysEx(const byte* d, short len) {
 #define HARM_FLASH_BASE     0x3F000          // the last 4 KB of the storage bank, far past the projects and settings
 #define HARM_FLASH_SLOTS    16
 #define HARM_FLASH_PAGE     256
-#define HARM_SAVE_VERSION   2                // version 2 added the layout, zone side and zone width
+#define HARM_SAVE_VERSION   3                // version 2 added the layout, zone side and zone width; 3 chord sound
 #define HARM_SAVE_STATE     12               // one harmony: root, family, mode, 7 alterations, chord degree, chord size
-#define HARM_SAVE_SETTINGS  16
+#define HARM_SAVE_SETTINGS  17
 #define HARM_SAVE_PAYLOAD   (HARM_SAVE_STATE + 1 + HARM_MEMORIES * HARM_SAVE_STATE + HARM_SAVE_SETTINGS)
-#define HARM_SAVE_PAYLOAD_1 (HARM_SAVE_PAYLOAD - 3)
+#define HARM_SAVE_PAYLOAD_2 (HARM_SAVE_PAYLOAD - 1)
+#define HARM_SAVE_PAYLOAD_1 (HARM_SAVE_PAYLOAD - 4)
 #define HARM_SAVE_HEADER    10               // magic, sequence, version, length
 #define HARM_SAVE_RECORD    (HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD + 4)
 #define HARM_SAVE_CHECK_MS  500
@@ -2466,6 +2484,7 @@ void harmonySaveBuild(byte* d) {
   d[i++] = harmonyLayout;
   d[i++] = harmonySideRight ? 1 : 0;
   d[i++] = harmonyWidth;
+  d[i++] = harmonyChordSound ? 1 : 0;
 }
 
 // every value in range, so a damaged or foreign record is never applied; len tells the version apart
@@ -2480,7 +2499,8 @@ boolean harmonySavePayloadValid(const byte* d, byte len) {
   if (t[0] > 1 || t[1] > 1 || t[2] > 1 || t[3] > 1 || t[4] > 3 || t[5] > 2 || t[6] >= HARM_STYLES) return false;
   if (t[7] > HARM_TEMPLATES || t[9] >= HARM_LIGHTS_COUNT || t[10] > 1 || t[11] >= HARM_PAT_COUNT || t[12] > 1) return false;
   if (t[7] > 0 && (HARM_TPL_STYLE[t[7] - 1] != t[6] || t[8] >= HARM_TPL_LEN[t[7] - 1])) return false;
-  if (len >= HARM_SAVE_PAYLOAD && (t[13] > HARM_LAYOUT_SNAP || t[14] > 1 || t[15] < 4 || t[15] > 6)) return false;
+  if (len >= HARM_SAVE_PAYLOAD_2 && (t[13] > HARM_LAYOUT_SNAP || t[14] > 1 || t[15] < 4 || t[15] > 6)) return false;
+  if (len >= HARM_SAVE_PAYLOAD && t[16] > 1) return false;
   return true;
 }
 
@@ -2520,17 +2540,19 @@ void harmonySaveApply(const byte* d, byte len) {
   harmonyHints = d[i++];
   harmonyPattern = d[i++];
   harmonyPatClockSource = d[i++];
-  if (len >= HARM_SAVE_PAYLOAD) {
+  if (len >= HARM_SAVE_PAYLOAD_2) {
     harmonyLayout = d[i++];
     harmonySideRight = d[i++];
     harmonyWidth = d[i++];
   }
+  harmonyChordSound = len >= HARM_SAVE_PAYLOAD ? d[i++] : true;
 }
 
 // a record's sequence number when it checks out, or 0
 uint32_t harmonyRecordSeq(const byte* r) {
   if (r[0] != 'H' || r[1] != 'B' || r[2] != 'S' || r[3] != '1') return 0;
-  if (!(r[8] == 1 && r[9] == HARM_SAVE_PAYLOAD_1) && !(r[8] == HARM_SAVE_VERSION && r[9] == HARM_SAVE_PAYLOAD)) return 0;
+  if (!(r[8] == 1 && r[9] == HARM_SAVE_PAYLOAD_1) && !(r[8] == 2 && r[9] == HARM_SAVE_PAYLOAD_2) &&
+      !(r[8] == HARM_SAVE_VERSION && r[9] == HARM_SAVE_PAYLOAD)) return 0;
   byte len = r[9];
   uint32_t crc;
   memcpy(&crc, &r[HARM_SAVE_HEADER + len], 4);
@@ -2679,6 +2701,7 @@ void harmonyResetAll() {
   harmonyEnabled = true;
   harmonyPerform = false;
   harmonyLatch = true;
+  harmonyChordSound = true;
   harmonyKeepAlter = false;
   harmonyRowIdx = 1;
   harmonyRetune = HARM_RETUNE_MORPH;

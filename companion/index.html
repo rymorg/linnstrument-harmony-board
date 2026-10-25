@@ -594,7 +594,7 @@ const S = {
   root:2, fam:0, mode:1, alter:zero7(), sticky:false,
   chordDeg:null, chordSize:4,
   layout:'scale', rowStep:1, octave:0, lights:'guide', hints:true, style:'pop', template:'off', tplIdx:0, page:false, harmony:true, foot:'memory', retune:'morph',
-  latch:false, names:true, sound:true, side:'left', width:6,
+  latch:false, names:true, sound:true, chordSound:true, side:'left', width:6,
   perf:false, pat:'sustain', chLatch:true, bpm:100,
   mem:[
     { root:2, fam:0, mode:1, alter:zero7(), chordDeg:null, chordSize:4, pat:'sustain', style:'pop' },
@@ -1044,6 +1044,7 @@ function litOf(b) {
 
 /* chord sound: a soft detuned pad and a separate bass voice */
 function cOn(midi, vel, bass, o = {}) {
+  if (!S.chordSound) return null;                // Chord sound off: chord pads only steer the lights
   const a = audio(); if (!a) return null;
   const t = a.currentTime + (o.delay || 0), fr = mtof(midi);
   const o1 = a.createOscillator(), o2 = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain();
@@ -1347,9 +1348,11 @@ function recall(i) {
   harmony(() => { Object.assign(S, JSON.parse(JSON.stringify(s))); });
   status(`Memory ${i + 1}: ${H.title}${H.chord ? ' · focus ' + H.chord.sym : ''}`);
 }
+// the footswitch (arrow keys here) never makes a sound by itself: a sounding chord stops instead of re-striking
 function stepMemory(dir) {
   const idx = nextSlot(dir);
   if (idx < 0) { status('No memories stored yet. Tap an empty Memory pad to store one.'); return; }
+  if (CH.act) chordStop();
   recall(idx);
 }
 
@@ -1574,7 +1577,14 @@ function pageCell(k, r) {
   const none = { color:null, label:'', title:'' };
   switch (k) {
     case 0: return row < 2 ? pageOpt(S.harmony === (row === 0), 'CYAN', row === 0 ? 'ON' : 'OFF', `Harmony mode ${row === 0 ? 'on' : 'off (stock layout)'}`, () => { setHarmony(row === 0); }) : none;
-    case 2: return row < 2 ? pageOpt(S.perf === (row === 1), 'MAGENTA', row === 0 ? 'COMP' : 'PERF', row === 0 ? 'Compose mode' : 'Perform mode', () => { if (S.perf !== (row === 1)) togglePerf(); else render(); }) : none;
+    case 2:
+      if (row < 2) return pageOpt(S.perf === (row === 1), 'MAGENTA', row === 0 ? 'COMP' : 'PERF', row === 0 ? 'Compose mode' : 'Perform mode', () => { if (S.perf !== (row === 1)) togglePerf(); else render(); });
+      if (row === 3 || row === 4) {
+        const on = row === 3;
+        return pageOpt(S.chordSound === on, 'ORANGE', on ? 'SOUND' : 'MUTE', on ? 'Chord sound on: chord pads play on channel 16' : 'Chord sound off: chord pads light their chord and steer the hints, but send no notes',
+          () => { S.chordSound = on; if (!on && CH.act) { stopHeld(0.08); CH.pnodes.forEach(n => cOff(n, 0.08)); CH.pnodes = []; } else if (on && CH.act && S.pat === 'sustain') startHeld(); render(); status(on ? 'Chord sound on.' : 'Chord sound off: chord pads only steer the lights.'); });
+      }
+      return none;
     case 4: { const [key, label, color] = PAGE_STYLES[row]; return pageOpt(S.style === key, color, label, `Style: ${STYLES[key].tip}`, () => { setStyle(key); render(); }); }
     case 6: {
       const ts = STYLES[S.style].templates;
@@ -2349,7 +2359,7 @@ function demoStart(id) {
   const song = SONGS[id];
   audio();
   Object.assign(S, { side:'left', width:6, layout:'scale', rowStep:1, octave:0, retune:'morph', latch:false, lights:'guide', hints:true, style:'pop', template:'off', tplIdx:0, page:false, harmony:true, sound:true,
-    fam:0, alter:zero7(), chordDeg:null, chordSize:4, perf:false, pat:'sustain', chLatch: id === 1, bpm: song.bpm });
+    fam:0, alter:zero7(), chordDeg:null, chordSize:4, perf:false, pat:'sustain', chLatch: id === 1, chordSound:true, bpm: song.bpm });
   Object.keys(CH.mods).forEach(k => { CH.mods[k] = null; });
   CH.prev = null; CH.prevBass = 0; CH.y = 0.4;
   structural();
@@ -2440,6 +2450,7 @@ function applyFwState(d) {
   MIRROR.display = d.length > 33 ? d[33] : (S.page ? 46 : 0);
   if (MIRROR.display === 0) MIRROR.frame = null;
   S.layout = ['scale', 'chromatic', 'snap'][d[34]] || 'scale'; S.side = d[35] ? 'right' : 'left'; S.width = d.length > 36 ? d[36] : 6;
+  S.chordSound = d.length > 37 ? !!d[37] : true;
   const armed = d[29];
   CH.mods = { vx: armed & 1 ? 'fw' : null, brw: armed & 2 ? 'fw' : null, sus: armed & 4 ? 'fw' : null, add9: armed & 8 ? 'fw' : null };
   recompute(); layoutCols();
@@ -2543,6 +2554,7 @@ function harmonyPageInfo(c, r) {
   if (c === 1 && r === 0) return L('RST', 'Reset the harmony, memories and Harmony page settings to defaults: tap, then tap again within 3 seconds');
   if (c === 7 && top < 2) return L(['ON', 'OFF'][top], top ? 'Harmony mode off: the stock layout' : 'Harmony mode on');
   if (c === 9 && top < 2) return L(['COMP', 'PERF'][top], top ? 'Perform mode: left-hand chords' : 'Compose mode: harmony controls');
+  if (c === 9 && (top === 3 || top === 4)) return L(top === 3 ? 'SOUND' : 'MUTE', top === 3 ? 'Chord sound on: chord pads play on channel 16' : 'Chord sound off: chord pads light their chord and steer the hints, but send no notes');
   if (c === 3 && top < 2) return L(['LEFT', 'RIGHT'][top], `Harmony zone on the ${['left', 'right'][top]} edge`);
   if (c === 5 && top < 3) return L(String(6 - top), ['Zone 6 columns wide: Key ♯♭, Key, Mode, Alter, Chord, Memory', 'Zone 5 columns wide: no Memory column (PREV and NEXT still step memories)', 'Zone 4 columns wide: no Chord or Memory column'][top]);
   if (c === 19 && top < 3) return L(['SCALE', 'CHROM', 'SNAP'][top], ['Layout: each column is the next scale tone', 'Layout: each column is a semitone, scale tones lit', 'Layout: chromatic, and pads outside the scale play the nearest scale tone'][top]);

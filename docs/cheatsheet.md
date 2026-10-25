@@ -52,7 +52,7 @@ The Harmony page (hold Split)
 | 3 | Zone side: Left, Right |
 | 5 | Zone width: 6, 5, 4 |
 | 7 | Harmony mode: On, Off |
-| 9 | Compose, Perform |
+| 9 | Compose, Perform · Chord sound: On, Off |
 | 11 | Style: Pop, Rock, Blues, Jazz, Soul, Cinematic, Flamenco, Free |
 | 13 | Template: Off, then the style's progressions |
 | 15 | Lights: Guide, Chord, Degrees, Notes |

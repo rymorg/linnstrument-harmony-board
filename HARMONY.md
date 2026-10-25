@@ -37,7 +37,7 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 | Column | Top pad down |
 |---|---|
 | 7 · Harmony | On, Off (stock layout) |
-| 9 · Mode | Compose, Perform |
+| 9 · Mode | Compose, Perform. Below them, Chord sound: On, Off (orange). With it off, Perform-mode chord pads still light their chord and steer the hints, but send no notes, CC74 or pressure on channel 16 |
 | 19 · Layout | Scale steps, Chromatic, Chromatic with snap (see Layouts) |
 | 21 · Rows apart | 3rd, 4th, 5th, octave (in a 7-note scale) |
 | 1 · LED check and reset | Top: the LED check. Bottom: reset the harmony, memories and every Harmony page setting to defaults: tap it (it blinks red), then tap again within 3 seconds |
@@ -92,7 +92,7 @@ Tap **Split** so it turns magenta. Columns 1–5 become a chord split for the le
 - **Smart (column 5).** It plays the chord size set in the Chord column, in the inversion and octave nearest the last chord, and walks the bass like a pianist's left hand: the root when it's a step away from the last bass note, otherwise the 3rd or 7th when one of those is (I–V–vi–IV in C gives C, G/B, Am, F/A), otherwise a leap to the root. The 5th never goes in the bass. Play a progression with Smart to hear it; a single chord on its own sounds like the other columns.
 - **Expression.** While you hold a chord pad, its Y sends CC74 and its pressure sends channel pressure, both on channel 16.
 - **Thumb strip.** Tap V/x, Borrow, sus4 or add9 to arm it for the next chord (it lights white), or hold it while you press chord pads. Tap an armed one again to disarm it.
-- **Harmony changes.** Memories and footswitches still change the harmony in Perform mode. A sounding chord follows to the same degree in the new harmony, and re-strikes if its notes changed. With Held notes on Hold, it keeps ringing until the next chord.
+- **Harmony changes.** Memories and footswitches still change the harmony in Perform mode. After a Key, Mode or Memory pad, a sounding chord follows to the same degree in the new harmony, and re-strikes if its notes changed; with Held notes on Hold, it keeps ringing until the next chord. A footswitch press is always silent: it stops the sounding chord, and the next chord pad plays in the new harmony.
 - **Patterns.** The Pattern column on the Harmony page picks how a chord plays. Sustain holds it. The others play it on a 16th-note grid, starting with a hit as you press the pad:
   - **Pulse:** the chord on every 8th note, accented on the beat, with the bass on each beat.
   - **Strum:** a down-strum on each beat and quick up-strums on the "and" of beats 2 and 4, with the bass on beats 1 and 3.
@@ -106,7 +106,7 @@ In pentatonic and symmetric scales, rows above the scale's length are dark, and 
 Footswitches
 ------------
 
-Footswitches and the Switch 1 and 2 buttons keep their factory assignments, so a sustain pedal stays a sustain pedal. To step through memories with your feet, assign a switch to the sequencer's **PREV** or **NEXT**. While Harmony mode is on, those step to the previous or next stored memory; with it off, they do their factory sequencer job.
+Footswitches and the Switch 1 and 2 buttons keep their factory assignments, so a sustain pedal stays a sustain pedal. To step through memories with your feet, assign a switch to the sequencer's **PREV** or **NEXT**. While Harmony mode is on, those step to the previous or next stored memory, without making a sound (a sounding Perform-mode chord stops); with it off, they do their factory sequencer job.
 
 1. Press **Global Settings**.
 2. In column 7, select the switch: the bottom pad is the left footswitch, the second is the right footswitch, then Switch 2 and Switch 1. The LinnStrument has one footswitch jack for one or two pedals; a single pedal works as the **right** footswitch (sustain at first), so that's the one to change.
