@@ -6,3 +6,6 @@ linnstrument-firmware.sublime-*
 stino.settings
 tools/.venv/
 companion/flash/firmware/
+.claude/worktrees/
+.claude/launch.json
+__pycache__/
