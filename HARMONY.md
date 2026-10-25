@@ -175,8 +175,8 @@ What the lights mean
 
 | Lights | What you see |
 |---|---|
-| **Guide** (default) | cyan for the chord's root, green for its other tones, azure for color tones (good to hold), and dim red for a note a half step above a chord tone (tense if held, so pass through it) |
-| Chord | only the chord's tones (cyan root, green) and altered notes (orange) |
+| **Guide** (default) | white for the key's tonic, whatever chord is lit; cyan for the chord's root, green for its other tones, blue for color tones (good to hold), and dim red for a note a half step above a chord tone (tense if held, so pass through it) |
+| Chord | the tonic (white), the chord's tones (cyan root, green) and altered notes (orange) |
 | Degrees | one hue per scale degree: red, orange, yellow, green, teal, blue, violet for 1–7, bright for chord tones and dim for the rest |
 | Notes | one hue per note name around the circle of fifths, so a C is always red; bright for chord tones, dim for the rest |
 

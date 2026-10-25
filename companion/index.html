@@ -120,7 +120,7 @@ h1{font:700 clamp(36px,5.4vw,58px)/.92 var(--f-display);letter-spacing:.005em;te
 .chip{display:flex;flex-direction:column;align-items:center;min-width:42px;padding:6px 6px 5px;border-radius:6px;background:var(--chip);border:2px solid transparent}
 .chip b{font:700 18px/1 var(--f-display)}
 .chip span{font:500 11px/1 var(--f-mono);color:var(--muted);margin-top:4px}
-.chip.root{border-color:var(--led-cyan)}
+.chip.root{border-color:var(--led-white)}
 .chip.alt{border-color:var(--led-orange)}
 .chip.out{opacity:.35}
 .chord{display:flex;flex-direction:column;gap:2px;padding-top:10px;border-top:1px solid var(--line)}
@@ -255,12 +255,13 @@ td code,p code,li code{font:500 12.5px/1.3 var(--f-mono);background:var(--chip);
   <section class="legend" aria-labelledby="h-leg">
     <h2 id="h-leg">What the lights mean</h2>
     <span class="lh">Playing surface · Guide lights</span>
+    <span class="li"><i class="sw" style="background:var(--led-white)"></i>The key's tonic, whatever chord is lit</span>
     <span class="li"><i class="sw" style="background:var(--led-cyan)"></i>Root of the lit chord</span>
     <span class="li"><i class="sw" style="background:var(--led-green)"></i>Chord tones: land here</span>
-    <span class="li"><i class="sw" style="background:var(--led-azure)"></i>Color tones (9th, 11th, 13th): good to hold</span>
+    <span class="li"><i class="sw" style="background:var(--led-blue)"></i>Color tones (9th, 11th, 13th): good to hold</span>
     <span class="li"><i class="sw lowsw" style="background:var(--led-red)"></i>Dim red: a half step above a chord tone, pass through it</span>
     <span class="li"><i class="sw" style="background:var(--led-violet)"></i>The style's flavor notes: blue notes (rock, blues), altered notes on dominants (jazz), the mode's signature note (cinematic), ♭2 (flamenco)</span>
-    <span class="li"><i class="sw" style="background:var(--led-white)"></i>Sounding note · pulsing pads are notes that just changed</span>
+    <span class="li"><i class="sw" style="background:var(--led-red)"></i>Sounding note · pulsing pads are notes that just changed</span>
     <span class="lh">Harmony zone · hints</span>
     <span class="li"><i class="sw" style="background:var(--led-azure)"></i><i class="sw" style="background:var(--led-green)"></i><i class="sw" style="background:var(--led-orange)"></i><i class="sw" style="background:var(--led-red)"></i>Chords: home, away, tension, strongest pull home. Bright is a natural next move for the style, dim is weaker, pulsing is where the style wants to go next (or a template's next chord)</span>
     <span class="li"><i class="sw" style="background:var(--led-white)"></i><i class="sw" style="background:var(--led-green)"></i><i class="sw" style="background:var(--led-yellow)"></i><i class="sw" style="background:var(--led-orange)"></i>Keys, modes and memories: same notes, then 1, 2, or 3+ notes change. A pulsing memory is the next footswitch press</span>
@@ -1756,7 +1757,7 @@ function playCell(k, r, touched) {
   if (m < 0 || m > 127) return { color:null, label:'', dead:true, title:'Outside the MIDI note range' };
   if (!S.harmony) {
     const pc = ((m % 12) + 12) % 12, white = [0,2,4,5,7,9,11].includes(pc);
-    return { color: touched ? 'WHITE' : pc === 0 ? 'CYAN' : white ? 'GREEN' : null, label: S.names ? SHARP[pc] : '', dim: !white, title: `${SHARP[pc]}${Math.floor(m / 12) - 1} (MIDI ${m}) · stock layout` };
+    return { color: touched ? 'RED' : pc === 0 ? 'CYAN' : white ? 'GREEN' : null, label: S.names ? SHARP[pc] : '', dim: !white, title: `${SHARP[pc]}${Math.floor(m / 12) - 1} (MIDI ${m}) · stock layout` };
   }
   const pc = ((m % 12) + 12) % 12, deg = H.pcToDeg[pc];
   const lit = (S.perf && CH.lit) ? CH.lit : H.lit;
@@ -1767,9 +1768,11 @@ function playCell(k, r, touched) {
     const cr = lit.pcRole[pc], inChord = cr !== undefined;
     const avoid = !inChord && (sty.avoid === 'all' ? chordPcs.some(c => (pc - c + 12) % 12 === 1) : sty.avoid === 'root' ? (pc - litRoot + 12) % 12 === 1 : false);
     const flav = !inChord && flavorPc(pc, chordPcs, litRoot);
-    role = cr === 0 ? 'chord root' : inChord ? 'chord tone' : flav ? 'flavor note for this style' : avoid ? 'passing note, tense if held' : 'color tone';
-    if (S.lights === 'guide' && S.style === 'free') color = cr === 0 ? 'CYAN' : inChord ? 'GREEN' : scaleOnly() ? null : 'BLUE';
-    else if (S.lights === 'guide') { color = cr === 0 ? 'CYAN' : inChord ? 'GREEN' : flav ? 'VIOLET' : avoid ? 'RED' : 'AZURE'; low = avoid; }
+    const tonic = pc === S.root;   // the key's home note, white whatever chord is lit
+    role = (tonic ? 'tonic · ' : '') + (cr === 0 ? 'chord root' : inChord ? 'chord tone' : flav ? 'flavor note for this style' : avoid ? 'passing note, tense if held' : 'color tone');
+    if (tonic && (S.lights === 'guide' || S.lights === 'chord')) color = 'WHITE';
+    else if (S.lights === 'guide' && S.style === 'free') color = cr === 0 ? 'CYAN' : inChord ? 'GREEN' : scaleOnly() ? null : 'BLUE';
+    else if (S.lights === 'guide') { color = cr === 0 ? 'CYAN' : inChord ? 'GREEN' : flav ? 'VIOLET' : avoid ? 'RED' : 'BLUE'; low = avoid; }
     else if (S.lights === 'degrees') { color = DEG_HUES[deg % 7]; low = !inChord; }
     else if (S.lights === 'notes') { color = FIFTHS_COLOR[pc]; low = !inChord; }
     else {
@@ -1780,7 +1783,7 @@ function playCell(k, r, touched) {
   }
   if (deg === undefined && S.lights === 'guide' && flavorPc(pc, chordPcs, litRoot)) { color = 'VIOLET'; low = true; role = 'flavor note outside the scale'; }
   const pulse = deg !== undefined && changed.pcs.has(pc) && performance.now() < changed.until;
-  if (touched) { color = 'WHITE'; low = false; }
+  if (touched) { color = 'RED'; low = false; }   // the LinnStrument's played color; white is the tonic
   const snd = soundingNote(k, r);
   let title = `${H.noteName(m)} (MIDI ${m})`;
   title += deg !== undefined ? ` · degree ${degLabel(deg, H.iv[deg], H.hepta)} · ${role}` : ` · not in scale${role ? ' · ' + role : ''}`;

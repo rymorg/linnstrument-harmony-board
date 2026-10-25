@@ -69,10 +69,11 @@ Lights
 
 | Playing surface (Guide) | Harmony zone (hints on) |
 |---|---|
-| **Cyan**: the chord's root | Key, Mode, Memory pads: **white** same notes, **green** 1 note changes, **yellow** 2, **orange** 3 or more |
-| **Green**: other chord tones | Chord pads: **azure** home, **green** away, **orange** tension, **red** strongest pull home |
-| **Azure**: color tones, good to hold | Bright: a natural next move. Dim: a weaker one. Blinking: where the style (or template) wants to go next |
-| **Dim red**: a half step above a chord tone, pass through it | A blinking Memory pad is the next one a NEXT footswitch recalls |
+| **White**: the key's tonic, whatever chord is lit | Key, Mode, Memory pads: **white** same notes, **green** 1 note changes, **yellow** 2, **orange** 3 or more |
+| **Cyan**: the chord's root | Chord pads: **azure** home, **green** away, **orange** tension, **red** strongest pull home |
+| **Green**: other chord tones | Bright: a natural next move. Dim: a weaker one. Blinking: where the style (or template) wants to go next |
+| **Blue**: color tones, good to hold | A blinking Memory pad is the next one a NEXT footswitch recalls |
+| **Dim red**: a half step above a chord tone, pass through it | |
 | **Violet**: the style's flavor notes | |
 
 Footswitches

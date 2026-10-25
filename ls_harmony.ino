@@ -251,7 +251,7 @@ signed char harmonyTemplate = -1;            // the template in use, -1 when off
 byte harmonyTplIdx = 0;                      // the template's next step
 
 // lights and hints
-#define HARM_LIGHTS_GUIDE   0                // chord root, chord tones, color tones, and notes to pass through
+#define HARM_LIGHTS_GUIDE   0                // tonic, chord root, chord tones, color tones, and notes to pass through
 #define HARM_LIGHTS_CHORD   1                // chord tones and altered notes only
 #define HARM_LIGHTS_DEGREES 2                // one hue per scale degree
 #define HARM_LIGHTS_NOTES   3                // one hue per note name, around the circle of fifths
@@ -1439,9 +1439,11 @@ byte harmonyPlayColor(byte col, byte row) {
 
   signed char role = harmonyLitRole[pc];
   boolean inChord = (role >= 0);
+  boolean tonic = (pc == harmonyCur.root);    // the key's home note, white whatever chord is lit
   byte light;
   switch (harmonyLights) {
     case HARM_LIGHTS_GUIDE: {
+      if (tonic) { light = COLOR_WHITE; break; }
       if (role == 0) { light = COLOR_CYAN; break; }
       if (inChord) { light = COLOR_GREEN; break; }
       if (harmonyStyle == HARM_STYLE_FREE) { light = COLOR_OFF; break; }
@@ -1450,7 +1452,7 @@ byte harmonyPlayColor(byte col, byte row) {
       byte below = (pc + 11) % 12;
       boolean avoid = HARM_STYLE_AVOID[harmonyStyle] == HARM_AVOID_ALL ? harmonyLitRole[below] >= 0
                     : HARM_STYLE_AVOID[harmonyStyle] == HARM_AVOID_ROOT ? harmonyLitRole[below] == 0 : false;
-      light = avoid ? HARM_LIGHT(COLOR_RED, cellDimHalf) : COLOR_AZURE;
+      light = avoid ? HARM_LIGHT(COLOR_RED, cellDimHalf) : COLOR_BLUE;   // blue, not azure, so it can't pass for the cyan root
       break;
     }
     case HARM_LIGHTS_DEGREES:
@@ -1462,7 +1464,8 @@ byte harmonyPlayColor(byte col, byte row) {
     default: {
       // in the scale layout every pad is a scale tone, so only the lit chord's tones and altered notes light up
       boolean altered = (harmonyLen == 7 && harmonyCur.alter[deg] != 0);
-      if (role == 0) light = COLOR_CYAN;
+      if (tonic) light = COLOR_WHITE;
+      else if (role == 0) light = COLOR_CYAN;
       else if (inChord || altered) light = altered ? COLOR_ORANGE : COLOR_GREEN;
       else light = COLOR_OFF;
     }
