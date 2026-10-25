@@ -5,15 +5,37 @@ All notable changes to the Harmony Board. Versions before 1.0 are experimental: 
 
 ## Unreleased
 
+### Changed
+
+- Guide lights: the key's tonic is white whatever chord is lit, and color tones are blue instead of azure, which was too close to the cyan chord root to tell apart at a glance. Chord lights show the tonic white too. The companion shows touched notes red, the LinnStrument's played color, instead of white.
+- Perform mode, column 4 is now the **color** column: each style plays the chord it's known for instead of always a 7th (Pop add9, Rock power chords, Blues 9ths, Jazz 9ths and 13ths, Soul minor 11ths and 9ths, Cinematic open 5th and 9th, Flamenco 7♭9 on I, Free the plain 7th). V/x there still plays a dominant 7th.
+- Perform mode, Smart (column 5) walks the bass: the root when it's a step from the last bass note, otherwise the 3rd or 7th when one of those is, otherwise a leap to the root (I–V–vi–IV in C: C, G/B, Am, F/A). Before, Smart's bass was always the root, so on a single chord it sounded the same as the other columns.
+- sus4 leaves chords without a 3rd (power chords, open 5ths) unchanged.
+- Fixed: after each message to the companion app, the LinnStrument also sent stale bytes left over from earlier messages, which made the app flicker between old states and briefly held up notes queued behind them.
+- A footswitch on PREV or NEXT never makes a sound by itself: it stops a sounding Perform-mode chord instead of re-striking it in the new harmony.
+
 ### Added
 
-- Browser flasher at https://rymorg.github.io/linnstrument-harmony-board/flash/: installs and updates from Chrome or Edge with nothing to download. It backs up settings, calibration, sequencer projects and Harmony Board data to the same `.lsbackup` files as the downloadable flasher, shows WAIT, writes the firmware through the SAM3X's ROM bootloader, checks every byte, and restores the backup. Recovery modes flash with a saved backup or without one (FWUP mode). Tested on a LinnStrument 200 in Chrome on macOS. The downloadable flasher stays as the fallback.
+- Chord sound On/Off on the Harmony page (column 9, below Compose and Perform): with it off, chord pads still light their chord and steer the hints, but send nothing on channel 16. Useful when a DAW or another player handles the chords.
+- The companion state message has a new field 37, chord sound.
+- Four layouts built around the hand, on the Harmony page (column 19) and in the companion app:
+  - **Thirds across:** each column is a 3rd up the scale and each row a step, so a flat hand on 3 or 4 pads plays a chord.
+  - **Fourths across:** the same with 4ths, for quartal voicings.
+  - **Tonnetz:** columns a major 3rd and rows a minor 3rd, so triads are triangles and neighboring triangles share two notes.
+  - **Chord tones:** every pad is a tone of the focused chord, or in Perform mode the chord the left hand last played; held notes move to the new chord's tones.
+
+### Breaking
+
+- The saved Harmony Board data is now format 3 (one more setting). This firmware reads formats 1 and 2, but older firmware can't read format 3, so going back to 0.1.0 loses the harmony, memories and Harmony page settings, even from a backup made with this version.
+- A save that uses one of the new layouts can't be read by firmware without them, which then starts from its defaults. Pick one of the first three layouts before going back.
 
 ## [0.1.0] - 2026-10-24
 
 The first public pre-release.
 
 ### Added
+
+- Browser flasher at https://rymorg.github.io/linnstrument-harmony-board/flash/: installs and updates from Chrome or Edge with nothing to download. It backs up settings, calibration, sequencer projects and Harmony Board data to the same `.lsbackup` files as the downloadable flasher, shows WAIT, writes the firmware through the SAM3X's ROM bootloader, checks every byte, and restores the backup. Recovery modes flash with a saved backup or without one (FWUP mode). Tested on a LinnStrument 200 in Chrome on macOS. The downloadable flasher stays as the fallback.
 
 - Harmony zone: key (with REL, PAR and steps around the circle of fifths), mode across five families, per-degree alterations, chord focus, and 8 memories that footswitches assigned to PREV and NEXT step through.
 - Scale-step layout with scale-aware slides; chromatic and chromatic-with-snap layouts; rows a 3rd, 4th, 5th or octave apart.

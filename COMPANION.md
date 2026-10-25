@@ -67,16 +67,17 @@ The LinnStrument only sends these over USB, not DIN, and not in OS Update mode.
 | 23 | pattern: 0 Sustain, 1 Pulse, 2 Strum, 3 Arpeggio |
 | 24 | pattern clock: 0 Host, 1 Internal |
 | 25 | Latch on |
-| 26 | sounding left-hand chord's column plus 1 (0 is none; columns: Root, 1st, 2nd, 7th, Smart) |
+| 26 | sounding left-hand chord's column plus 1 (0 is none; columns: Root, 1st, 2nd, Color, Smart) |
 | 27 | sounding chord's degree (0–6) |
 | 28 | sounding chord's modifiers: bit 0 V/x, 1 Borrow, 2 sus4, 3 add9 |
 | 29 | modifiers armed or held right now, same bits |
 | 30 | octave transpose in octaves, plus 5 |
 | 31, 32 | which memories are stored: bits 0–6, then bit 7 |
 | 33 | the screen showing: 0 is normal play, otherwise the firmware's `DisplayMode` (1 Per-Split Settings, 2 Preset, 3 Volume, 4 Octave/Transpose, 6 and 7 Global Settings, 46 Harmony page, 47 LED check; the full list is the `DisplayMode` enum in `linnstrument-firmware.ino`) |
-| 34 | layout: 0 scale steps, 1 chromatic, 2 chromatic with snap |
+| 34 | layout: 0 scale steps, 1 chromatic, 2 chromatic with snap, 3 thirds across, 4 fourths across, 5 Tonnetz, 6 chord tones |
 | 35 | zone side: 0 left, 1 right |
 | 36 | zone width in Compose mode: 4, 5 or 6 (Perform mode always uses 6) |
+| 37 | chord sound: 1 on, 0 off (chord pads send no notes) |
 
 **Frame**: the number of columns (26 on a LinnStrument 200, column 0 being the control buttons) and rows (8), then one byte per light, row by row from the bottom row, each row from column 0. Each byte holds the color in bits 0–3 (0 off, 1 red, 2 yellow, 3 green, 4 cyan, 5 blue, 6 magenta, 8 white, 9 orange, 10 lime, 11 pink, 12 teal, 13 azure, 14 violet) and how it's lit in bits 4–6 (0 off, 1 on, 2 fast blink, 3 slow blink, 4 blink with the tempo, 5 half brightness, 6 quarter brightness). Frames aren't sent in normal play, so nothing extra goes out while you play, nor during sleep and animations.
 

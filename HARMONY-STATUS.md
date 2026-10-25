@@ -28,6 +28,7 @@ Done
 | (after `b93f8c6`) | Saving across power-off: the harmony, memories and Harmony page settings in 16 rotating, checksummed flash pages, saved once changes settle; the flash helper backs them up and restores them | Yes: everything came back after unplugging |
 | `cc5f45d` and after | Browser flasher (`companion/flash/`): backup, WAIT, 1200-baud touch, SAM-BA erase/write/verify, restore, from Chrome | Yes: a full install with settings restored, in Chrome on macOS |
 | (after `8408c2f`) | Chromatic and snap layouts, zone side (left or right) and width (4, 5 or 6), on the Harmony page and in the companion; saves now happen when OS Update is turned on, and a playing pattern delays a save by 20 seconds at most | Yes: layouts work, and harmony and memories survived a flash |
+| (after `cf866a1`) | Hand-shape layouts: Thirds across, Fourths across, Tonnetz and Chord tones, on the Harmony page and in the companion | Not yet: tried in the companion only |
 
 Lessons from hardware testing, worth keeping in mind:
 
@@ -51,7 +52,8 @@ In the order I'd suggest:
 3. **Open checks:**
    - Does the melody MPE track also sound the channel 16 chords in Ableton (test step 17 in HARMONY.md)? Not reported yet.
    - The flash helper's tests use a simulated LinnStrument that doesn't restart when the port opens. Adding that would cover the bug found on hardware.
-4. **Open design questions** from the mockup:
+4. **More hand-shape layouts,** once the first four have been played on the board: a hybrid surface (thirds across for the chord hand, scale steps for the melody), a thumb bass row under the chord shapes, a mirrored layout for the left hand, and guitar tuning for the chromatic layout.
+5. **Open design questions** from the mockup:
    - Should Memory also store the left-hand chord, so the footswitch can step through a whole progression?
    - Should the chord channel (16) and the melody's MPE member channels (2–8) be settable?
    - The firmware targets the LinnStrument 200 (25 playing columns). The LinnStrument 128 hasn't been considered or tested.

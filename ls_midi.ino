@@ -2321,9 +2321,10 @@ void handlePendingMidi(unsigned long now) {
   static byte outMsgBuffer[3];
   static byte outMsgIndex = 0;
 
-  // if there's a sysex message ready to be sent out, do that first
+  // if there's a sysex message ready to be sent out, do that first; stop when the queue runs out, since popping
+  // an empty queue would replay stale bytes from earlier messages and hold up the notes behind them
   if (!sysexOutQueue.empty()) {
-    while (Serial.availableForWrite()) {
+    while (!sysexOutQueue.empty() && Serial.availableForWrite()) {
       Serial.write(sysexOutQueue.pop());
     }
     return;

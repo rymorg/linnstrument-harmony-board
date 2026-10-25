@@ -23,12 +23,13 @@ Harmony mode turns columns 1-6 into a harmony zone and plays the remaining colum
   col 6  Memory: 8 harmony snapshots, tap empty to store, tap to recall, hold to clear
 
 Every column of the playing surface is the next note of the current scale, and rows are three scale
-steps apart. X slides interpolate through the row's notes so they land on scale tones, and notes that
+steps apart. Other layouts on the Harmony page put chords under a flat hand (columns a 3rd or 4th up the
+scale), lay out a Tonnetz, play only the current chord's tones, or go chromatic. X slides interpolate through the row's notes so they land on scale tones, and notes that
 are held while the harmony changes glide to their new degree with per-note pitch bend (MPE only).
 
 Perform mode turns columns 1-5 into left-hand chords: rows 1-7 are degrees I-VII, the columns are root
-position, 1st inversion, 2nd inversion, 7th chord and Smart (the voicing nearest the last chord), and the
-bottom row is a thumb strip with V/x, Borrow, sus4, add9 and Latch. Chords and their bass note go out on
+position, 1st inversion, 2nd inversion, the style's color chord (Pop add9, Rock power chord, Jazz 9ths and
+13ths...) and Smart (the voicing and bass note nearest the last chord), and the bottom row is a thumb strip with V/x, Borrow, sus4, add9 and Latch. Chords and their bass note go out on
 MIDI channel 16, with the chord pad's Y on CC74 and its pressure as channel pressure.
 
 Every control button keeps its factory job except Split, which becomes the Harmony button: a tap switches
@@ -49,6 +50,11 @@ valid for the stock firmware.
 #define HARM_LAYOUT_SCALE   0                // each column is the next scale tone
 #define HARM_LAYOUT_CHROM   1                // each column is a semitone; scale tones light up
 #define HARM_LAYOUT_SNAP    2                // chromatic, and pads outside the scale play the nearest scale tone
+#define HARM_LAYOUT_THIRDS  3                // each column is a 3rd up the scale, each row a step: 3-4 pads in a row are a chord
+#define HARM_LAYOUT_FOURTHS 4                // each column is a 4th up the scale, each row a step: quartal voicings in a row
+#define HARM_LAYOUT_TONNETZ 5                // columns a major 3rd, rows a minor 3rd: triads are triangles
+#define HARM_LAYOUT_CHORD   6                // every pad is a tone of the lit or sounding chord
+#define HARM_LAYOUTS        7
 #define HARM_PAGE_SIDE      3
 #define HARM_PAGE_WIDTH     5
 #define HARM_PAGE_LAYOUT    19
@@ -113,9 +119,9 @@ boolean harmonySplitHeld = false;
 #define HARM_CHORD_CHANNEL  16               // chords and their bass note go out on their own MIDI channel
 #define HARM_CHORD_SPLIT    RIGHT            // note tracking slot for chord notes, apart from the melody's
 #define HARM_CHORD_ROOT     0                // chord columns 1-5: root position, 1st inversion, 2nd inversion,
-#define HARM_CHORD_INV1     1                // 7th chord and Smart voicing
+#define HARM_CHORD_INV1     1                // the style's color chord and Smart voicing
 #define HARM_CHORD_INV2     2
-#define HARM_CHORD_SEVENTH  3
+#define HARM_CHORD_COLOR    3
 #define HARM_CHORD_SMART    4
 #define HARM_THUMB_LATCH    4                // thumb strip under the chord columns: V/x, Borrow, sus4, add9, Latch
 #define HARM_MOD_VX         1
@@ -127,6 +133,7 @@ boolean harmonySplitHeld = false;
 
 boolean harmonyPerform = false;
 boolean harmonyLatch = true;
+boolean harmonyChordSound = true;            // off: chord pads still light their chord and steer the hints, but send nothing
 byte harmonyModArmed = 0;                    // modifiers tapped for the next chord
 byte harmonyModHeld = 0;                     // modifiers held down right now
 byte harmonyModUsed = 0;                     // held modifiers that a chord has already used
@@ -148,6 +155,7 @@ byte harmonyChordSent[HARM_MAX_CHORD + 1];   // every note that went out, bass i
 byte harmonyChordSentCount = 0;
 byte harmonyChordPrev[HARM_MAX_CHORD];       // the last voicing, for Smart's voice leading
 byte harmonyChordPrevCount = 0;
+byte harmonyChordPrevBass = 0;               // the last bass note, 0 before the first chord: Smart's bass walks from it
 byte harmonyChordLastY = 255;
 byte harmonyChordLastZ = 255;
 
@@ -243,7 +251,7 @@ signed char harmonyTemplate = -1;            // the template in use, -1 when off
 byte harmonyTplIdx = 0;                      // the template's next step
 
 // lights and hints
-#define HARM_LIGHTS_GUIDE   0                // chord root, chord tones, color tones, and notes to pass through
+#define HARM_LIGHTS_GUIDE   0                // tonic, chord root, chord tones, color tones, and notes to pass through
 #define HARM_LIGHTS_CHORD   1                // chord tones and altered notes only
 #define HARM_LIGHTS_DEGREES 2                // one hue per scale degree
 #define HARM_LIGHTS_NOTES   3                // one hue per note name, around the circle of fifths
@@ -432,10 +440,38 @@ void harmonyRecompute() {
     }
   }
 
-  // the note of every playing cell
+  harmonyBuildNotes();
+}
+
+// the note of every playing cell, by the layout
+void harmonyBuildNotes() {
+  boolean hepta = (harmonyLen == 7);
   short base = 36 + harmonyCur.root - (harmonyCur.root >= 7 ? 12 : 0);
+  short colSteps = 1;
   short steps = hepta ? HARM_ROW_STEPS[harmonyRowIdx] : (harmonyLen * HARM_ROW_SEMIS[harmonyRowIdx] + 6) / 12;
+  if (harmonyLayout == HARM_LAYOUT_THIRDS) {
+    colSteps = 2;
+    steps = 1;
+  }
+  else if (harmonyLayout == HARM_LAYOUT_FOURTHS) {
+    colSteps = 3;
+    steps = 1;
+    base -= 12;                              // a row spans about eight octaves, so start it an octave lower
+  }
+
+  // the chord-tone layout: the lit chord's tones in pitch order up from the key's root, an octave lower
+  // than the scale layout since a row of chord tones covers a lot of range; common tones keep their pads
+  // when the chord changes
+  byte tones[12], toneCount = 0;
+  if (harmonyLayout == HARM_LAYOUT_CHORD) {
+    for (byte i = 0; i < 12; ++i) {
+      if (harmonyLitRole[(harmonyCur.root + i) % 12] >= 0) tones[toneCount++] = i;
+    }
+    steps = (toneCount * HARM_ROW_SEMIS[harmonyRowIdx] + 6) / 12;
+    base -= 12;
+  }
   if (steps < 1) steps = 1;
+
   for (byte col = 0; col < MAXCOLS; ++col) {
     for (byte row = 0; row < MAXROWS; ++row) {
       harmonyNotes[col][row] = HARM_NOTE_NONE;
@@ -447,9 +483,19 @@ void harmonyRecompute() {
     for (byte row = 0; row < NUMROWS; ++row) {
       short k = col - first;
       short note, sounding;
-      if (harmonyLayout == HARM_LAYOUT_SCALE) {
-        short s = k + row * steps;
+      if (harmonyLayout == HARM_LAYOUT_SCALE || harmonyLayout == HARM_LAYOUT_THIRDS || harmonyLayout == HARM_LAYOUT_FOURTHS) {
+        short s = k * colSteps + row * steps;
         note = base + 12 * (s / harmonyLen) + harmonyIv[s % harmonyLen];
+        sounding = note;
+      }
+      else if (harmonyLayout == HARM_LAYOUT_CHORD) {
+        short s = k + row * steps;
+        note = toneCount ? base + 12 * (s / toneCount) + tones[s % toneCount] : -1;
+        sounding = note;
+      }
+      else if (harmonyLayout == HARM_LAYOUT_TONNETZ) {
+        // from C2 like the chromatic layout; notes outside the scale stay dark but play
+        note = 36 + 4 * k + 3 * row;
         sounding = note;
       }
       else {
@@ -478,8 +524,8 @@ byte harmonyNoteNumber(byte col, byte row) {
 // recompute the tables, glide the held notes to the new harmony and repaint
 void harmonyChanged() {
   harmonyRecompute();
+  harmonyChordRetune();                      // first, since the chord-tone layout follows the sounding chord
   harmonyMorphHeldNotes();
-  harmonyChordRetune();
   harmonyRefreshPlayedLights();
   updateDisplay();
 }
@@ -883,7 +929,8 @@ void harmonyMemoryStep(signed char dir) {
 }
 
 // while harmony mode is active, a switch assigned to the sequencer's PREV or NEXT steps through the memories;
-// every other assignment, including the factory Arpeggiator and Sustain, works as usual
+// every other assignment, including the factory Arpeggiator and Sustain, works as usual. A step never makes a
+// sound by itself: a sounding Perform-mode chord stops instead of re-striking in the new harmony.
 boolean harmonyHandlesSwitch(byte whichSwitch, boolean pressed) {
   if (!harmonyActive()) return false;
 
@@ -891,6 +938,7 @@ boolean harmonyHandlesSwitch(byte whichSwitch, boolean pressed) {
   if (assignment != ASSIGNED_SEQUENCER_PREV && assignment != ASSIGNED_SEQUENCER_NEXT) return false;
 
   if (pressed) {
+    if (harmonyChordType >= 0) harmonyChordStop();
     harmonyMemoryStep(assignment == ASSIGNED_SEQUENCER_NEXT ? 1 : -1);
   }
   return true;
@@ -929,20 +977,26 @@ void paintHarmonyPage() {
     setLed(HARM_PAGE_ROWS, 7 - i, harmonyRowIdx == i ? COLOR_WHITE : COLOR_YELLOW, cellOn);
   }
 
-  // mode: compose, perform
+  // mode: compose, perform; below them, chord sound: on, off
   setLed(HARM_PAGE_MODE, 7, harmonyPerform ? COLOR_MAGENTA : COLOR_WHITE, cellOn);
   setLed(HARM_PAGE_MODE, 6, harmonyPerform ? COLOR_WHITE : COLOR_MAGENTA, cellOn);
+  setLed(HARM_PAGE_MODE, 4, harmonyChordSound ? COLOR_WHITE : COLOR_ORANGE, cellOn);
+  setLed(HARM_PAGE_MODE, 3, harmonyChordSound ? COLOR_ORANGE : COLOR_WHITE, cellOn);
 
   // held notes: morph, hold, retrigger
   for (byte i = 0; i < 3; ++i) {
     setLed(HARM_PAGE_HELD, 7 - i, harmonyRetune == i ? COLOR_WHITE : COLOR_PINK, cellOn);
   }
 
-  // zone side: left, right; zone width: 6, 5, 4; layout: scale steps, chromatic, chromatic with snap
+  // zone side: left, right; zone width: 6, 5, 4
   setLed(HARM_PAGE_SIDE, 7, harmonySideRight ? COLOR_CYAN : COLOR_WHITE, cellOn);
   setLed(HARM_PAGE_SIDE, 6, harmonySideRight ? COLOR_WHITE : COLOR_CYAN, cellOn);
   for (byte i = 0; i < 3; ++i) {
     setLed(HARM_PAGE_WIDTH, 7 - i, harmonyWidth == 6 - i ? COLOR_WHITE : COLOR_LIME, cellOn);
+  }
+
+  // layout: scale steps, chromatic, chromatic with snap, thirds across, fourths across, Tonnetz, chord tones
+  for (byte i = 0; i < HARM_LAYOUTS; ++i) {
     setLed(HARM_PAGE_LAYOUT, 7 - i, harmonyLayout == i ? COLOR_WHITE : COLOR_GREEN, cellOn);
   }
 
@@ -991,6 +1045,9 @@ void harmonyPageTouch(byte col, byte row) {
   else if (col == HARM_PAGE_MODE && (row == 7 || row == 6)) {
     harmonySetPerform(row == 6);
   }
+  else if (col == HARM_PAGE_MODE && (row == 4 || row == 3)) {
+    harmonySetChordSound(row == 4);
+  }
   else if (col == HARM_PAGE_HELD && row >= 5) {
     harmonyRetune = 7 - row;
   }
@@ -1009,7 +1066,7 @@ void harmonyPageTouch(byte col, byte row) {
       harmonyLayoutChanged();
     }
   }
-  else if (col == HARM_PAGE_LAYOUT && row >= 5) {
+  else if (col == HARM_PAGE_LAYOUT && row >= 8 - HARM_LAYOUTS) {
     if (harmonyLayout != 7 - row) {
       harmonyLayout = 7 - row;
       harmonyLayoutChanged();
@@ -1382,9 +1439,11 @@ byte harmonyPlayColor(byte col, byte row) {
 
   signed char role = harmonyLitRole[pc];
   boolean inChord = (role >= 0);
+  boolean tonic = (pc == harmonyCur.root);    // the key's home note, white whatever chord is lit
   byte light;
   switch (harmonyLights) {
     case HARM_LIGHTS_GUIDE: {
+      if (tonic) { light = COLOR_WHITE; break; }
       if (role == 0) { light = COLOR_CYAN; break; }
       if (inChord) { light = COLOR_GREEN; break; }
       if (harmonyStyle == HARM_STYLE_FREE) { light = COLOR_OFF; break; }
@@ -1393,7 +1452,7 @@ byte harmonyPlayColor(byte col, byte row) {
       byte below = (pc + 11) % 12;
       boolean avoid = HARM_STYLE_AVOID[harmonyStyle] == HARM_AVOID_ALL ? harmonyLitRole[below] >= 0
                     : HARM_STYLE_AVOID[harmonyStyle] == HARM_AVOID_ROOT ? harmonyLitRole[below] == 0 : false;
-      light = avoid ? HARM_LIGHT(COLOR_RED, cellDimHalf) : COLOR_AZURE;
+      light = avoid ? HARM_LIGHT(COLOR_RED, cellDimHalf) : COLOR_BLUE;   // blue, not azure, so it can't pass for the cyan root
       break;
     }
     case HARM_LIGHTS_DEGREES:
@@ -1405,7 +1464,8 @@ byte harmonyPlayColor(byte col, byte row) {
     default: {
       // in the scale layout every pad is a scale tone, so only the lit chord's tones and altered notes light up
       boolean altered = (harmonyLen == 7 && harmonyCur.alter[deg] != 0);
-      if (role == 0) light = COLOR_CYAN;
+      if (tonic) light = COLOR_WHITE;
+      else if (role == 0) light = COLOR_CYAN;
       else if (inChord || altered) light = altered ? COLOR_ORANGE : COLOR_GREEN;
       else light = COLOR_OFF;
     }
@@ -1487,12 +1547,62 @@ void harmonySortNotes(byte* a, byte n) {
   }
 }
 
+// column 4: the chord each style is known for, as scale steps above the root (2 the 3rd, 4 the 5th, 6 the 7th,
+// 8 the 9th, 10 the 11th, 12 the 13th, len the octave); returns how many
+byte harmonyColorSteps(byte deg, const byte* sc, byte len, byte* steps) {
+  short third = harmonyScaleSemis(sc, len, deg + 2) - sc[deg];
+  short seventh = harmonyScaleSemis(sc, len, deg + 6) - sc[deg];
+  byte n = 0;
+  steps[n++] = 0;
+  switch (harmonyStyle) {
+    case HARM_STYLE_POP:                     // add9: bright, without a 7th's pull
+      steps[n++] = 2; steps[n++] = 4; steps[n++] = 8;
+      break;
+    case HARM_STYLE_ROCK:                    // power chord: root, 5th and octave
+      steps[n++] = 4; steps[n++] = len;
+      break;
+    case HARM_STYLE_JAZZ:                    // 9ths; dominant chords take the 13th instead of the 5th
+      steps[n++] = 2;
+      if (third == 4 && seventh == 10) {
+        steps[n++] = 6; steps[n++] = 8; steps[n++] = 12;
+      }
+      else {
+        steps[n++] = 4; steps[n++] = 6; steps[n++] = 8;
+      }
+      break;
+    case HARM_STYLE_SOUL:                    // minor 11ths, otherwise 9ths
+      steps[n++] = 2;
+      if (third == 3) {
+        steps[n++] = 6; steps[n++] = 8; steps[n++] = 10;
+      }
+      else {
+        steps[n++] = 4; steps[n++] = 6; steps[n++] = 8;
+      }
+      break;
+    case HARM_STYLE_CINEMATIC:               // open 5th and 9th: neither major nor minor
+      steps[n++] = 4; steps[n++] = 8;
+      break;
+    case HARM_STYLE_BLUES:                   // 9ths; the style's own chord tones make I, IV and V dominant 9ths
+      steps[n++] = 2; steps[n++] = 4; steps[n++] = 6; steps[n++] = 8;
+      break;
+    case HARM_STYLE_FLAMENCO:                // a 7th, and the style's own 7(b9) on I
+      steps[n++] = 2; steps[n++] = 4; steps[n++] = 6;
+      if (deg == 0) steps[n++] = 8;
+      break;
+    default:                                 // Free: the plain 7th chord
+      steps[n++] = 2; steps[n++] = 4; steps[n++] = 6;
+      break;
+  }
+  return n;
+}
+
 // chord tones as semitones above the chord root for degree deg; returns how many, 0 when it's not possible
 byte harmonyChordTones(byte type, byte deg, byte mods, signed char* rel, byte& rootPc) {
   byte n = harmonyLen;
   if (deg >= n || deg >= 7) return 0;
 
-  byte size = type == HARM_CHORD_SEVENTH ? 4 : (type == HARM_CHORD_SMART ? harmonyCur.chordSize : 3);
+  // V/x and the tritone substitute play a dominant 7th in the color column
+  byte size = type == HARM_CHORD_COLOR ? 4 : (type == HARM_CHORD_SMART ? harmonyCur.chordSize : 3);
   byte count = 0;
   short ninth = 14;
 
@@ -1516,8 +1626,17 @@ byte harmonyChordTones(byte type, byte deg, byte mods, signed char* rel, byte& r
       len = 7;
     }
     rootPc = (harmonyCur.root + sc[deg]) % 12;
-    for (byte j = 0; j < size && count < HARM_MAX_CHORD; ++j) {
-      rel[count++] = harmonyScaleSemis(sc, len, deg + 2 * j) - sc[deg];
+    if (type == HARM_CHORD_COLOR) {
+      byte steps[HARM_MAX_CHORD];
+      size = harmonyColorSteps(deg, sc, len, steps);
+      for (byte j = 0; j < size; ++j) {
+        rel[count++] = harmonyScaleSemis(sc, len, deg + steps[j]) - sc[deg];
+      }
+    }
+    else {
+      for (byte j = 0; j < size && count < HARM_MAX_CHORD; ++j) {
+        rel[count++] = harmonyScaleSemis(sc, len, deg + 2 * j) - sc[deg];
+      }
     }
     if (len == 7) ninth = harmonyScaleSemis(sc, len, deg + 8) - sc[deg];
     if (!(mods & HARM_MOD_BRW)) {
@@ -1526,7 +1645,8 @@ byte harmonyChordTones(byte type, byte deg, byte mods, signed char* rel, byte& r
     }
   }
 
-  if ((mods & HARM_MOD_SUS) && count > 1) rel[1] = 5;
+  // sus4 replaces the 3rd; chords without one (power chords, open 5ths) stay as they are
+  if ((mods & HARM_MOD_SUS) && count > 1 && (rel[1] == 3 || rel[1] == 4)) rel[1] = 5;
   if (mods & HARM_MOD_ADD9) {
     boolean hasNinth = false;
     for (byte i = 0; i < count; ++i) {
@@ -1603,6 +1723,55 @@ void harmonySmartVoicing(byte* notes, byte n) {
   }
 }
 
+// Smart's bass walks like a pianist's left hand: the root when it's a step away from the last bass note (or
+// the same note); otherwise the 3rd or the 7th when one of those is (I-V-vi-IV in C: C, G/B, Am, F/A);
+// otherwise a leap to the root in the middle of the range, as at a V-I cadence. The 5th never goes in the
+// bass. It keeps between E1 and D3, below the chord.
+#define HARM_BASS_LOW   28
+#define HARM_BASS_HIGH  50
+#define HARM_BASS_MID   40
+
+// the note of pitch class pc in the bass range nearest target, below the chord; 0 if there's none
+byte harmonyBassNear(byte pc, short target, byte lowest) {
+  byte best = 0;
+  for (short b = HARM_BASS_LOW; b <= HARM_BASS_HIGH && b < lowest; ++b) {
+    if (b % 12 == pc && (best == 0 || abs(b - target) < abs((short)best - target))) best = b;
+  }
+  return best;
+}
+
+byte harmonySmartBass(byte rootPc, const signed char* rel, byte count, byte lowest) {
+  short prev = harmonyChordPrevBass;
+  byte root = harmonyBassNear(rootPc, prev, lowest);
+  if (root && abs(root - prev) <= 2) return root;
+
+  byte best = 0;
+  short bestDist = 3;
+  for (byte pass = 0; pass < 2; ++pass) {              // the 3rd first, then the 7th
+    for (byte i = 0; i < count; ++i) {
+      signed char r = rel[i];
+      boolean wanted = pass == 0 ? (r == 3 || r == 4) : (r == 10 || r == 11);
+      if (!wanted) continue;
+      byte b = harmonyBassNear((rootPc + r) % 12, prev, lowest);
+      if (b && abs(b - prev) < bestDist) {
+        best = b;
+        bestDist = abs(b - prev);
+      }
+    }
+  }
+  if (best) return best;
+
+  root = harmonyBassNear(rootPc, HARM_BASS_MID, lowest);
+  return root ? root : 36 + rootPc;
+}
+
+// chord sound off silences a sounding chord at once; its lights stay
+void harmonySetChordSound(boolean on) {
+  if (!on) harmonyChordSendOff();
+  harmonyChordSound = on;
+  if (on && harmonyChordType >= 0) harmonyChordSendOn();
+}
+
 // the notes of a chord pad: voiced chord plus a bass note; the inversion columns put that note in the bass
 boolean harmonyBuildChord(byte type, byte deg, byte mods, byte* notes, byte& count, byte& bass, byte& rootPc, signed char* rel) {
   count = harmonyChordTones(type, deg, mods, rel, rootPc);
@@ -1623,10 +1792,12 @@ boolean harmonyBuildChord(byte type, byte deg, byte mods, byte* notes, byte& cou
 
   byte bassPc = (type == HARM_CHORD_INV1 || type == HARM_CHORD_INV2) ? notes[0] % 12 : rootPc;
   bass = 36 + bassPc;
+  if (type == HARM_CHORD_SMART && harmonyChordPrevBass) bass = harmonySmartBass(rootPc, rel, count, notes[0]);
   return true;
 }
 
 void harmonyChordSendOn() {
+  if (!harmonyChordSound) return;
   if (harmonyPattern != HARM_PAT_SUSTAIN) {
     harmonyPatternStart();
     return;
@@ -1672,6 +1843,7 @@ void harmonyLightChord() {
     byte pc = (harmonyChordRootPc + harmonyChordRel[i] + 120) % 12;
     if (harmonyLitRole[pc] < 0) harmonyLitRole[pc] = i;
   }
+  if (harmonyLayout == HARM_LAYOUT_CHORD) harmonyBuildNotes();
 }
 
 // keep the voicing and its parts together in the chord state
@@ -1692,6 +1864,7 @@ boolean harmonyVoiceChord(byte type, byte deg, byte mods) {
     harmonyChordPrev[i] = notes[i];
   }
   harmonyChordPrevCount = count;
+  harmonyChordPrevBass = bass;
   return true;
 }
 
@@ -1721,6 +1894,11 @@ void harmonyChordPress(byte type, byte deg, byte col, byte row) {
   harmonyChordLastZ = 255;
   harmonyChordSendOn();
   harmonyLightChord();
+  if (harmonyLayout == HARM_LAYOUT_CHORD) {
+    // the melody pads now play the new chord's tones: held notes move to them
+    harmonyMorphHeldNotes();
+    harmonyRefreshPlayedLights();
+  }
   if (!(mods & (HARM_MOD_VX | HARM_MOD_BRW))) harmonyTemplateAdvance(deg);
   updateDisplay();
 }
@@ -1816,7 +1994,7 @@ void harmonyPerformTouch(byte col, byte row) {
 
 // while the chord pad stays down, its Y goes out as CC74 and its pressure as channel pressure
 void harmonyPerformHold(byte col, byte row) {
-  if (row == 0 || col != harmonyChordPadCol || row != harmonyChordPadRow) return;
+  if (row == 0 || col != harmonyChordPadCol || row != harmonyChordPadRow || !harmonyChordSound) return;
 
   byte y = sensorCell->calibratedY();
   if (y != harmonyChordLastY) {
@@ -2118,7 +2296,7 @@ void harmonyApplyTemplate(byte t) {
 #define HARM_SX_VERSION_MSG 0x04             // device to app: the Harmony Board version, as ASCII
 #define HARM_SX_REQUEST     0x10
 #define HARM_SX_HEADER      5
-#define HARM_SX_STATE_LEN   37
+#define HARM_SX_STATE_LEN   38
 #define HARM_SX_SCREEN_BYTE 33
 #define HARM_SX_MEM_SLOT    13
 #define HARM_SX_MEM_LEN     (HARM_MEMORIES * HARM_SX_MEM_SLOT)
@@ -2177,6 +2355,7 @@ void harmonySxBuildState(byte* d) {
   d[i++] = harmonyLayout;
   d[i++] = harmonySideRight ? 1 : 0;
   d[i++] = harmonyWidth;
+  d[i++] = harmonyChordSound ? 1 : 0;
 }
 
 // settings screens go out as the LEDs themselves, so the app shows exactly what the LinnStrument shows;
@@ -2295,11 +2474,12 @@ void harmonyHandleSysEx(const byte* d, short len) {
 #define HARM_FLASH_BASE     0x3F000          // the last 4 KB of the storage bank, far past the projects and settings
 #define HARM_FLASH_SLOTS    16
 #define HARM_FLASH_PAGE     256
-#define HARM_SAVE_VERSION   2                // version 2 added the layout, zone side and zone width
+#define HARM_SAVE_VERSION   3                // version 2 added the layout, zone side and zone width; 3 chord sound
 #define HARM_SAVE_STATE     12               // one harmony: root, family, mode, 7 alterations, chord degree, chord size
-#define HARM_SAVE_SETTINGS  16
+#define HARM_SAVE_SETTINGS  17
 #define HARM_SAVE_PAYLOAD   (HARM_SAVE_STATE + 1 + HARM_MEMORIES * HARM_SAVE_STATE + HARM_SAVE_SETTINGS)
-#define HARM_SAVE_PAYLOAD_1 (HARM_SAVE_PAYLOAD - 3)
+#define HARM_SAVE_PAYLOAD_2 (HARM_SAVE_PAYLOAD - 1)
+#define HARM_SAVE_PAYLOAD_1 (HARM_SAVE_PAYLOAD - 4)
 #define HARM_SAVE_HEADER    10               // magic, sequence, version, length
 #define HARM_SAVE_RECORD    (HARM_SAVE_HEADER + HARM_SAVE_PAYLOAD + 4)
 #define HARM_SAVE_CHECK_MS  500
@@ -2361,6 +2541,7 @@ void harmonySaveBuild(byte* d) {
   d[i++] = harmonyLayout;
   d[i++] = harmonySideRight ? 1 : 0;
   d[i++] = harmonyWidth;
+  d[i++] = harmonyChordSound ? 1 : 0;
 }
 
 // every value in range, so a damaged or foreign record is never applied; len tells the version apart
@@ -2375,7 +2556,8 @@ boolean harmonySavePayloadValid(const byte* d, byte len) {
   if (t[0] > 1 || t[1] > 1 || t[2] > 1 || t[3] > 1 || t[4] > 3 || t[5] > 2 || t[6] >= HARM_STYLES) return false;
   if (t[7] > HARM_TEMPLATES || t[9] >= HARM_LIGHTS_COUNT || t[10] > 1 || t[11] >= HARM_PAT_COUNT || t[12] > 1) return false;
   if (t[7] > 0 && (HARM_TPL_STYLE[t[7] - 1] != t[6] || t[8] >= HARM_TPL_LEN[t[7] - 1])) return false;
-  if (len >= HARM_SAVE_PAYLOAD && (t[13] > HARM_LAYOUT_SNAP || t[14] > 1 || t[15] < 4 || t[15] > 6)) return false;
+  if (len >= HARM_SAVE_PAYLOAD_2 && (t[13] >= HARM_LAYOUTS || t[14] > 1 || t[15] < 4 || t[15] > 6)) return false;
+  if (len >= HARM_SAVE_PAYLOAD && t[16] > 1) return false;
   return true;
 }
 
@@ -2415,17 +2597,19 @@ void harmonySaveApply(const byte* d, byte len) {
   harmonyHints = d[i++];
   harmonyPattern = d[i++];
   harmonyPatClockSource = d[i++];
-  if (len >= HARM_SAVE_PAYLOAD) {
+  if (len >= HARM_SAVE_PAYLOAD_2) {
     harmonyLayout = d[i++];
     harmonySideRight = d[i++];
     harmonyWidth = d[i++];
   }
+  harmonyChordSound = len >= HARM_SAVE_PAYLOAD ? d[i++] : true;
 }
 
 // a record's sequence number when it checks out, or 0
 uint32_t harmonyRecordSeq(const byte* r) {
   if (r[0] != 'H' || r[1] != 'B' || r[2] != 'S' || r[3] != '1') return 0;
-  if (!(r[8] == 1 && r[9] == HARM_SAVE_PAYLOAD_1) && !(r[8] == HARM_SAVE_VERSION && r[9] == HARM_SAVE_PAYLOAD)) return 0;
+  if (!(r[8] == 1 && r[9] == HARM_SAVE_PAYLOAD_1) && !(r[8] == 2 && r[9] == HARM_SAVE_PAYLOAD_2) &&
+      !(r[8] == HARM_SAVE_VERSION && r[9] == HARM_SAVE_PAYLOAD)) return 0;
   byte len = r[9];
   uint32_t crc;
   memcpy(&crc, &r[HARM_SAVE_HEADER + len], 4);
@@ -2574,6 +2758,7 @@ void harmonyResetAll() {
   harmonyEnabled = true;
   harmonyPerform = false;
   harmonyLatch = true;
+  harmonyChordSound = true;
   harmonyKeepAlter = false;
   harmonyRowIdx = 1;
   harmonyRetune = HARM_RETUNE_MORPH;

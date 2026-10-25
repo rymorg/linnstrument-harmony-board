@@ -37,8 +37,8 @@ Perform mode: left-hand chords
 | 1 | root position | **V/x**: the dominant that leads into the next chord |
 | 2 | 1st inversion | **Borrow** from parallel major/minor (Jazz: tritone sub) |
 | 3 | 2nd inversion | **sus4** |
-| 4 | 7th chord | **add9** |
-| 5 | Smart: nearest voicing | **Latch** |
+| 4 | Color: the style's chord (Pop add9, Rock power, Jazz 9/13…) | **add9** |
+| 5 | Smart: nearest voicing, walking bass | **Latch** |
 | 6 | Memory, as in Compose mode | |
 
 Chords and their bass go out on **MIDI channel 16**. Tap a modifier for the next chord, or hold it while you play chords.
@@ -52,12 +52,12 @@ The Harmony page (hold Split)
 | 3 | Zone side: Left, Right |
 | 5 | Zone width: 6, 5, 4 |
 | 7 | Harmony mode: On, Off |
-| 9 | Compose, Perform |
+| 9 | Compose, Perform · Chord sound: On, Off |
 | 11 | Style: Pop, Rock, Blues, Jazz, Soul, Cinematic, Flamenco, Free |
 | 13 | Template: Off, then the style's progressions |
 | 15 | Lights: Guide, Chord, Degrees, Notes |
 | 17 | Hints: On, Off |
-| 19 | Layout: Scale steps, Chromatic, Chromatic with snap |
+| 19 | Layout: Scale steps, Chromatic, Chromatic with snap, Thirds across, Fourths across, Tonnetz, Chord tones |
 | 21 | Rows apart: 3rd, 4th, 5th, octave |
 | 23 | Held notes: Morph, Hold, Retrigger |
 | 25 | Pattern: Sustain, Pulse, Strum, Arpeggio · bottom two pads: clock Host, Internal |
@@ -69,10 +69,11 @@ Lights
 
 | Playing surface (Guide) | Harmony zone (hints on) |
 |---|---|
-| **Cyan**: the chord's root | Key, Mode, Memory pads: **white** same notes, **green** 1 note changes, **yellow** 2, **orange** 3 or more |
-| **Green**: other chord tones | Chord pads: **azure** home, **green** away, **orange** tension, **red** strongest pull home |
-| **Azure**: color tones, good to hold | Bright: a natural next move. Dim: a weaker one. Blinking: where the style (or template) wants to go next |
-| **Dim red**: a half step above a chord tone, pass through it | A blinking Memory pad is the next one a NEXT footswitch recalls |
+| **White**: the key's tonic, whatever chord is lit | Key, Mode, Memory pads: **white** same notes, **green** 1 note changes, **yellow** 2, **orange** 3 or more |
+| **Cyan**: the chord's root | Chord pads: **azure** home, **green** away, **orange** tension, **red** strongest pull home |
+| **Green**: other chord tones | Bright: a natural next move. Dim: a weaker one. Blinking: where the style (or template) wants to go next |
+| **Blue**: color tones, good to hold | A blinking Memory pad is the next one a NEXT footswitch recalls |
+| **Dim red**: a half step above a chord tone, pass through it | |
 | **Violet**: the style's flavor notes | |
 
 Footswitches
