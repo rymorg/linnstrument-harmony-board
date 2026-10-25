@@ -17,10 +17,16 @@ All notable changes to the Harmony Board. Versions before 1.0 are experimental: 
 
 - Chord sound On/Off on the Harmony page (column 9, below Compose and Perform): with it off, chord pads still light their chord and steer the hints, but send nothing on channel 16. Useful when a DAW or another player handles the chords.
 - The companion state message has a new field 37, chord sound.
+- Four layouts built around the hand, on the Harmony page (column 19) and in the companion app:
+  - **Thirds across:** each column is a 3rd up the scale and each row a step, so a flat hand on 3 or 4 pads plays a chord.
+  - **Fourths across:** the same with 4ths, for quartal voicings.
+  - **Tonnetz:** columns a major 3rd and rows a minor 3rd, so triads are triangles and neighboring triangles share two notes.
+  - **Chord tones:** every pad is a tone of the focused chord, or in Perform mode the chord the left hand last played; held notes move to the new chord's tones.
 
 ### Breaking
 
 - The saved Harmony Board data is now format 3 (one more setting). This firmware reads formats 1 and 2, but older firmware can't read format 3, so going back to 0.1.0 loses the harmony, memories and Harmony page settings, even from a backup made with this version.
+- A save that uses one of the new layouts can't be read by firmware without them, which then starts from its defaults. Pick one of the first three layouts before going back.
 
 ## [0.1.0] - 2026-10-24
 

@@ -13,7 +13,7 @@ What's in this build
 - **Held notes.** Notes you hold while changing the harmony glide to the same scale degree in the new harmony, using per-note pitch bend (Morph). The Harmony page can switch this to Hold, so held notes keep their pitch, or Retrigger, so they restart on their new notes.
 - **Memories.** Store and recall harmonies on the Memory column, and step through them with any switch assigned to PREV or NEXT.
 - **Saved across power-off.** The harmony, the 8 memories, Compose or Perform, Latch and every Harmony page setting come back when you plug the LinnStrument in again. See Saving below.
-- **Layouts and zone placement.** Besides the scale-step layout, the playing surface can be chromatic, with scale tones lit, or chromatic with snap, where pads outside the scale play the nearest scale tone. The harmony zone can sit on either edge and be 4, 5 or 6 columns wide.
+- **Layouts and zone placement.** Besides the scale-step layout, the playing surface can be chromatic, with scale tones lit, or chromatic with snap, where pads outside the scale play the nearest scale tone. Four layouts are built around the hand: thirds across and fourths across (a flat hand on a row plays a chord), a Tonnetz, and chord tones only. The harmony zone can sit on either edge and be 4, 5 or 6 columns wide.
 
 Control buttons
 ---------------
@@ -38,8 +38,8 @@ Hold **Split** for half a second to open the page, which takes over the playing 
 |---|---|
 | 7 · Harmony | On, Off (stock layout) |
 | 9 · Mode | Compose, Perform. Below them, Chord sound: On, Off (orange). With it off, Perform-mode chord pads still light their chord and steer the hints, but send no notes, CC74 or pressure on channel 16 |
-| 19 · Layout | Scale steps, Chromatic, Chromatic with snap (see Layouts) |
-| 21 · Rows apart | 3rd, 4th, 5th, octave (in a 7-note scale) |
+| 19 · Layout | Scale steps, Chromatic, Chromatic with snap, Thirds across, Fourths across, Tonnetz, Chord tones (see Layouts) |
+| 21 · Rows apart | 3rd, 4th, 5th, octave (in a 7-note scale), for Scale steps, Chromatic, Chromatic with snap and Chord tones |
 | 1 · LED check and reset | Top: the LED check. Bottom: reset the harmony, memories and every Harmony page setting to defaults: tap it (it blinks red), then tap again within 3 seconds |
 | 3 · Zone side | Left, Right: which edge the harmony zone sits on. On the right it's mirrored, Key ♯♭ outermost, and the 5th pads point outward |
 | 5 · Zone width | 6, 5, 4 columns: 5 drops the Memory column (PREV and NEXT still step memories), 4 drops Chord too. Perform mode always uses all 6 |
@@ -71,6 +71,12 @@ Layouts
 | **Scale steps** (default) | the next note of the scale, so every pad is in the scale | a 3rd, 4th, 5th or octave in scale steps |
 | **Chromatic** | the next semitone, starting from C2 on the bottom row; scale tones light up by the Lights setting, the others stay dark but play | 4, 5, 7 or 12 semitones (the Rows apart setting) |
 | **Chromatic with snap** | the next semitone, but a pad outside the scale plays the nearest scale tone, looking down first; slides move in steps between scale tones | as Chromatic |
+| **Thirds across** | a 3rd up the scale, so 3 or 4 neighboring pads in a row are a triad or 7th chord, and skipping a pad gives an open voicing | a scale step: two neighboring rows together hold the whole scale, rising in a zigzag |
+| **Fourths across** | a 4th up the scale, so neighboring pads in a row are a quartal voicing; starts an octave lower, since a row spans about eight octaves | a scale step |
+| **Tonnetz** | a major 3rd, from C2; notes outside the scale stay dark but play | a minor 3rd: a pad, the pad to its right and the one above that is a major triad; a pad, the one above and the one to its right is a minor triad. Neighboring triangles share two notes |
+| **Chord tones** | the next tone of the lit chord (Compose) or the last chord the left hand played (Perform), counting up from the key's root, an octave below the scale layout. Every pad is a chord tone, so you can strum or arpeggiate freely; when the chord changes, notes the chords share keep their pads and held notes move to the new chord's tones | the Rows apart setting, rounded to chord tones |
+
+In Thirds across, Fourths across, Tonnetz and Chord tones, a slide from one pad to the next glides straight to that pad's note, which can be a 3rd or more away.
 
 Changing the layout, the zone side or the zone width lets go of every note and chord.
 
@@ -307,6 +313,8 @@ For Perform mode, add a second instrument track for the chords, a pad or piano s
 15. **Harmony changes:** latch a chord, then tap Memory 2 or 3. The chord re-strikes as the same degree in the new harmony. Set Held notes to Hold and it rings on instead.
 16. **Patterns:** hold Split, pick Pulse in column 25, and tap Split to close the page. Latch a chord: it pulses in time. Try Strum and Arpeggio, then turn on MIDI clock output to the LinnStrument in your DAW (in Ableton: Settings, Link/Tempo/MIDI, Sync on for the LinnStrument output) and press Play; the pattern follows the DAW's tempo. Pick Internal (bottom pad of column 25) and it goes back to the LinnStrument's own tempo while the DAW keeps playing.
 17. **Channels:** the melody track shouldn't sound the chords. If it does, it's listening on all 16 channels; let me know your DAW and setup.
+18. **Hand-shape layouts:** on the Harmony page, pick Thirds across (column 19, 4th pad down) and tap Memory 1 (D Dorian). Four neighboring pads in a row play D F A C, Dm7; the row above starts on E. Try Fourths across (D G C F in a row) and Tonnetz (a D pad, the F above it and the A to the right of that: D minor).
+19. **Chord tones:** pick Chord tones (column 19, 7th pad down). Every lit pad is a tone of the focused chord; tap Chord IV and the pads change to its tones, with shared notes staying put. In Perform mode, hold a melody pad and tap a different chord pad: the held note glides to a tone of the new chord.
 
 Known limits
 ------------

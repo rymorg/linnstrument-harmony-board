@@ -57,7 +57,7 @@ The Harmony page (hold Split)
 | 13 | Template: Off, then the style's progressions |
 | 15 | Lights: Guide, Chord, Degrees, Notes |
 | 17 | Hints: On, Off |
-| 19 | Layout: Scale steps, Chromatic, Chromatic with snap |
+| 19 | Layout: Scale steps, Chromatic, Chromatic with snap, Thirds across, Fourths across, Tonnetz, Chord tones |
 | 21 | Rows apart: 3rd, 4th, 5th, octave |
 | 23 | Held notes: Morph, Hold, Retrigger |
 | 25 | Pattern: Sustain, Pulse, Strum, Arpeggio · bottom two pads: clock Host, Internal |

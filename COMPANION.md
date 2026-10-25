@@ -74,7 +74,7 @@ The LinnStrument only sends these over USB, not DIN, and not in OS Update mode.
 | 30 | octave transpose in octaves, plus 5 |
 | 31, 32 | which memories are stored: bits 0–6, then bit 7 |
 | 33 | the screen showing: 0 is normal play, otherwise the firmware's `DisplayMode` (1 Per-Split Settings, 2 Preset, 3 Volume, 4 Octave/Transpose, 6 and 7 Global Settings, 46 Harmony page, 47 LED check; the full list is the `DisplayMode` enum in `linnstrument-firmware.ino`) |
-| 34 | layout: 0 scale steps, 1 chromatic, 2 chromatic with snap |
+| 34 | layout: 0 scale steps, 1 chromatic, 2 chromatic with snap, 3 thirds across, 4 fourths across, 5 Tonnetz, 6 chord tones |
 | 35 | zone side: 0 left, 1 right |
 | 36 | zone width in Compose mode: 4, 5 or 6 (Perform mode always uses 6) |
 | 37 | chord sound: 1 on, 0 off (chord pads send no notes) |

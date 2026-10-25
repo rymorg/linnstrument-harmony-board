@@ -23,7 +23,8 @@ Harmony mode turns columns 1-6 into a harmony zone and plays the remaining colum
   col 6  Memory: 8 harmony snapshots, tap empty to store, tap to recall, hold to clear
 
 Every column of the playing surface is the next note of the current scale, and rows are three scale
-steps apart. X slides interpolate through the row's notes so they land on scale tones, and notes that
+steps apart. Other layouts on the Harmony page put chords under a flat hand (columns a 3rd or 4th up the
+scale), lay out a Tonnetz, play only the current chord's tones, or go chromatic. X slides interpolate through the row's notes so they land on scale tones, and notes that
 are held while the harmony changes glide to their new degree with per-note pitch bend (MPE only).
 
 Perform mode turns columns 1-5 into left-hand chords: rows 1-7 are degrees I-VII, the columns are root
@@ -49,6 +50,11 @@ valid for the stock firmware.
 #define HARM_LAYOUT_SCALE   0                // each column is the next scale tone
 #define HARM_LAYOUT_CHROM   1                // each column is a semitone; scale tones light up
 #define HARM_LAYOUT_SNAP    2                // chromatic, and pads outside the scale play the nearest scale tone
+#define HARM_LAYOUT_THIRDS  3                // each column is a 3rd up the scale, each row a step: 3-4 pads in a row are a chord
+#define HARM_LAYOUT_FOURTHS 4                // each column is a 4th up the scale, each row a step: quartal voicings in a row
+#define HARM_LAYOUT_TONNETZ 5                // columns a major 3rd, rows a minor 3rd: triads are triangles
+#define HARM_LAYOUT_CHORD   6                // every pad is a tone of the lit or sounding chord
+#define HARM_LAYOUTS        7
 #define HARM_PAGE_SIDE      3
 #define HARM_PAGE_WIDTH     5
 #define HARM_PAGE_LAYOUT    19
@@ -434,10 +440,38 @@ void harmonyRecompute() {
     }
   }
 
-  // the note of every playing cell
+  harmonyBuildNotes();
+}
+
+// the note of every playing cell, by the layout
+void harmonyBuildNotes() {
+  boolean hepta = (harmonyLen == 7);
   short base = 36 + harmonyCur.root - (harmonyCur.root >= 7 ? 12 : 0);
+  short colSteps = 1;
   short steps = hepta ? HARM_ROW_STEPS[harmonyRowIdx] : (harmonyLen * HARM_ROW_SEMIS[harmonyRowIdx] + 6) / 12;
+  if (harmonyLayout == HARM_LAYOUT_THIRDS) {
+    colSteps = 2;
+    steps = 1;
+  }
+  else if (harmonyLayout == HARM_LAYOUT_FOURTHS) {
+    colSteps = 3;
+    steps = 1;
+    base -= 12;                              // a row spans about eight octaves, so start it an octave lower
+  }
+
+  // the chord-tone layout: the lit chord's tones in pitch order up from the key's root, an octave lower
+  // than the scale layout since a row of chord tones covers a lot of range; common tones keep their pads
+  // when the chord changes
+  byte tones[12], toneCount = 0;
+  if (harmonyLayout == HARM_LAYOUT_CHORD) {
+    for (byte i = 0; i < 12; ++i) {
+      if (harmonyLitRole[(harmonyCur.root + i) % 12] >= 0) tones[toneCount++] = i;
+    }
+    steps = (toneCount * HARM_ROW_SEMIS[harmonyRowIdx] + 6) / 12;
+    base -= 12;
+  }
   if (steps < 1) steps = 1;
+
   for (byte col = 0; col < MAXCOLS; ++col) {
     for (byte row = 0; row < MAXROWS; ++row) {
       harmonyNotes[col][row] = HARM_NOTE_NONE;
@@ -449,9 +483,19 @@ void harmonyRecompute() {
     for (byte row = 0; row < NUMROWS; ++row) {
       short k = col - first;
       short note, sounding;
-      if (harmonyLayout == HARM_LAYOUT_SCALE) {
-        short s = k + row * steps;
+      if (harmonyLayout == HARM_LAYOUT_SCALE || harmonyLayout == HARM_LAYOUT_THIRDS || harmonyLayout == HARM_LAYOUT_FOURTHS) {
+        short s = k * colSteps + row * steps;
         note = base + 12 * (s / harmonyLen) + harmonyIv[s % harmonyLen];
+        sounding = note;
+      }
+      else if (harmonyLayout == HARM_LAYOUT_CHORD) {
+        short s = k + row * steps;
+        note = toneCount ? base + 12 * (s / toneCount) + tones[s % toneCount] : -1;
+        sounding = note;
+      }
+      else if (harmonyLayout == HARM_LAYOUT_TONNETZ) {
+        // from C2 like the chromatic layout; notes outside the scale stay dark but play
+        note = 36 + 4 * k + 3 * row;
         sounding = note;
       }
       else {
@@ -480,8 +524,8 @@ byte harmonyNoteNumber(byte col, byte row) {
 // recompute the tables, glide the held notes to the new harmony and repaint
 void harmonyChanged() {
   harmonyRecompute();
+  harmonyChordRetune();                      // first, since the chord-tone layout follows the sounding chord
   harmonyMorphHeldNotes();
-  harmonyChordRetune();
   harmonyRefreshPlayedLights();
   updateDisplay();
 }
@@ -944,11 +988,15 @@ void paintHarmonyPage() {
     setLed(HARM_PAGE_HELD, 7 - i, harmonyRetune == i ? COLOR_WHITE : COLOR_PINK, cellOn);
   }
 
-  // zone side: left, right; zone width: 6, 5, 4; layout: scale steps, chromatic, chromatic with snap
+  // zone side: left, right; zone width: 6, 5, 4
   setLed(HARM_PAGE_SIDE, 7, harmonySideRight ? COLOR_CYAN : COLOR_WHITE, cellOn);
   setLed(HARM_PAGE_SIDE, 6, harmonySideRight ? COLOR_WHITE : COLOR_CYAN, cellOn);
   for (byte i = 0; i < 3; ++i) {
     setLed(HARM_PAGE_WIDTH, 7 - i, harmonyWidth == 6 - i ? COLOR_WHITE : COLOR_LIME, cellOn);
+  }
+
+  // layout: scale steps, chromatic, chromatic with snap, thirds across, fourths across, Tonnetz, chord tones
+  for (byte i = 0; i < HARM_LAYOUTS; ++i) {
     setLed(HARM_PAGE_LAYOUT, 7 - i, harmonyLayout == i ? COLOR_WHITE : COLOR_GREEN, cellOn);
   }
 
@@ -1018,7 +1066,7 @@ void harmonyPageTouch(byte col, byte row) {
       harmonyLayoutChanged();
     }
   }
-  else if (col == HARM_PAGE_LAYOUT && row >= 5) {
+  else if (col == HARM_PAGE_LAYOUT && row >= 8 - HARM_LAYOUTS) {
     if (harmonyLayout != 7 - row) {
       harmonyLayout = 7 - row;
       harmonyLayoutChanged();
@@ -1792,6 +1840,7 @@ void harmonyLightChord() {
     byte pc = (harmonyChordRootPc + harmonyChordRel[i] + 120) % 12;
     if (harmonyLitRole[pc] < 0) harmonyLitRole[pc] = i;
   }
+  if (harmonyLayout == HARM_LAYOUT_CHORD) harmonyBuildNotes();
 }
 
 // keep the voicing and its parts together in the chord state
@@ -1842,6 +1891,11 @@ void harmonyChordPress(byte type, byte deg, byte col, byte row) {
   harmonyChordLastZ = 255;
   harmonyChordSendOn();
   harmonyLightChord();
+  if (harmonyLayout == HARM_LAYOUT_CHORD) {
+    // the melody pads now play the new chord's tones: held notes move to them
+    harmonyMorphHeldNotes();
+    harmonyRefreshPlayedLights();
+  }
   if (!(mods & (HARM_MOD_VX | HARM_MOD_BRW))) harmonyTemplateAdvance(deg);
   updateDisplay();
 }
@@ -2499,7 +2553,7 @@ boolean harmonySavePayloadValid(const byte* d, byte len) {
   if (t[0] > 1 || t[1] > 1 || t[2] > 1 || t[3] > 1 || t[4] > 3 || t[5] > 2 || t[6] >= HARM_STYLES) return false;
   if (t[7] > HARM_TEMPLATES || t[9] >= HARM_LIGHTS_COUNT || t[10] > 1 || t[11] >= HARM_PAT_COUNT || t[12] > 1) return false;
   if (t[7] > 0 && (HARM_TPL_STYLE[t[7] - 1] != t[6] || t[8] >= HARM_TPL_LEN[t[7] - 1])) return false;
-  if (len >= HARM_SAVE_PAYLOAD_2 && (t[13] > HARM_LAYOUT_SNAP || t[14] > 1 || t[15] < 4 || t[15] > 6)) return false;
+  if (len >= HARM_SAVE_PAYLOAD_2 && (t[13] >= HARM_LAYOUTS || t[14] > 1 || t[15] < 4 || t[15] > 6)) return false;
   if (len >= HARM_SAVE_PAYLOAD && t[16] > 1) return false;
   return true;
 }
