@@ -10,6 +10,7 @@ All notable changes to the Harmony Board. Versions before 1.0 are experimental: 
 - Perform mode, column 4 is now the **color** column: each style plays the chord it's known for instead of always a 7th (Pop add9, Rock power chords, Blues 9ths, Jazz 9ths and 13ths, Soul minor 11ths and 9ths, Cinematic open 5th and 9th, Flamenco 7♭9 on I, Free the plain 7th). V/x there still plays a dominant 7th.
 - Perform mode, Smart (column 5) walks the bass: the root when it's a step from the last bass note, otherwise the 3rd or 7th when one of those is, otherwise a leap to the root (I–V–vi–IV in C: C, G/B, Am, F/A). Before, Smart's bass was always the root, so on a single chord it sounded the same as the other columns.
 - sus4 leaves chords without a 3rd (power chords, open 5ths) unchanged.
+- Fixed: after each message to the companion app, the LinnStrument also sent stale bytes left over from earlier messages, which made the app flicker between old states and briefly held up notes queued behind them.
 - A footswitch on PREV or NEXT never makes a sound by itself: it stops a sounding Perform-mode chord instead of re-striking it in the new harmony.
 
 ### Added
