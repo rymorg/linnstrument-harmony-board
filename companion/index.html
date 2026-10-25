@@ -2513,6 +2513,11 @@ function frameCell(c, r) {
   const color = FW_COLORS[v & 15] || null, disp = v >> 4;
   const info = c === 0 ? { tip: HW[r].name + (HW[r].was === 'factory' ? '' : ` (was ${HW[r].was})`) } : settingsInfo(MIRROR.display, c, r);
   const where = `${screenName(MIRROR.display)} · column ${c}, row ${r + 1}`;
+  // this app knows every Harmony page pad, so a lit one it can't name means the firmware is newer than the app
+  if (!info && c > 0 && MIRROR.display === 46 && disp && color) {
+    return { color, low: disp === 5 || disp === 6, pulse: disp >= 2 && disp <= 4, label: '?',
+             title: `This app doesn't know this pad: the LinnStrument's firmware may be newer than this copy of the app. Reload it, or use the app from the same build (${where})` };
+  }
   return { color: disp ? color : null, low: disp === 5 || disp === 6, pulse: disp >= 2 && disp <= 4, label: info ? info.label || '' : '',
            title: info ? `${info.tip} (${where})` : where };
 }
